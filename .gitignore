@@ -1,0 +1,17 @@
+# Môi trường
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Credentials nhạy cảm - KHÔNG được push lên GitHub
+credentials.json
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
