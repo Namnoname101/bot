@@ -1,0 +1,24 @@
+# fly.toml app configuration file for sober-bot (Telegram polling bot)
+app = 'sober-bot'
+primary_region = 'nrt'
+
+[build]
+
+[processes]
+  app = "python main.py"
+
+[deploy]
+  strategy = "immediate"
+
+# Không dùng http_service vì đây là polling bot
+# Tắt auto-stop để bot chạy liên tục 24/7
+[[services]]
+  auto_stop_machines = false
+  auto_start_machines = false
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1

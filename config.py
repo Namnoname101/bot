@@ -41,7 +41,7 @@ class Config:
     def get_google_credentials_info(cls) -> dict:
         """Trả về dict credentials Google. Ưu tiên env var JSON, fallback về file."""
         if cls.GOOGLE_CREDENTIALS_JSON:
-            return json.loads(cls.GOOGLE_CREDENTIALS_JSON)
+            return json.loads(cls.GOOGLE_CREDENTIALS_JSON.lstrip('\ufeff'))
         with open(cls.GOOGLE_CREDENTIALS_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
 

@@ -218,24 +218,20 @@ async def handle_add_employee_input(update: Update, context: ContextTypes.DEFAUL
 
     if result['success']:
         await status_msg.edit_text(
-            f"✅ *ĐÃ THÊM NHÂN VIÊN*\n"
-            f"👤 Nickname: {nickname}\n"
-            f"💰 Số dư ban đầu: 0 ly",
-            parse_mode='Markdown'
+            f"✅ Đã thêm *{nickname}* (số dư: 0 ly)",
+            parse_mode='Markdown',
+            reply_markup=get_admin_keyboard()
         )
     else:
         err = result.get('error', '')
         if err == 'already_exists':
-            await status_msg.edit_text(
-                f"⚠️ Nhân viên *{nickname}* đã tồn tại trong hệ thống!",
-                parse_mode='Markdown'
-            )
+            await status_msg.edit_text(f"⚠️ *{nickname}* đã tồn tại trong hệ thống!", parse_mode='Markdown')
         else:
             await status_msg.edit_text(f"❌ Lỗi: {err}")
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="✅ Xong!",
+        text="↩️",
         reply_markup=get_admin_keyboard()
     )
     return True
@@ -279,10 +275,7 @@ async def handle_edit_revenue_input(update: Update, context: ContextTypes.DEFAUL
 
     if success:
         await status_msg.edit_text(
-            f"✅ *ĐÃ CẬP NHẬT DOANH THU*\n"
-            f"📅 {session_info['date']} Ca {session_info['ca']}\n"
-            f"👥 {emps}\n"
-            f"💰 {old_str} → {new_revenue:,}đ",
+            f"✅ Đã cập nhật: {session_info['date']} Ca {session_info['ca']} — {old_str} → {new_revenue:,}đ",
             parse_mode='Markdown'
         )
     else:
@@ -290,7 +283,7 @@ async def handle_edit_revenue_input(update: Update, context: ContextTypes.DEFAUL
 
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="✅ Xong!",
+        text="↩️",
         reply_markup=get_admin_keyboard()
     )
     return True
@@ -448,8 +441,7 @@ async def _show_reward_history(query, context: ContextTypes.DEFAULT_TYPE, nickna
         f"{'─'*28}"
     ]
     for r in records:
-        rev = _fmt_revenue(r.get('revenue'))
-        lines.append(f"• {r['date']} Ca {r['ca']} — {rev}")
+        lines.append(f"• {r['date']} Ca {r['ca']}")
 
     msg = "\n".join(lines)
     if len(msg) > 3900:

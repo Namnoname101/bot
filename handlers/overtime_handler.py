@@ -38,9 +38,8 @@ async def handle_add_overtime_button(update: Update, context: ContextTypes.DEFAU
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     reply = await update.message.reply_text(
-        "⏰ **THÊM GIỜ LÀM THÊM**\n\nChọn nhân viên:",
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
+        f"⏰ Chọn nhân viên để thêm giờ OT:",
+        reply_markup=reply_markup
     )
     track_message(context, reply.message_id)
 
@@ -63,8 +62,7 @@ async def handle_overtime_employee_selected(query, context: ContextTypes.DEFAULT
     
     prompt = await context.bot.send_message(
         chat_id=query.message.chat.id,
-        text=f"⏰ Thêm giờ làm thêm cho **{nickname}**\n\n"
-             f"📝 Vui lòng nhập số giờ (VD: 1, 2, 1.5):",
+        text=f"⏰ Nhập số giờ OT cho *{nickname}* (VD: 2, 1.5):",
         parse_mode='Markdown'
     )
     track_message(context, prompt.message_id)
@@ -105,28 +103,22 @@ async def handle_overtime_hours_input(update: Update, context: ContextTypes.DEFA
         if success:
             from datetime import datetime
             today = datetime.now().strftime("%d/%m/%Y")
-            # Tránh lỗi Markdown với ký tự đặc biệt trong nickname
-            safe_nick = nickname.replace('_', r'\_').replace('*', r'\*').replace('`', r'\`')
             await status_msg.edit_text(
-                f"✅ **ĐÃ THÊM GIỜ LÀM THÊM**\n"
-                f"👤 Nhân viên: {safe_nick}\n"
-                f"⏰ Số giờ: {hours}h\n"
-                f"📅 Ngày: {today}",
-                parse_mode='Markdown'
+                f"✅ Đã thêm {hours}h OT cho {nickname} ({today})"
             )
         else:
             await status_msg.edit_text("❌ Có lỗi khi ghi vào hệ thống. Hãy thử lại.")
     except Exception as e:
         logger.error(f"Lỗi trong handle_overtime_hours_input: {e}")
-        await update.message.reply_text(f"❌ Đã xảy ra lỗi hệ thống: {e}")
-        
-    # Gửi lại bàn phím admin
-    reply = await context.bot.send_message(
+        await update.message.reply_text(f"❌ Đã xảy ra lỗi: {e}")
+
+    # Gửi lại bàn phím admin — gắn kèm vào status_msg không được (edit_text không nhận ReplyKeyboard)
+    await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="✅ Xong!",
+        text="↩️",
         reply_markup=get_admin_keyboard()
     )
-    
+
     return True  # Đã xử lý
 
 
@@ -141,6 +133,6 @@ async def _cancel_overtime(query, context: ContextTypes.DEFAULT_TYPE):
     
     await context.bot.send_message(
         chat_id=query.message.chat.id,
-        text="❌ Đã hủy thêm giờ làm thêm.",
+        text="❌ Đã hủy.",
         reply_markup=get_admin_keyboard()
     )

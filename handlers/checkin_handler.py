@@ -105,47 +105,23 @@ async def handle_checkout_employee_selected(query, context: ContextTypes.DEFAULT
         error = result.get('error', '')
         if error == 'not_checked_in':
             await query.edit_message_text(
-                f"⚠️ **{nickname}** chưa check-in hôm nay!\n"
-                f"Hãy bấm 📥 **Check In** trước.",
-                parse_mode='Markdown'
+                f"⚠️ {nickname} chưa check-in hôm nay! Hãy bấm 📥 Check In trước."
             )
         else:
             await query.edit_message_text(f"❌ Lỗi check-out: {error}")
         return
     
-    time_str = result['time']
-    total_hours = result['total_hours']
-    checkin_time = result['checkin_time']
-    
-    confirm_text = f"✅ **CHECK-OUT THÀNH CÔNG**\n"
-    confirm_text += f"👤 Nhân viên: {nickname}\n"
-    confirm_text += f"🕐 Giờ vào: {checkin_time}\n"
-    confirm_text += f"🕐 Giờ ra: {time_str}\n"
-    confirm_text += f"⏱ Tổng giờ: {total_hours}h"
-    
-    await query.edit_message_text(confirm_text, parse_mode='Markdown')
-    
-    # Báo qua admin (không cần ảnh)
+    # Xóa message chọn tên, gửi 1 message kết quả + keyboard
     try:
-        admin_text = (
-            f"📤 **CHECK-OUT**\n"
-            f"👤 {nickname}\n"
-            f"🕐 Vào: {checkin_time} → Ra: {time_str}\n"
-            f"⏱ Tổng: {total_hours}h"
-        )
-        await context.bot.send_message(
-            chat_id=Config.ADMIN_CHAT_ID,
-            text=admin_text,
-            parse_mode='Markdown'
-        )
-    except Exception as e:
-        logger.warning(f"Không thể báo check-out cho admin: {e}")
-    
-    # Gửi lại bàn phím điều khiển
+        await query.message.delete()
+    except Exception:
+        pass
+
+    confirm_text = f"✅ {nickname} ra ca — {time_str} ({total_hours}h)"
     keyboard = get_admin_keyboard() if query.message.chat.id == Config.ADMIN_CHAT_ID else get_main_keyboard()
-    reply = await context.bot.send_message(
+    await context.bot.send_message(
         chat_id=query.message.chat.id,
-        text="✅ Xong!",
+        text=confirm_text,
         reply_markup=keyboard
     )
 
@@ -183,62 +159,48 @@ async def handle_checkin_photo(update: Update, context: ContextTypes.DEFAULT_TYP
             await status_msg.edit_text(f"❌ Lỗi check-in: {error}")
         return
     
-    # Phản hồi thành công
-    time_str = result['time']
-    note = result['note']
-    ca = result['ca']
+    time_str  = result['time']
+    note      = result['note']
+    ca        = result['ca']
     late_minutes = result['late_minutes']
-    date_str = result['date_str']
-    
-    confirm_text = f"✅ **CHECK-IN THÀNH CÔNG**\n"
-    confirm_text += f"👤 Nhân viên: {nickname}\n"
-    confirm_text += f"🕐 Giờ vào: {time_str}\n"
-    confirm_text += f"📋 Ca: {ca}\n"
-    confirm_text += f"📝 {note}"
-    
-    await status_msg.edit_text(confirm_text, parse_mode='Markdown')
-    
-    # Chuyển tiếp ảnh cho admin
+    date_str  = result['date_str']
+
+    # Gửi admin ảnh check-in
     try:
-        photo = message.photo[-1]  # Ảnh chất lượng cao nhất
-        admin_caption = f"📥 **CHECK-IN**\n👤 {nickname}\n🕐 {time_str}\n📋 Ca {ca}\n📝 {note}"
-        
+        photo = message.photo[-1]
+        admin_caption = f"📥 {nickname} — {time_str} Ca {ca} | {note}"
         await context.bot.send_photo(
             chat_id=Config.ADMIN_CHAT_ID,
             photo=photo.file_id,
-            caption=admin_caption,
-            parse_mode='Markdown'
+            caption=admin_caption
         )
-        
-        # Nếu trễ → gửi nút "Đã báo trước" cho admin
         if late_minutes > 0:
             late_keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton(
-                    f"✅ Đã báo trước",
-                    callback_data=f"mark_reported_{date_str}_{nickname}"
-                ),
-                InlineKeyboardButton(
-                    f"❌ Không báo trước",
-                    callback_data=f"mark_unreported_{date_str}_{nickname}"
-                )]
+                [InlineKeyboardButton("✅ Đã báo trước",
+                    callback_data=f"mark_reported_{date_str}_{nickname}"),
+                 InlineKeyboardButton("❌ Không báo trước",
+                    callback_data=f"mark_unreported_{date_str}_{nickname}")]
             ])
             await context.bot.send_message(
                 chat_id=Config.ADMIN_CHAT_ID,
-                text=f"⚠️ **{nickname}** đi muộn {late_minutes} phút (Ca {ca})\n"
-                     f"Xác nhận nhân viên có báo trước hay không:",
-                reply_markup=late_keyboard,
-                parse_mode='Markdown'
+                text=f"⚠️ {nickname} muộn {late_minutes}p (Ca {ca}) — báo trước?",
+                reply_markup=late_keyboard
             )
     except Exception as e:
         logger.warning(f"Không thể chuyển tiếp ảnh check-in cho admin: {e}")
-    
-    # Gửi lại bàn phím
+
+    # Xóa ⏳, gửi 1 message kết quả + keyboard
+    try:
+        await status_msg.delete()
+    except Exception:
+        pass
     keyboard = get_admin_keyboard() if update.effective_chat.id == Config.ADMIN_CHAT_ID else get_main_keyboard()
-    reply = await context.bot.send_message(
+    await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="✅ Xong!",
+        text=f"✅ {nickname} — {time_str} | Ca {ca} | {note}",
         reply_markup=keyboard
     )
+
 
 
 async def handle_mark_reported_late(query, context: ContextTypes.DEFAULT_TYPE):
@@ -258,11 +220,8 @@ async def handle_mark_reported_late(query, context: ContextTypes.DEFAULT_TYPE):
     success = await asyncio.to_thread(sheets_service.mark_reported_late, nickname, date_str)
     
     if success:
-        # Escape markdown chars in nickname just in case
-        safe_nick = nickname.replace('_', r'\_').replace('*', r'\*')
         await query.edit_message_text(
-            f"✅ Đã đánh dấu **{safe_nick}** ngày {date_str} là ĐÃ báo trước.",
-            parse_mode='Markdown'
+            f"✅ {nickname} ngày {date_str}: ĐÃ báo trước."
         )
     else:
         await query.answer("⚠️ Không tìm thấy record hoặc đã đánh dấu rồi.", show_alert=True)
@@ -282,10 +241,8 @@ async def handle_mark_unreported_late(query, context: ContextTypes.DEFAULT_TYPE)
     success = await asyncio.to_thread(sheets_service.mark_unreported_late, nickname, date_str)
     
     if success:
-        safe_nick = nickname.replace('_', r'\_').replace('*', r'\*')
         await query.edit_message_text(
-            f"❌ Đã đánh dấu **{safe_nick}** ngày {date_str} là KHÔNG báo trước.",
-            parse_mode='Markdown'
+            f"❌ {nickname} ngày {date_str}: KHÔNG báo trước."
         )
     else:
         await query.answer("⚠️ Không tìm thấy record hoặc đã đánh dấu rồi.", show_alert=True)

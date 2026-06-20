@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.decorators import group_only, admin_only
 from utils.validators import check_reward_eligibility
@@ -49,9 +49,12 @@ async def check_all_rewards(update: Update, context: ContextTypes.DEFAULT_TYPE):
             track_message(context, msg.message_id)
         return
         
-    msg = "📊 **BẢNG SỐ DƯ THƯỞNG:**\n\n"
-    for nick, bal in balances.items():
-        msg += f"👤 {nick}: {bal} ly\n"
+    sorted_bal = sorted(balances.items(), key=lambda x: -int(x[1]))
+    lines = ["📊 *BẢNG THƯởNG:*"]
+    for nick, bal in sorted_bal:
+        icon = "🎁" if int(bal) > 0 else "⬜"
+        lines.append(f"{icon} {nick}: {bal} ly")
+    msg = "\n".join(lines)
     reply = await update.message.reply_text(msg, parse_mode='Markdown')
     if update.effective_chat.id == Config.GROUP_CHAT_ID:
         track_message(context, reply.message_id)
@@ -77,10 +80,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     keyboard = get_admin_keyboard() if update.effective_chat.id == Config.ADMIN_CHAT_ID else get_main_keyboard()
-    reply = await update.message.reply_text(
-        "👋 Chào mừng đến với Bot Quản Lý Doanh Thu & Thưởng!\n👇 Hãy sử dụng các nút bên dưới để thao tác nhanh:",
-        reply_markup=keyboard
-    )
+    reply = await update.message.reply_text("👋 Bot Sô bơ — sử dụng các nút bên dưới:", reply_markup=keyboard)
     if update.effective_chat.id == Config.GROUP_CHAT_ID:
         track_message(context, reply.message_id)
 
@@ -115,120 +115,6 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         if handled:
             return
 
-    if context.chat_data.get('awaiting_revenue_for'):
-        employees = context.chat_data['awaiting_revenue_for']
-        revenue_str = text
-        
-        def _clean_number_str_local(s: str, allow_decimal: bool = True) -> str:
-            s = s.replace(',', '')
-            if '.' not in s:
-                return s
-            parts = s.split('.')
-            if len(parts) > 2:
-                return ''.join(parts)
-            integer_part, decimal_part = parts
-            if len(decimal_part) == 3:
-                # Dấu phân cách ngàn: 1.500 → 1500
-                return integer_part + decimal_part
-            else:
-                if allow_decimal:
-                    return integer_part + '.' + decimal_part
-                return integer_part + decimal_part
-
-        def parse_amount_token(tok: str):
-            # BUG-1 FIX: Phân biệt dấu chấm là ngàn hay thập phân
-            # 1.500k → 1.500.000 | 1.5k → 1.500 | 1.5M → 1.500.000
-            s = tok.strip().upper()
-            if not s:
-                return None
-            try:
-                if s.endswith('M'):
-                    num = _clean_number_str_local(s[:-1])
-                    return int(float(num) * 1_000_000)
-                if s.endswith('K'):
-                    num = _clean_number_str_local(s[:-1])
-                    return int(float(num) * 1_000)
-                cleaned = _clean_number_str_local(s, allow_decimal=False)
-                return int(cleaned)
-            except Exception:
-                return None
-                
-        revenue = parse_amount_token(revenue_str)
-        
-        # Xóa tin nhắn của user SAU KHI đã đọc được revenue_str
-        if update.effective_chat.id == Config.GROUP_CHAT_ID:
-            try:
-                await update.message.delete()
-            except:
-                pass
-
-        if revenue is None:
-            err_reply = await update.message.reply_text("❌ Số tiền không hợp lệ. Vui lòng gõ lại (VD: 1500, 1.5M, 2M) hoặc bấm nút Hủy/nút khác.")
-            if update.effective_chat.id == Config.GROUP_CHAT_ID:
-                track_message(context, err_reply.message_id)
-            return
-
-        del context.chat_data['awaiting_revenue_for']
-        
-        from datetime import datetime
-        now = datetime.now()
-        if now.hour < 12:
-            ca = 'Sáng'
-        elif now.hour < 18:
-            ca = 'Chiều'
-        else:
-            ca = 'Tối'
-        reward_count = check_reward_eligibility(len(employees), revenue)
-        
-        sheets_service = context.bot_data['sheets']
-        status_msg = await update.message.reply_text(f"⏳ Đang lưu báo cáo của {', '.join(employees)}...")
-        if update.effective_chat.id == Config.GROUP_CHAT_ID:
-            track_message(context, status_msg.message_id)
-        
-        ok = await asyncio.to_thread(
-            sheets_service.save_report,
-            date=now.strftime("%d/%m/%Y"),
-            employees=", ".join(employees),
-            revenue=revenue,
-            ca=ca
-        )
-        
-        keyboard = get_admin_keyboard() if update.effective_chat.id == Config.ADMIN_CHAT_ID else get_main_keyboard()
-        if ok:
-            if reward_count > 0:
-                for emp in employees:
-                    await asyncio.to_thread(sheets_service.update_balance, emp, reward_count)
-
-            confirm_msg = f"✅ **BÁO CÁO ĐÃ ĐƯỢC LƯU**\n"
-            confirm_msg += f"👥 Nhân viên: {', '.join(employees)}\n"
-            confirm_msg += f"💰 Doanh thu: {revenue:,} VNĐ\n"
-            if reward_count > 0:
-                confirm_msg += f"🎁 Cộng {reward_count} ly thưởng cho mỗi bạn\n"
-            confirm_msg += f"⏰ Ca: {ca}"
-
-            # FIX: edit_text chỉ nhận InlineKeyboardMarkup, không nhận ReplyKeyboardMarkup
-            # → edit message thuần text, rồi gửi keyboard ở message riêng
-            try:
-                await status_msg.edit_text(confirm_msg, parse_mode='Markdown')
-            except Exception:
-                pass
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text="✅ Xong!",
-                reply_markup=keyboard
-            )
-        else:
-            try:
-                await status_msg.edit_text("❌ Có lỗi khi lưu báo cáo. Hãy thử lại.")
-            except Exception:
-                pass
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text="❌ Thử lại nhé!",
-                reply_markup=keyboard
-            )
-        return
-
 
     # ── Kiểm tra state management mới ──
     if context.chat_data.get('awaiting_add_employee_name'):
@@ -256,7 +142,6 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             pass
 
     # ── HỦY TẤT CẢ TRẠNG THÁI KHI BẤM NÚT MỚI ──
-    context.chat_data.pop('awaiting_revenue_for', None)
     context.chat_data.pop('awaiting_checkin_photo', None)
     context.chat_data.pop('awaiting_overtime_hours', None)
     context.chat_data.pop('awaiting_add_employee_name', None)
@@ -278,7 +163,7 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     elif text == "⏰ Thêm Giờ Làm Thêm":
         await handle_add_overtime_button(update, context)
         
-    elif text == "⚡ Báo Doanh Thu":
+    elif text == "⚡ Thưởng Doanh Thu":
         sheets_service = context.bot_data['sheets']
         balances = await asyncio.to_thread(sheets_service.get_all_balances)
         if not balances:
@@ -286,11 +171,10 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             if update.effective_chat.id == Config.GROUP_CHAT_ID:
                 track_message(context, reply.message_id)
             return
-            
+
         context.chat_data['report_selection'] = {nick: False for nick in balances.keys()}
         reply_markup = build_multi_select_keyboard(context.chat_data['report_selection'])
-        reply = await update.message.reply_text("👥 Ca này gồm những ai? (Chạm để chọn):", reply_markup=reply_markup)
-        
+        reply = await update.message.reply_text("⚡ Ca này gồm những ai? (Chạm để chọn):", reply_markup=reply_markup)
         if update.effective_chat.id == Config.GROUP_CHAT_ID:
             track_message(context, reply.message_id)
             
@@ -442,89 +326,79 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 pass
 
         from datetime import datetime
-        now = datetime.now()
-        ca = 'Sáng' if now.hour < 12 else ('Chiều' if now.hour < 18 else 'Tối')
-
+        ca = 'Sáng' if datetime.now().hour < 12 else ('Chiều' if datetime.now().hour < 18 else 'Tối')
         sheets_service = context.bot_data['sheets']
-        status_msg = await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=f"⏳ Đang cộng thưởng cho {', '.join(selected)}..."
-        )
-        if update.effective_chat and update.effective_chat.id == Config.GROUP_CHAT_ID:
-            track_message(context, status_msg.message_id)
 
-        # Cộng 1 ly thưởng cho mỗi nhân viên
         for emp in selected:
             await asyncio.to_thread(sheets_service.update_balance, emp, 1)
 
         keyboard = get_admin_keyboard() if update.effective_chat.id == Config.ADMIN_CHAT_ID else get_main_keyboard()
-        confirm_msg = (
-            f"✅ **ĐÃ CỘNG THƯỞNG**\n"
-            f"👥 Nhân viên: {', '.join(selected)}\n"
-            f"🎁 Mỗi người: +1 ly thưởng\n"
-            f"⏰ Ca: {ca}"
-        )
-        try:
-            await status_msg.edit_text(confirm_msg, parse_mode='Markdown')
-        except Exception:
-            pass
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="✅ Xong!",
+            text=f"✅ +1 ly → {', '.join(selected)} (Ca {ca})",
             reply_markup=keyboard
         )
 
 
-
     elif data == "cancel_report_emps":
         context.chat_data.pop('report_selection', None)
-        context.chat_data.pop('awaiting_revenue_for', None)
-
         if update.effective_chat and update.effective_chat.id == Config.GROUP_CHAT_ID:
             await delete_tracked_messages(context, update.effective_chat.id)
             try:
                 await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=query.message.message_id)
             except Exception:
                 pass
+        keyboard = get_admin_keyboard() if update.effective_chat.id == Config.ADMIN_CHAT_ID else get_main_keyboard()
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="❌ Đã hủy.",
+            reply_markup=keyboard
+        )
 
-        cancel_msg = await context.bot.send_message(chat_id=update.effective_chat.id, text="❌ Đã hủy báo cáo doanh thu.")
-        track_message(context, cancel_msg.message_id)
-        
     elif data.startswith("check_reward_"):
         nickname = data[len("check_reward_"):]
         balance = await asyncio.to_thread(sheets_service.get_balance, nickname)
-
-        # Clear tracked messages, delete inline prompt, then send result + guide
         if update.effective_chat and update.effective_chat.id == Config.GROUP_CHAT_ID:
             await delete_tracked_messages(context, update.effective_chat.id)
             try:
                 await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=query.message.message_id)
             except Exception:
                 pass
-
-        result = await context.bot.send_message(chat_id=update.effective_chat.id, text=f"🎁 Bạn {nickname} hiện đang có {balance} ly thưởng.")
+        result = await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=f"🎁 {nickname}: {balance} ly thưởng."
+        )
         track_message(context, result.message_id)
-        
-    elif data.startswith("use_reward_"):
+
+    elif data.startswith("use_reward_") and not data.startswith("urw_"):
         nickname = data[len("use_reward_"):]
-
-        # Clear previous prompts and then announce processing/result as new messages
-        if update.effective_chat and update.effective_chat.id == Config.GROUP_CHAT_ID:
-            await delete_tracked_messages(context, update.effective_chat.id)
-            try:
-                await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=query.message.message_id)
-            except Exception:
-                pass
-
-        processing = await context.bot.send_message(chat_id=update.effective_chat.id, text=f"⏳ Đang xử lý cho {nickname}...")
-        track_message(context, processing.message_id)
-
         current_balance = await asyncio.to_thread(sheets_service.get_balance, nickname)
+
         if current_balance <= 0:
-            await processing.edit_text(f"❌ Bạn {nickname} không còn ly thưởng nào để dùng!")
+            await query.answer(f"❌ {nickname} không còn ly nào!", show_alert=True)
             return
 
+        # Hiện confirm trước khi trừ
+        await query.edit_message_text(
+            f"🥤 {nickname} chắc dùng 1 ly thưởng chứ? (Còn {current_balance} ly)",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("✅ Dùng ngay!", callback_data=f"urw_confirm_{nickname}"),
+                 InlineKeyboardButton("❌ Thôi", callback_data="urw_cancel")]
+            ])
+        )
+
+    elif data.startswith("urw_confirm_"):
+        nickname = data[len("urw_confirm_"):]
+        current_balance = await asyncio.to_thread(sheets_service.get_balance, nickname)
+        if current_balance <= 0:
+            await query.edit_message_text(f"❌ {nickname} không còn ly nào!")
+            return
         if await asyncio.to_thread(sheets_service.update_balance, nickname, -1):
-            await processing.edit_text(f"✅ Đã trừ 1 ly thưởng của {nickname}. Số dư còn lại: {current_balance - 1} ly.")
+            await query.edit_message_text(
+                f"✅ Đã trừ 1 ly của {nickname}. Còn lại: {current_balance - 1} ly."
+            )
         else:
-            await processing.edit_text("❌ Lỗi cập nhật dữ liệu. Hãy thử lại sau.")
+            await query.edit_message_text("❌ Lỗi cập nhật. Hãy thử lại.")
+
+    elif data == "urw_cancel":
+        await query.edit_message_text("❌ Đã hủy.")
