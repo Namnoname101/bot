@@ -127,6 +127,34 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         if handled:
             return
 
+    if context.chat_data.get('awaiting_feedback'):
+        if text.startswith('/cancel'):
+            context.chat_data.pop('awaiting_feedback', None)
+            reply = await update.message.reply_text("❌ Đã huỷ gửi ý kiến.")
+            if update.effective_chat.id == Config.GROUP_CHAT_ID:
+                track_message(context, reply.message_id)
+            return True
+
+        # Gửi thẳng ý kiến cho admin
+        await context.bot.send_message(
+            chat_id=Config.ADMIN_CHAT_ID,
+            text=f"💡 **GÓP Ý TỪ NHÂN VIÊN:**\n\n{text}",
+            parse_mode='Markdown'
+        )
+        
+        # Xoá tin nhắn góp ý để giữ ẩn danh
+        if update.effective_chat.id == Config.GROUP_CHAT_ID:
+            try:
+                await update.message.delete()
+            except Exception:
+                pass
+                
+        context.chat_data.pop('awaiting_feedback', None)
+        msg = await update.message.reply_text("✅ Cảm ơn bạn! Đóng góp của bạn đã được gửi trực tiếp cho Quản lý.")
+        if update.effective_chat.id == Config.GROUP_CHAT_ID:
+            track_message(context, msg.message_id)
+        return True
+
     # ── Nút kết ca gửi ảnh — xử lý TRƯỚC KHI clear state ──
     if text == "📤 Gửi ảnh kết ca":
         await handle_endshift_send(update, context)
@@ -146,10 +174,23 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     context.chat_data.pop('awaiting_overtime_hours', None)
     context.chat_data.pop('awaiting_add_employee_name', None)
     context.chat_data.pop('awaiting_edit_report_revenue', None)
+    context.chat_data.pop('awaiting_feedback', None)
     _cancel_endshift_tasks(context)
 
     if text == "📖 Hướng Dẫn":
         await help_command(update, context)
+        
+    elif text == "💡 Đóng Góp Ý Kiến":
+        context.chat_data['awaiting_feedback'] = True
+        reply = await update.message.reply_text(
+            "💡 **ĐÓNG GÓP Ý KIẾN**\n\n"
+            "Hãy gõ nội dung bạn muốn gửi cho Quản lý vào khung chat bên dưới rồi nhấn Gửi.\n"
+            "_(Tin nhắn của bạn sẽ được ẩn danh và chỉ Quản lý mới đọc được)_\n\n"
+            "Hoặc gõ /cancel để huỷ.",
+            parse_mode='Markdown'
+        )
+        if update.effective_chat.id == Config.GROUP_CHAT_ID:
+            track_message(context, reply.message_id)
     
     elif text == "📥 Check In":
         await handle_checkin_button(update, context)

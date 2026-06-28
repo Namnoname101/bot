@@ -10,7 +10,8 @@ GUIDE_MESSAGE = (
     "📤 *Check Out:* Chấm công ra ca (chọn tên là xong).\n"
     "⚡ *Thưởng Doanh Thu:* Chọn nhân viên có mặt để cộng 1 ly.\n"
     "🥤 *Báo Dùng Thưởng:* Chọn tên để trừ 1 ly đã dùng.\n"
-    "🎁 *Tra Cứu Thưởng:* Xem số dư ly của bạn.\n\n"
+    "🎁 *Tra Cứu Thưởng:* Xem số dư ly của bạn.\n"
+    "💡 *Đóng Góp Ý Kiến:* Gửi ý kiến trực tiếp cho quản lý.\n\n"
     "⏰ _Ca làm: Sáng 6:30–12:00 | Chiều 12:00–18:00 | Tối 18:00–22:30_"
 )
 
@@ -20,7 +21,7 @@ def get_main_keyboard():
         [KeyboardButton("🔚 Kết Ca")],
         [KeyboardButton("⚡ Thưởng Doanh Thu"), KeyboardButton("🥤 Báo Dùng Thưởng")],
         [KeyboardButton("🎁 Tra Cứu Thưởng"), KeyboardButton("📊 Bảng Thưởng (QL)")],
-        [KeyboardButton("📖 Hướng Dẫn")]
+        [KeyboardButton("📖 Hướng Dẫn"), KeyboardButton("💡 Đóng Góp Ý Kiến")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
 
