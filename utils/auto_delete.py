@@ -18,10 +18,9 @@ GUIDE_MESSAGE = (
 def get_main_keyboard():
     keyboard = [
         [KeyboardButton("📥 Check In"), KeyboardButton("📤 Check Out")],
-        [KeyboardButton("🔚 Kết Ca")],
         [KeyboardButton("⚡ Thưởng Doanh Thu"), KeyboardButton("🥤 Báo Dùng Thưởng")],
-        [KeyboardButton("🎁 Tra Cứu Thưởng"), KeyboardButton("📊 Bảng Thưởng (QL)")],
-        [KeyboardButton("📖 Hướng Dẫn"), KeyboardButton("💡 Đóng Góp Ý Kiến")]
+        [KeyboardButton("🎁 Tra Cứu Thưởng"), KeyboardButton("💡 Đóng Góp Ý Kiến")],
+        [KeyboardButton("🔚 Kết Ca")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
 
@@ -31,9 +30,8 @@ def get_admin_keyboard():
     keyboard = [
         [KeyboardButton("📊 Bảng Thưởng (QL)"), KeyboardButton("🧾 Quản Lý NV (QL)")],
         [KeyboardButton("📋 Lịch Sử Check-In"),  KeyboardButton("⚠️ Thống Kê Đi Muộn")],
-        [KeyboardButton("✏️ Sửa Doanh Thu")],
         [KeyboardButton("⚡ Thưởng Doanh Thu"),      KeyboardButton("🥤 Báo Dùng Thưởng")],
-        [KeyboardButton("📖 Hướng Dẫn")]
+        [KeyboardButton("✏️ Sửa Doanh Thu")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
 
