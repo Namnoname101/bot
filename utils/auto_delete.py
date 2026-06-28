@@ -30,7 +30,7 @@ def get_admin_keyboard():
     keyboard = [
         [KeyboardButton("📊 Bảng Thưởng (QL)"), KeyboardButton("🧾 Quản Lý NV (QL)")],
         [KeyboardButton("📋 Lịch Sử Check-In"),  KeyboardButton("⚠️ Thống Kê Đi Muộn")],
-        [KeyboardButton("⏰ Thêm Giờ Làm Thêm"), KeyboardButton("✏️ Sửa Doanh Thu")],
+        [KeyboardButton("✏️ Sửa Doanh Thu")],
         [KeyboardButton("⚡ Thưởng Doanh Thu"),      KeyboardButton("🥤 Báo Dùng Thưởng")],
         [KeyboardButton("📖 Hướng Dẫn")]
     ]

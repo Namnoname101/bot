@@ -22,20 +22,38 @@ def _build_employee_picker(nicknames: dict, callback_prefix: str):
     keyboard.append([InlineKeyboardButton("❌ Hủy", callback_data=f"{callback_prefix}_cancel")])
     return InlineKeyboardMarkup(keyboard)
 
-
-async def handle_checkin_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Xử lý khi nhân viên bấm nút '📥 Check In'"""
+async def handle_checkin_type_selected(query, context: ContextTypes.DEFAULT_TYPE):
+    """Callback khi nhân viên chọn loại ca (Chính/Gãy)"""
+    shift_type = query.data[len("ci_type_"):]
+    if shift_type == "cancel":
+        await _cancel_flow(query, context)
+        return
+        
+    context.chat_data['awaiting_checkin_type'] = f"Ca {shift_type}"
+    
+    await query.edit_message_text("⏳ Đang tải danh sách nhân viên...")
+    
     sheets_service = context.bot_data['sheets']
     balances = await asyncio.to_thread(sheets_service.get_all_balances)
     
     if not balances:
-        reply = await update.message.reply_text("📉 Chưa có dữ liệu nhân viên trên hệ thống.")
-        if update.effective_chat.id == Config.GROUP_CHAT_ID:
-            track_message(context, reply.message_id)
+        await query.edit_message_text("📉 Chưa có dữ liệu nhân viên trên hệ thống.")
         return
-    
+        
     reply_markup = _build_employee_picker(balances, "ci_sel")
-    reply = await update.message.reply_text("📥 **CHECK IN** — Bạn là ai?", reply_markup=reply_markup, parse_mode='Markdown')
+    await query.edit_message_text(f"📥 **CHECK IN** ({context.chat_data['awaiting_checkin_type']}) — Bạn là ai?", reply_markup=reply_markup, parse_mode='Markdown')
+
+
+
+async def handle_checkin_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Xử lý khi nhân viên bấm nút '📥 Check In'"""
+    keyboard = [
+        [InlineKeyboardButton("🌞 Ca Chính", callback_data="ci_type_Chính"),
+         InlineKeyboardButton("🌗 Ca Gãy", callback_data="ci_type_Gãy")],
+        [InlineKeyboardButton("❌ Hủy", callback_data="ci_type_cancel")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply = await update.message.reply_text("📥 **CHECK IN** — Chọn loại ca làm việc:", reply_markup=reply_markup, parse_mode='Markdown')
     
     if update.effective_chat.id == Config.GROUP_CHAT_ID:
         track_message(context, reply.message_id)
@@ -118,6 +136,7 @@ async def handle_checkout_employee_selected(query, context: ContextTypes.DEFAULT
         pass
 
     confirm_text = f"✅ {nickname} ra ca — {time_str} ({total_hours}h)"
+        
     keyboard = get_admin_keyboard() if query.message.chat.id == Config.ADMIN_CHAT_ID else get_main_keyboard()
     await context.bot.send_message(
         chat_id=query.message.chat.id,
@@ -129,6 +148,7 @@ async def handle_checkout_employee_selected(query, context: ContextTypes.DEFAULT
 async def handle_checkin_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Xử lý ảnh check-in: ghi giờ vào sheet, chuyển tiếp ảnh cho admin"""
     nickname = context.chat_data.pop('awaiting_checkin_photo', None)
+    shift_type = context.chat_data.pop('awaiting_checkin_type', '')
     if not nickname:
         return
     
@@ -143,7 +163,7 @@ async def handle_checkin_photo(update: Update, context: ContextTypes.DEFAULT_TYP
     status_msg = await message.reply_text(f"⏳ Đang ghi nhận check-in cho {nickname}...")
     track_message(context, status_msg.message_id)
     
-    result = await asyncio.to_thread(sheets_service.checkin, nickname)
+    result = await asyncio.to_thread(sheets_service.checkin, nickname, shift_type)
     
     if not result['success']:
         error = result.get('error', '')
@@ -251,6 +271,7 @@ async def handle_mark_unreported_late(query, context: ContextTypes.DEFAULT_TYPE)
 async def _cancel_flow(query, context: ContextTypes.DEFAULT_TYPE):
     """Hủy flow check-in/check-out và gửi lại bàn phím"""
     context.chat_data.pop('awaiting_checkin_photo', None)
+    context.chat_data.pop('awaiting_checkin_type', None)
     context.chat_data.pop('awaiting_checkout_photo', None)
     
     chat_id = query.message.chat.id

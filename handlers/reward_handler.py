@@ -159,9 +159,6 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     elif text == "🔚 Kết Ca":
         await handle_endshift_button(update, context)
-    
-    elif text == "⏰ Thêm Giờ Làm Thêm":
-        await handle_add_overtime_button(update, context)
         
     elif text == "⚡ Thưởng Doanh Thu":
         sheets_service = context.bot_data['sheets']
@@ -276,6 +273,11 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     if data == 'ks_cancel':
         await handle_endshift_cancel(query, context)
+        return
+
+    if data.startswith("ci_type_"):
+        from handlers.checkin_handler import handle_checkin_type_selected
+        await handle_checkin_type_selected(query, context)
         return
 
     if data.startswith("ci_sel_"):

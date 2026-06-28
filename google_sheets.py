@@ -443,7 +443,7 @@ class GoogleSheetsService:
             logger.error(f"Lỗi khi lấy danh sách check-in: {e}")
             return {}
 
-    def checkin(self, nickname: str) -> dict:
+    def checkin(self, nickname: str, shift_type: str = "") -> dict:
         """Ghi nhận check-in cho nhân viên vào sheet Checkin.
         
         Cấu trúc: Ngày | Nickname | Giờ Vào | Giờ Ra | Tổng Giờ | Ghi Chú
@@ -475,9 +475,9 @@ class GoogleSheetsService:
             late_minutes = max(0, current_minutes - shift['standard_start'])
             
             if late_minutes > 0:
-                note = f"Đi muộn {late_minutes}p"
+                note = f"{shift_type} - Đi muộn {late_minutes}p" if shift_type else f"Đi muộn {late_minutes}p"
             else:
-                note = "Đúng giờ"
+                note = f"{shift_type} - Đúng giờ" if shift_type else "Đúng giờ"
             
             # Lấy số cột thực tế từ header
             try:
@@ -584,11 +584,13 @@ class GoogleSheetsService:
                     row_date = row[0].strip()
                     row_nick = row[1].strip()
                     row_checkout = row[3].strip() if len(row) > 3 else ""
+                    row_note = row[5].strip() if len(row) > 5 else ""
                     
                     if (row_date == today and 
                         _normalize_name_for_comparison(row_nick) == _normalize_name_for_comparison(nickname) and
                         not row_checkout):
                         target_row = i
+                        is_ca_gay = 'ca gãy' in row_note.lower()
             
             if not target_row:
                 return {'success': False, 'error': 'not_checked_in'}
@@ -612,11 +614,20 @@ class GoogleSheetsService:
                 logger.warning(f"Không thể tính tổng giờ: {calc_err}")
             
             logger.info(f"Check-out: {nickname} lúc {time_str} - Tổng: {total_hours}h")
+            
+            if is_ca_gay:
+                try:
+                    self.add_overtime(nickname, 2.0)
+                    logger.info(f"Tự động thêm 2h làm thêm cho {nickname} (Ca Gãy)")
+                except Exception as e:
+                    logger.error(f"Lỗi thêm giờ làm thêm cho ca gãy: {e}")
+                    
             return {
                 'success': True,
                 'time': time_str,
                 'total_hours': total_hours,
-                'checkin_time': checkin_time.strip()
+                'checkin_time': checkin_time.strip(),
+                'is_ca_gay': is_ca_gay
             }
         except Exception as e:
             logger.error(f"Lỗi khi check-out cho {nickname}: {e}")
