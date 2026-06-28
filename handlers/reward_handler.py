@@ -391,12 +391,7 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=query.message.message_id)
             except Exception:
                 pass
-        keyboard = get_admin_keyboard() if update.effective_chat.id == Config.ADMIN_CHAT_ID else get_main_keyboard()
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text="❌ Đã hủy.",
-            reply_markup=keyboard
-        )
+        await query.answer("❌ Đã huỷ")
 
     elif data.startswith("check_reward_"):
         nickname = data[len("check_reward_"):]
@@ -444,4 +439,8 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_text("❌ Lỗi cập nhật. Hãy thử lại.")
 
     elif data == "urw_cancel":
-        await query.edit_message_text("❌ Đã hủy.")
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+        await query.answer("❌ Đã huỷ")

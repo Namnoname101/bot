@@ -214,18 +214,13 @@ async def handle_endshift_cancel(query, context: ContextTypes.DEFAULT_TYPE):
     _cancel_endshift_tasks(context)
 
     chat_id = query.message.chat.id
-    if chat_id == Config.GROUP_CHAT_ID:
-        await delete_tracked_messages(context, chat_id)
-        try:
-            await query.message.delete()
-        except Exception:
-            pass
+    await delete_tracked_messages(context, chat_id)
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
 
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text="❌ Đã hủy kết ca.",
-        reply_markup=get_main_keyboard(),
-    )
+    await query.answer("❌ Đã hủy kết ca")
 
 
 def _cancel_endshift_tasks(context: ContextTypes.DEFAULT_TYPE):

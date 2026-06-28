@@ -276,16 +276,10 @@ async def _cancel_flow(query, context: ContextTypes.DEFAULT_TYPE):
     
     chat_id = query.message.chat.id
     
-    if chat_id == Config.GROUP_CHAT_ID:
-        await delete_tracked_messages(context, chat_id)
-        try:
-            await query.message.delete()
-        except Exception:
-            pass
+    await delete_tracked_messages(context, chat_id)
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
     
-    keyboard = get_admin_keyboard() if chat_id == Config.ADMIN_CHAT_ID else get_main_keyboard()
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text="❌ Đã hủy.",
-        reply_markup=keyboard
-    )
+    await query.answer("❌ Đã huỷ")

@@ -47,17 +47,8 @@ async def post_init(application):
     await application.bot.delete_my_commands()
 
     # Gửi tin nhắn hướng dẫn ban đầu vào group (máy chung tại quán) kèm bàn phím luôn hiện
-    try:
-        guide_msg = await application.bot.send_message(
-            chat_id=Config.GROUP_CHAT_ID,
-            text=GUIDE_MESSAGE,
-            parse_mode='Markdown',
-            reply_markup=get_main_keyboard()
-        )
-        application.bot_data['guide_message_id'] = guide_msg.message_id
-        logger.info("Đã gửi tin hướng dẫn ban đầu kèm bàn phím vào group.")
-    except Exception as e:
-        logger.warning(f"Không thể gửi tin hướng dẫn ban đầu: {e}")
+    # [ĐÃ TẮT ĐỂ TRÁNH SPAM - KHÔNG GỬI HƯỚNG DẪN KHI KHỞI ĐỘNG LẠI BOT NỮA]
+    pass
 
 def main():
     logger.info("Đang khởi động Bot...")
