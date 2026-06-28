@@ -13,7 +13,7 @@ except ImportError:
     from google_drive import GoogleDriveService
 
 from handlers.report_handler import handle_photo_report
-from handlers.reward_handler import use_reward, check_reward, check_all_rewards, help_command, start_command, button_click_handler, quick_report_command, inline_button_handler
+from handlers.reward_handler import use_reward, check_reward, check_all_rewards, help_command, start_command, button_click_handler, quick_report_command, inline_button_handler, announce_command
 from handlers.checkin_handler import handle_checkin_photo
 from handlers.endshift_handler import handle_endshift_photo
 
@@ -77,6 +77,7 @@ def main():
     app.add_handler(CommandHandler("bangthuong", check_all_rewards))
     app.add_handler(CommandHandler("baodoanhthu", quick_report_command))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("announce", announce_command))
     
     # Khởi động bàn phím ảo & Bắt sự kiện bấm nút
     app.add_handler(CommandHandler("start", start_command))

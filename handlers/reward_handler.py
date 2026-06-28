@@ -64,6 +64,24 @@ async def quick_report_command(update: Update, context: ContextTypes.DEFAULT_TYP
     """Lệnh báo doanh thu nhanh (Dự phòng)"""
     pass
 
+@admin_only
+async def announce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Lệnh /announce <nội dung> để Admin gửi thông báo cập nhật vào group"""
+    if not context.args:
+        await update.message.reply_text("⚠️ Cách dùng: /announce [Nội dung thông báo]")
+        return
+        
+    message = " ".join(context.args)
+    announcement = f"🚀 **THÔNG BÁO CẬP NHẬT:**\n\n{message}"
+    
+    await context.bot.send_message(
+        chat_id=Config.GROUP_CHAT_ID,
+        text=announcement,
+        parse_mode='Markdown'
+    )
+    if update.effective_chat.id != Config.GROUP_CHAT_ID:
+        await update.message.reply_text("✅ Đã gửi thông báo vào nhóm chung!")
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Lệnh hướng dẫn sử dụng bot"""
     if not update.effective_chat or update.effective_chat.id not in [Config.GROUP_CHAT_ID, Config.ADMIN_CHAT_ID]:
