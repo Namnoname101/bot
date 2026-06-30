@@ -471,8 +471,14 @@ class GoogleSheetsService:
             
             # Xác định ca và tính trễ
             shift = self._get_shift_info(now)
+            standard_start = shift['standard_start']
+            
+            # Logic ca gãy: sau 19h30 mới tính trễ
+            if shift_type == "Ca Gãy":
+                standard_start = 19 * 60 + 30
+                
             current_minutes = now.hour * 60 + now.minute
-            late_minutes = max(0, current_minutes - shift['standard_start'])
+            late_minutes = max(0, current_minutes - standard_start)
             
             if late_minutes > 0:
                 note = f"{shift_type} - Đi muộn {late_minutes}p" if shift_type else f"Đi muộn {late_minutes}p"
