@@ -43,6 +43,7 @@ class GoogleSheetsService:
                 # Kết nối Google Sheets bằng Service Account
                 self.gc = gspread.service_account_from_dict(Config.get_google_credentials_info())
                 self.sh = self.gc.open_by_key(Config.SPREADSHEET_ID)
+                self.sh_salary = self.gc.open_by_key(Config.SALARY_SPREADSHEET_ID)
                 
                 # Khởi tạo các trang tính (Worksheets)
                 self.ws_history = self.sh.worksheet("LichSuThuong")
@@ -631,7 +632,7 @@ class GoogleSheetsService:
             return {
                 'success': True,
                 'time': time_str,
-                'total_hours': total_hours,
+                'total_hours': str(total_hours).replace('.', ','),
                 'checkin_time': checkin_time.strip(),
                 'is_ca_gay': is_ca_gay
             }
@@ -865,3 +866,25 @@ class GoogleSheetsService:
         except Exception as e:
             logger.error(f"Lỗi cập nhật doanh thu: {e}")
             return False
+
+    def ensure_salary_worksheet(self):
+        """Tạo sheet lương tháng mới nếu chưa có hoặc cập nhật format."""
+        try:
+            from datetime import datetime
+            now = datetime.now()
+            month_str = f"T{now.month}-{now.year}"
+            try:
+                ws = self.sh_salary.worksheet(f"{month_str}_New")
+                return ws
+            except Exception:
+                try:
+                    ws = self.sh_salary.worksheet(month_str)
+                    return ws
+                except Exception:
+                    pass
+            logger.info(f"Tạo sheet lương mới: {month_str}")
+            return None
+        except Exception as e:
+            logger.error(f"Lỗi ensure_salary_worksheet: {e}")
+            return None
+

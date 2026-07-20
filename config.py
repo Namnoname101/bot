@@ -33,9 +33,14 @@ class Config:
     # Cấu hình Google
     GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")
     # Khi deploy trên server (Render...), paste toàn bộ nội dung credentials.json vào env var này
-    GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")  # JSON string (ưu tiên hơn file)
-    SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
-    DRIVE_FOLDER_ID = os.getenv("DRIVE_FOLDER_ID")
+    GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")    # ID của Google Spreadsheet (File lưu dữ liệu chính)
+    SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "1dE0_l25uY05q-0L5u3Q9mXW10Z-9mNn923S-T2_R")
+    
+    # ID của Google Spreadsheet (File Tính Lương)
+    SALARY_SPREADSHEET_ID = os.getenv("SALARY_SPREADSHEET_ID", "170ThkLaXrriHsi9iUB2m-FyRZ73iz8SYpJwy6jU0sjU")
+
+    # Thư mục Google Drive lưu ảnh check-in
+    DRIVE_FOLDER_ID = os.getenv("DRIVE_FOLDER_ID", "1lJ9m_X-Z_R-K2m2k9_3L_Z_2-9_R_3_9")
 
     @classmethod
     def get_google_credentials_info(cls) -> dict:

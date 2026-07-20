@@ -12,20 +12,22 @@ from handlers.checkin_handler import (
     handle_mark_reported_late, handle_mark_unreported_late
 )
 from handlers.overtime_handler import (
-    handle_add_overtime_button, handle_overtime_employee_selected,
-    handle_overtime_hours_input
+    handle_overtime_summary_button, handle_grant_admin_button,
+    handle_grant_admin_input
 )
 from handlers.management_handler import (
     handle_manage_nv_button, handle_checkin_history_button,
     handle_late_stats_button, handle_edit_report_button,
     handle_add_employee_input, handle_edit_revenue_input,
-    handle_mgmt_callback
+    handle_mgmt_callback, handle_edit_employee_name_input
 )
 from handlers.endshift_handler import (
     handle_endshift_button, handle_endshift_ca_selected,
     handle_endshift_role_selected, handle_endshift_send,
     handle_endshift_cancel, _cancel_endshift_tasks
 )
+from handlers.salary_handler import handle_salary_button, process_salary_input, handle_salary_modifier_request
+from utils.admin import is_admin, is_super_admin
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +66,15 @@ async def quick_report_command(update: Update, context: ContextTypes.DEFAULT_TYP
     """Lệnh báo doanh thu nhanh (Dự phòng)"""
     pass
 
+async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Lệnh /cancel để huỷ bỏ mọi trạng thái hiện tại và hiện lại bàn phím"""
+    context.chat_data.clear()
+    chat_id = update.effective_chat.id
+    keyboard = get_admin_keyboard(is_super_admin=is_super_admin(chat_id)) if is_admin(chat_id, context) else get_main_keyboard()
+    msg = await update.message.reply_text("❌ Đã huỷ toàn bộ thao tác hiện tại.", reply_markup=keyboard)
+    if chat_id == Config.GROUP_CHAT_ID:
+        track_message(context, msg.message_id)
+
 @admin_only
 async def announce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Lệnh /announce <nội dung> để Admin gửi thông báo cập nhật vào group"""
@@ -84,20 +95,20 @@ async def announce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Lệnh hướng dẫn sử dụng bot"""
-    if not update.effective_chat or update.effective_chat.id not in [Config.GROUP_CHAT_ID, Config.ADMIN_CHAT_ID]:
+    if not update.effective_chat or not (update.effective_chat.id == Config.GROUP_CHAT_ID or is_admin(update.effective_chat.id, context)):
         return
 
-    keyboard = get_admin_keyboard() if update.effective_chat.id == Config.ADMIN_CHAT_ID else get_main_keyboard()
+    keyboard = get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id)) if is_admin(update.effective_chat.id, context) else get_main_keyboard()
     reply = await update.message.reply_text(GUIDE_MESSAGE, parse_mode='Markdown', reply_markup=keyboard)
     if update.effective_chat.id == Config.GROUP_CHAT_ID:
         track_message(context, reply.message_id)
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Lệnh /start để hiển thị bàn phím ảo (Reply Keyboard)"""
-    if not update.effective_chat or update.effective_chat.id not in [Config.GROUP_CHAT_ID, Config.ADMIN_CHAT_ID]:
+    if not update.effective_chat or not (update.effective_chat.id == Config.GROUP_CHAT_ID or is_admin(update.effective_chat.id, context)):
         return
 
-    keyboard = get_admin_keyboard() if update.effective_chat.id == Config.ADMIN_CHAT_ID else get_main_keyboard()
+    keyboard = get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id)) if is_admin(update.effective_chat.id, context) else get_main_keyboard()
     reply = await update.message.reply_text("👋 Bot Sô bơ — sử dụng các nút bên dưới:", reply_markup=keyboard)
     if update.effective_chat.id == Config.GROUP_CHAT_ID:
         track_message(context, reply.message_id)
@@ -122,12 +133,21 @@ def build_multi_select_keyboard(selection: dict):
 
 async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Xử lý khi người dùng bấm vào các nút trên bàn phím ảo hoặc gõ text"""
-    if not update.effective_chat or update.effective_chat.id not in [Config.GROUP_CHAT_ID, Config.ADMIN_CHAT_ID]:
+    if not update.effective_chat or not (update.effective_chat.id == Config.GROUP_CHAT_ID or is_admin(update.effective_chat.id, context)):
         return
     text = update.message.text
 
     # ── KIỂM TRA TEXT INPUT ĐANG CHỜ TRƯỚC KHI XÓA STATE ──
-    # Phải kiểm tra awaiting state TRƯỚC khi xóa tin nhắn, vì tin nhắn đó chứa dữ liệu cần xử lý
+    if context.chat_data.get('awaiting_admin_id'):
+        handled = await handle_grant_admin_input(update, context)
+        if handled:
+            return
+
+    if context.chat_data.get('awaiting_edit_emp_name'):
+        handled = await handle_edit_employee_name_input(update, context)
+        if handled:
+            return
+
     if context.chat_data.get('awaiting_overtime_hours'):
         handled = await handle_overtime_hours_input(update, context)
         if handled:
@@ -142,6 +162,11 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if context.chat_data.get('awaiting_edit_report_revenue'):
         handled = await handle_edit_revenue_input(update, context)
+        if handled:
+            return
+
+    if context.chat_data.get('salary_action'):
+        handled = await process_salary_input(update, context)
         if handled:
             return
 
@@ -168,7 +193,8 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                 pass
                 
         context.chat_data.pop('awaiting_feedback', None)
-        msg = await update.message.reply_text("✅ Cảm ơn bạn! Đóng góp của bạn đã được gửi trực tiếp cho Quản lý.")
+        keyboard = get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id)) if is_admin(update.effective_chat.id, context) else get_main_keyboard()
+        msg = await context.bot.send_message(chat_id=update.effective_chat.id, text="✅ Cảm ơn bạn! Đóng góp của bạn đã được gửi trực tiếp cho Quản lý.", reply_markup=keyboard)
         if update.effective_chat.id == Config.GROUP_CHAT_ID:
             track_message(context, msg.message_id)
         return True
@@ -191,8 +217,10 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     context.chat_data.pop('awaiting_checkin_photo', None)
     context.chat_data.pop('awaiting_overtime_hours', None)
     context.chat_data.pop('awaiting_add_employee_name', None)
+    context.chat_data.pop('awaiting_edit_emp_name', None)
     context.chat_data.pop('awaiting_edit_report_revenue', None)
     context.chat_data.pop('awaiting_feedback', None)
+    context.chat_data.pop('awaiting_admin_id', None)
     _cancel_endshift_tasks(context)
 
     if text == "📖 Hướng Dẫn":
@@ -218,6 +246,11 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     elif text == "🔚 Kết Ca":
         await handle_endshift_button(update, context)
+    elif text == "💸 Ứng Lương (QL)":
+        await handle_salary_modifier_request(update, context, "salary_adv")
+        
+    elif text == "🎁 Thưởng Tiền (QL)":
+        await handle_salary_modifier_request(update, context, "salary_bon")
         
     elif text == "⚡ Thưởng Doanh Thu":
         sheets_service = context.bot_data['sheets']
@@ -298,8 +331,14 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     elif text == "⚠️ Thống Kê Đi Muộn":
         await handle_late_stats_button(update, context)
 
-    elif text == "✏️ Sửa Doanh Thu":
-        await handle_edit_report_button(update, context)
+    elif text == "📊 Thống Kê Giờ LT":
+        await handle_overtime_summary_button(update, context)
+
+    elif text == "💰 Tính Lương (QL)":
+        await handle_salary_button(update, context)
+
+    elif text == "👑 Cấp Quyền QL":
+        await handle_grant_admin_button(update, context)
 
 
 async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -393,7 +432,7 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
         for emp in selected:
             await asyncio.to_thread(sheets_service.update_balance, emp, 1)
 
-        keyboard = get_admin_keyboard() if update.effective_chat.id == Config.ADMIN_CHAT_ID else get_main_keyboard()
+        keyboard = get_admin_keyboard(is_super_admin=is_super_admin(query.message.chat.id)) if is_admin(query.message.chat.id, context) else get_main_keyboard()
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=f"✅ +1 ly → {', '.join(selected)} (Ca {ca})",
@@ -409,7 +448,11 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 await context.bot.delete_message(chat_id=update.effective_chat.id, message_id=query.message.message_id)
             except Exception:
                 pass
-        await query.answer("❌ Đã huỷ")
+            
+            chat_id = update.effective_chat.id
+            keyboard = get_admin_keyboard(is_super_admin=is_super_admin(chat_id)) if is_admin(chat_id, context) else get_main_keyboard()
+            msg = await context.bot.send_message(chat_id=chat_id, text="❌ Đã huỷ thao tác.", reply_markup=keyboard)
+            track_message(context, msg.message_id)
 
     elif data.startswith("check_reward_"):
         nickname = data[len("check_reward_"):]
@@ -431,7 +474,7 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
         current_balance = await asyncio.to_thread(sheets_service.get_balance, nickname)
 
         if current_balance <= 0:
-            await query.answer(f"❌ {nickname} không còn ly nào!", show_alert=True)
+            await query.edit_message_text(f"❌ {nickname} không còn ly nào!")
             return
 
         # Hiện confirm trước khi trừ
@@ -461,4 +504,8 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.message.delete()
         except Exception:
             pass
-        await query.answer("❌ Đã huỷ")
+            
+        chat_id = query.message.chat.id
+        keyboard = get_admin_keyboard(is_super_admin=is_super_admin(chat_id)) if is_admin(chat_id, context) else get_main_keyboard()
+        msg = await context.bot.send_message(chat_id=chat_id, text="❌ Đã huỷ thao tác.", reply_markup=keyboard)
+        track_message(context, msg.message_id)

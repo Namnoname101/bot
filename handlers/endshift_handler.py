@@ -3,7 +3,8 @@ import logging
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes
-from utils.auto_delete import delete_tracked_messages, track_message, get_main_keyboard
+from utils.auto_delete import delete_tracked_messages, track_message, get_main_keyboard, get_admin_keyboard
+from utils.admin import is_admin, is_super_admin
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -220,7 +221,9 @@ async def handle_endshift_cancel(query, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         pass
 
-    await query.answer("❌ Đã hủy kết ca")
+    keyboard = get_admin_keyboard(is_super_admin=is_super_admin(chat_id)) if is_admin(chat_id, context) else get_main_keyboard()
+    msg = await context.bot.send_message(chat_id=chat_id, text="❌ Đã hủy kết ca.", reply_markup=keyboard)
+    track_message(context, msg.message_id)
 
 
 def _cancel_endshift_tasks(context: ContextTypes.DEFAULT_TYPE):

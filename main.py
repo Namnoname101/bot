@@ -14,7 +14,7 @@ except ImportError:
 
 from handlers.report_handler import handle_photo_report
 from handlers.reward_handler import use_reward, check_reward, check_all_rewards, help_command, start_command, button_click_handler, quick_report_command, inline_button_handler, announce_command
-from handlers.checkin_handler import handle_checkin_photo
+from handlers.checkin_handler import handle_checkin_photo, send_checkout_reminder, alert_unclosed_sessions, midnight_auto_cleanup
 from handlers.endshift_handler import handle_endshift_photo
 
 logger = logging.getLogger(__name__)
@@ -46,9 +46,61 @@ async def post_init(application):
     # Xóa toàn bộ menu lệnh (dấu "/") để người dùng tập trung vào các nút bấm (Reply Keyboard)
     await application.bot.delete_my_commands()
 
-    # Gửi tin nhắn hướng dẫn ban đầu vào group (máy chung tại quán) kèm bàn phím luôn hiện
-    # [ĐÃ TẮT ĐỂ TRÁNH SPAM - KHÔNG GỬI HƯỚNG DẪN KHI KHỞI ĐỘNG LẠI BOT NỮA]
-    pass
+    # Khởi tạo các Job Queue
+    import datetime
+    import pytz
+    from handlers.checkin_handler import send_checkout_reminder, alert_unclosed_sessions, midnight_auto_cleanup
+
+    tz = pytz.timezone('Asia/Ho_Chi_Minh')
+
+    # 1. Quét dọn lúc 23:55 (Tự động chốt ca cho những người quên)
+    application.job_queue.run_daily(
+        midnight_auto_cleanup,
+        time=datetime.time(hour=23, minute=55, tzinfo=tz),
+        name='midnight_auto_cleanup'
+    )
+
+    # 2. Nhắc Check Out lúc kết ca
+    checkout_shifts = [
+        ('Sáng', datetime.time(hour=12, minute=0, tzinfo=tz)),
+        ('Chiều', datetime.time(hour=18, minute=0, tzinfo=tz)),
+        ('Tối', datetime.time(hour=22, minute=30, tzinfo=tz)),
+    ]
+
+    for shift_ca, shift_time in checkout_shifts:
+        application.job_queue.run_daily(
+            send_checkout_reminder,
+            time=shift_time,
+            data={'shift_ca': shift_ca},
+            name=f'remind_checkout_{shift_ca}'
+        )
+        # Báo cáo các phiên quên check out sau 15 phút
+        alert_time = (datetime.datetime.combine(datetime.date.today(), shift_time) + datetime.timedelta(minutes=15)).time().replace(tzinfo=tz)
+        application.job_queue.run_daily(
+            alert_unclosed_sessions,
+            time=alert_time,
+            data={'shift_ca': shift_ca},
+            name=f'alert_unclosed_{shift_ca}'
+        )
+
+    # 3. Tạo/Cập nhật Bảng Lương hàng ngày lúc 00:05
+    async def scheduled_salary_sheet_maintenance(context):
+        """Tự động kiểm tra và tạo/cập nhật bảng lương hàng tháng lúc 00:05"""
+        try:
+            logger.info("Chạy tác vụ bảo trì Bảng Lương (00:05)...")
+            sheets = context.bot_data['sheets']
+            # Gọi hàm kiểm tra và tạo sheet tháng mới/cập nhật nếu cần
+            await asyncio.to_thread(sheets.ensure_salary_worksheet)
+            logger.info("Hoàn tất bảo trì Bảng Lương.")
+        except Exception as e:
+            logger.error(f"Lỗi bảo trì Bảng Lương: {e}")
+
+    import asyncio
+    application.job_queue.run_daily(
+        scheduled_salary_sheet_maintenance,
+        time=datetime.time(hour=0, minute=5, tzinfo=tz),
+        name='salary-sheet-maintenance',
+    )
 
 def main():
     logger.info("Đang khởi động Bot...")

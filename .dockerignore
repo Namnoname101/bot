@@ -1,0 +1,21 @@
+.git
+.github
+.venv
+__pycache__
+*.pyc
+*.pyo
+
+# Secrets must be provided through Fly secrets, never baked into the image.
+.env
+credentials.json
+
+# Local diagnostics and generated data.
+backup.xlsx
+temp_logs*.txt
+sheet_research*.txt
+research_sheet.py
+
+# Development-only files.
+test_*.py
+scripts
+*.md

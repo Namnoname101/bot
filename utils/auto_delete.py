@@ -25,35 +25,29 @@ def get_main_keyboard():
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
 
 
-def get_admin_keyboard():
-    """Reply keyboard dành riêng cho tài khoản Quản lý (Admin)."""
+def get_admin_keyboard(is_super_admin=False):
     keyboard = [
         [KeyboardButton("📊 Bảng Thưởng (QL)"), KeyboardButton("🧾 Quản Lý NV (QL)")],
         [KeyboardButton("📋 Lịch Sử Check-In"),  KeyboardButton("⚠️ Thống Kê Đi Muộn")],
-        [KeyboardButton("⚡ Thưởng Doanh Thu"),      KeyboardButton("🥤 Báo Dùng Thưởng")],
-        [KeyboardButton("✏️ Sửa Doanh Thu")]
+        [KeyboardButton("📊 Thống Kê Giờ LT"), KeyboardButton("💰 Tính Lương (QL)")],
+        [KeyboardButton("💸 Ứng Lương (QL)"), KeyboardButton("🎁 Thưởng Tiền (QL)")],
     ]
+    if is_super_admin:
+        keyboard.append([KeyboardButton("👑 Cấp Quyền QL")])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
 
-async def delete_tracked_messages(context, chat_id: int, exclude: set | None = None):
-    """Xóa các tin nhắn kết quả/prompt cũ khi có hành động mới.
+import asyncio
 
-    Args:
-        context: handler context
-        chat_id: chat id to delete messages in
-        exclude: optional set of message IDs to skip (e.g. the message we're about to edit)
-    """
-    if exclude is None:
-        exclude = set()
-
-    to_delete = context.chat_data.get('to_delete', set())
-    for msg_id in list(to_delete):
-        if msg_id in exclude:
-            continue
+async def _bg_delete(bot, chat_id, msg_ids):
+    for m_id in msg_ids:
         try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            await bot.delete_message(chat_id=chat_id, message_id=m_id)
         except Exception:
             pass
+        await asyncio.sleep(0.2)
+
+async def delete_tracked_messages(context, chat_id: int, exclude: set | None = None):
+    """Đã TẮT tính năng xoá tin nhắn tự động để tránh bị Telegram chặn vì rate limit (20 messages/minute/group)."""
     context.chat_data['to_delete'] = set()
 
 def track_message(context, msg_id: int):

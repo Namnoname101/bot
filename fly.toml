@@ -1,6 +1,9 @@
-# fly.toml app configuration file for sober-bot (Telegram polling bot)
+# fly.toml app configuration file for sober-bot (Telegram webhook bot)
 app = 'sober-bot'
 primary_region = 'nrt'
+
+[env]
+  TZ = "Asia/Ho_Chi_Minh"
 
 [build]
 
@@ -10,13 +13,22 @@ primary_region = 'nrt'
 [deploy]
   strategy = "immediate"
 
-# Không dùng http_service vì đây là polling bot
-# Tắt auto-stop để bot chạy liên tục 24/7
+# Expose port 8080 để Telegram gửi webhook trực tiếp đến PTB Tornado server
 [[services]]
-  auto_stop_machines = false
-  auto_start_machines = false
+  internal_port = 8080
+  protocol = "tcp"
+  auto_stop_machines = "off"
+  auto_start_machines = true
   min_machines_running = 1
   processes = ["app"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
 
 [[vm]]
   memory = '256mb'

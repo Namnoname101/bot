@@ -20,13 +20,14 @@ def group_only(func):
     return wrapper
 
 def admin_only(func):
-    """Decorator: Chỉ cho phép Quản lý (Admin Chat ID) thao tác."""
+    """Decorator: Chỉ cho phép Quản lý (Admin Chat ID hoặc admin phụ) thao tác."""
     @functools.wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         if not update.effective_chat:
             return
         
-        if update.effective_chat.id != Config.ADMIN_CHAT_ID:
+        from utils.admin import is_admin
+        if not is_admin(update.effective_chat.id, context):
             logger.warning(f"Từ chối truy cập ADMIN_ONLY từ Chat ID: {update.effective_chat.id}")
             
             if update.callback_query:
