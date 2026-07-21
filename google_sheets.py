@@ -246,6 +246,41 @@ class GoogleSheetsService:
             logger.error(f"Lỗi khi lấy số dư của {nickname}: {e}")
             return 0
 
+    def get_all_salary_rates(self) -> dict:
+        """Lấy mức lương/giờ của tất cả nhân viên từ sheet Mapping (cột 3)."""
+        try:
+            records = self.ws_balance.get_all_values()
+            rates = {}
+            for row in records[1:]:  # Bỏ qua dòng tiêu đề
+                if len(row) > 1 and row[1].strip():
+                    nick = row[1].strip()
+                    try:
+                        rate = float(row[2].strip().replace(',', '.')) if len(row) > 2 and row[2].strip() else 16.0
+                    except:
+                        rate = 16.0
+                    rates[nick] = rate
+            return rates
+        except Exception as e:
+            logger.error(f"Lỗi khi lấy danh sách mức lương: {e}")
+            return {}
+
+    def update_salary_rate(self, nickname: str, new_rate: str) -> bool:
+        """Cập nhật mức lương/giờ cho một nhân viên trên sheet Mapping."""
+        try:
+            col_nicks = self.ws_balance.col_values(2)  # Cột Nickname Bot
+            target = nickname.strip().lower()
+            
+            for i, v in enumerate(col_nicks):
+                if v.strip().lower() == target:
+                    # Cập nhật cột C (Mức Lương/Giờ)
+                    self.ws_balance.update_cell(i + 1, 3, new_rate)
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Lỗi khi cập nhật mức lương cho {nickname}: {e}")
+            return False
+
+
     def get_all_balances(self) -> dict:
         """Lấy số dư của tất cả nhân viên (dành cho quản lý)"""
         try:

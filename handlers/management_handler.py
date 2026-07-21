@@ -42,7 +42,8 @@ async def handle_manage_nv_button(update: Update, context: ContextTypes.DEFAULT_
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("➕ Thêm Nhân Viên", callback_data="mgmt_add_emp"),
          InlineKeyboardButton("❌ Xóa Nhân Viên", callback_data="mgmt_rem_list")],
-        [InlineKeyboardButton("✏️ Sửa Tên Nhân Viên", callback_data="mgmt_edit_list")],
+        [InlineKeyboardButton("✏️ Sửa Tên Nhân Viên", callback_data="mgmt_edit_list"),
+         InlineKeyboardButton("💵 Sửa Mức Lương", callback_data="mgmt_salary_list")],
         [InlineKeyboardButton("🎁 Lịch Sử Thưởng NV", callback_data="mgmt_rwd_list")],
         [InlineKeyboardButton("✖ Đóng", callback_data="mgmt_cancel")]
     ])
@@ -441,8 +442,16 @@ async def handle_mgmt_callback(query, context: ContextTypes.DEFAULT_TYPE):
         await _start_edit_report(query, context, data[len('mgmt_edit_rpt_'):])
         return
 
+    if data == 'mgmt_salary_list':
+        await _show_salary_list(query, context)
+        return
+        
+    if data.startswith('mgmt_salary_sel_'):
+        await _start_edit_salary_rate(query, context, data[len('mgmt_salary_sel_'):])
+        return
 
 # ── Private callback implementations ──
+
 
 async def _start_add_employee(query, context: ContextTypes.DEFAULT_TYPE):
     context.chat_data['awaiting_add_employee_name'] = True
@@ -591,3 +600,77 @@ async def _start_edit_report(query, context: ContextTypes.DEFAULT_TYPE, idx_str:
         f"Gõ doanh thu mới (VD: 1500k, 2M, 1500000):",
         parse_mode='Markdown'
     )
+
+
+async def _show_salary_list(query, context: ContextTypes.DEFAULT_TYPE):
+    sheets = context.bot_data['sheets']
+    import asyncio
+    rates = await asyncio.to_thread(sheets.get_all_salary_rates)
+
+    if not rates:
+        await query.edit_message_text("❌ Chưa có nhân viên nào trong hệ thống.")
+        return
+
+    keyboard, row = [], []
+    for nick, rate in rates.items():
+        rate_str = f"{rate:g}k" if rate else "(chưa set)"
+        row.append(InlineKeyboardButton(f"{nick} ({rate_str})", callback_data=f"mgmt_salary_sel_{nick}"))
+        if len(row) == 2:
+            keyboard.append(row); row = []
+    if row:
+        keyboard.append(row)
+    keyboard.append([InlineKeyboardButton("✖ Hủy", callback_data="mgmt_cancel")])
+
+    await query.edit_message_text(
+        "💵 *MỨC LƯƠNG NHÂN VIÊN*\nChọn nhân viên cần sửa mức lương/giờ:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
+    )
+
+async def _start_edit_salary_rate(query, context: ContextTypes.DEFAULT_TYPE, nickname: str):
+    context.chat_data['awaiting_edit_salary_rate'] = nickname
+    
+    sheets = context.bot_data['sheets']
+    import asyncio
+    rates = await asyncio.to_thread(sheets.get_all_salary_rates)
+    current_rate = rates.get(nickname, 16.0)
+    
+    await query.edit_message_text(
+        f"💵 *SỬA MỨC LƯƠNG*\n\n"
+        f"Nhân viên: *{nickname}*\n"
+        f"Mức lương hiện tại: *{current_rate:g}k/h*\n\n"
+        f"Gõ số lương mới (VD: gõ 16 cho 16k, gõ 18 cho 18k) và gửi vào đây:",
+        parse_mode='Markdown'
+    )
+
+async def handle_edit_salary_rate_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    nickname = context.chat_data.pop('awaiting_edit_salary_rate', None)
+    if not nickname:
+        return False
+        
+    text = update.message.text.strip()
+    try:
+        new_rate = float(text.replace(',', '.'))
+    except ValueError:
+        reply = await update.message.reply_text("❌ Vui lòng nhập số hợp lệ (VD: 16 hoặc 16.5).")
+        track_message(context, reply.message_id)
+        return True
+        
+    sheets = context.bot_data['sheets']
+    import asyncio
+    success = await asyncio.to_thread(sheets.update_salary_rate, nickname, str(new_rate))
+    
+    if success:
+        reply = await update.message.reply_text(
+            f"✅ Đã cập nhật mức lương cho *{nickname}* thành *{new_rate:g}k/h*.",
+            parse_mode='Markdown',
+            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id))
+        )
+    else:
+        reply = await update.message.reply_text(
+            f"❌ Không thể cập nhật mức lương cho *{nickname}*. Vui lòng thử lại.",
+            parse_mode='Markdown',
+            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id))
+        )
+    track_message(context, reply.message_id)
+    return True

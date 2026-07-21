@@ -18,7 +18,8 @@ from handlers.overtime_handler import (
 from handlers.management_handler import (
     handle_manage_nv_button, handle_checkin_history_button,
     handle_late_stats_button, handle_edit_report_button,
-    handle_add_employee_input, handle_edit_revenue_input,
+    handle_add_employee_input, handle_edit_revenue_input, handle_edit_salary_rate_input,
+
     handle_mgmt_callback, handle_edit_employee_name_input
 )
 from handlers.endshift_handler import (
@@ -162,6 +163,11 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if context.chat_data.get('awaiting_edit_report_revenue'):
         handled = await handle_edit_revenue_input(update, context)
+        if handled:
+            return
+
+    if context.chat_data.get('awaiting_edit_salary_rate'):
+        handled = await handle_edit_salary_rate_input(update, context)
         if handled:
             return
 
