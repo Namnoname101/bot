@@ -923,3 +923,183 @@ class GoogleSheetsService:
             logger.error(f"Lỗi ensure_salary_worksheet: {e}")
             return None
 
+
+    def get_salary_month_options(self) -> list:
+        """Lấy danh sách các tháng có bảng lương."""
+        try:
+            options = []
+            worksheets = self.sh_salary.worksheets()
+            import datetime
+            now = datetime.datetime.now()
+            current_month = f"T{now.month}-{now.year}"
+            
+            for ws in worksheets:
+                if ws.title.startswith('T'):
+                    title = ws.title.replace('_New', '')
+                    try:
+                        m, y = title.replace('T', '').split('-')
+                        options.append({'month': int(m), 'year': int(y), 'exists': True})
+                    except Exception:
+                        pass
+            
+            # Đảm bảo tháng hiện tại có trong list dù chưa có sheet
+            has_current = any(o['month'] == now.month and o['year'] == now.year for o in options)
+            if not has_current:
+                options.append({'month': now.month, 'year': now.year, 'exists': False})
+                
+            return sorted(options, key=lambda x: (x['year'], x['month']), reverse=True)
+        except Exception as e:
+            import logging
+            logging.error(f"Lỗi lấy ds tháng lương: {e}")
+            return []
+
+    def get_salary_report(self, month: int, year: int) -> str:
+        """Tạo hoặc đọc bảng lương cho tháng được chỉ định và trả về chuỗi Markdown."""
+        import logging
+        try:
+            # 1. Đảm bảo có sheet
+            month_str = f"T{month}-{year}"
+            try:
+                ws = self.sh_salary.worksheet(month_str)
+            except Exception:
+                try:
+                    ws = self.sh_salary.worksheet(f"{month_str}_New")
+                except Exception:
+                    # Tạo sheet mới
+                    ws = self.sh_salary.add_worksheet(title=f"{month_str}_New", rows="100", cols="20")
+                    headers = ["Ngày Tạo", "Tháng", "Tên Nhân Viên", "Nickname Bot", "Tổng Giờ Làm", "Mức Lương/Giờ", "Thưởng Tiền", "Ứng Lương", "Nhận Thực Tế"]
+                    ws.append_row(headers)
+                    # Gán format tiêu đề
+                    ws.format("A1:I1", {"textFormat": {"bold": True}})
+                    
+            # 2. Đọc dữ liệu từ sheet Lương
+            all_data = ws.get_all_values()
+            
+            # Lấy danh sách nhân viên từ Mapping (SoDuThuong)
+            rates = self.get_all_salary_rates()
+            
+            # 3. Tính tổng giờ làm từ LichSuCheckin cho khoảng 17 tháng trước -> 16 tháng này
+            import datetime
+            if month == 1:
+                start_date = datetime.date(year - 1, 12, 17)
+            else:
+                start_date = datetime.date(year, month - 1, 17)
+            end_date = datetime.date(year, month, 16)
+            
+            checkin_data = self.ws_checkin.get_all_values()
+            hours_dict = {}
+            for row in checkin_data[1:]:
+                if len(row) >= 5:
+                    date_str = row[0].strip()
+                    nick = row[1].strip()
+                    try:
+                        d, m, y = map(int, date_str.split('/'))
+                        row_date = datetime.date(y, m, d)
+                        if start_date <= row_date <= end_date:
+                            hours = float(row[4].strip().replace(',', '.')) if row[4].strip() else 0.0
+                            hours_dict[nick] = hours_dict.get(nick, 0.0) + hours
+                    except Exception:
+                        pass
+                        
+            # 4. Cập nhật hoặc tạo dòng cho mỗi nhân viên trong sheet Lương
+            existing_rows = {row[3].strip(): i+1 for i, row in enumerate(all_data) if len(row) > 3 and i > 0}
+            
+            report_lines = []
+            report_lines.append(f"💵 *BẢNG LƯƠNG T{month}/{year}* ({start_date.strftime('%d/%m/%Y')} - {end_date.strftime('%d/%m/%Y')})\n")
+            
+            for nick, rate in rates.items():
+                hours = hours_dict.get(nick, 0.0)
+                # Đọc ứng/thưởng cũ
+                row_idx = existing_rows.get(nick)
+                bonus, adv = 0, 0
+                real_name = ""
+                if row_idx and row_idx <= len(all_data):
+                    r_data = all_data[row_idx - 1]
+                    try:
+                        real_name = str(r_data[2]).strip() if len(r_data) > 2 else ""
+                    except: pass
+                    try:
+                        bonus = float(str(r_data[6]).replace(',', '').replace('.', '')) if len(r_data) > 6 and r_data[6].strip() else 0.0
+                    except: pass
+                    try:
+                        adv = float(str(r_data[7]).replace(',', '').replace('.', '')) if len(r_data) > 7 and r_data[7].strip() else 0.0
+                    except: pass
+                
+                # Tính tổng
+                total_received = (hours * rate) + bonus - adv
+                
+                # Report line
+                display_name = real_name if real_name else nick
+                report_lines.append(f"👤 *{display_name}*")
+                report_lines.append(f"  ⏳ {hours:g}h x {rate:g}k = {hours * rate:g}k")
+                if bonus > 0:
+                    report_lines.append(f"  🎁 Thưởng: +{bonus:g}k")
+                if adv > 0:
+                    report_lines.append(f"  💸 Ứng: -{adv:g}k")
+                report_lines.append(f"  👉 *Thực nhận: {total_received:g}k*\n")
+                
+                # Cập nhật sheet (Tên thật cột C, Nickname cột D)
+                now_str = datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
+                if row_idx:
+                    # Update existing row
+                    ws.update(f'D{row_idx}:I{row_idx}', [[nick, hours, rate, bonus, adv, total_received]])
+                else:
+                    # Chèn mới
+                    ws.append_row([now_str, f"T{month}-{year}", "", nick, hours, rate, bonus, adv, total_received])
+            
+            if len(report_lines) == 1:
+                return f"Không có dữ liệu cho tháng {month}/{year}."
+                
+            return "\n".join(report_lines)
+            
+        except Exception as e:
+            logging.error(f"Lỗi get_salary_report: {e}")
+            return f"❌ Lỗi: {e}"
+
+    def update_salary_modifier(self, nickname: str, is_bonus: bool, amount: int, month: int, year: int) -> bool:
+        """Cập nhật ứng/thưởng cho nhân viên trong tháng."""
+        import logging
+        try:
+            month_str = f"T{month}-{year}"
+            try:
+                ws = self.sh_salary.worksheet(month_str)
+            except Exception:
+                ws = self.sh_salary.worksheet(f"{month_str}_New")
+                
+            all_data = ws.get_all_values()
+            
+            for i, row in enumerate(all_data):
+                if len(row) > 3 and _normalize_name_for_comparison(row[3].strip()) == _normalize_name_for_comparison(nickname):
+                    # Cột 7: Thưởng, Cột 8: Ứng (1-based index)
+                    col = 7 if is_bonus else 8
+                    current_val = 0
+                    try:
+                        if len(row) >= col and row[col-1].strip():
+                            current_val = float(str(row[col-1]).replace(',', '').replace('.', ''))
+                    except:
+                        pass
+                    
+                    new_val = current_val + amount
+                    ws.update_cell(i + 1, col, new_val)
+                    
+                    # Update Thực Nhận (cột I = cột 9)
+                    try:
+                        hours = float(row[4].replace(',','.')) if len(row) >= 5 and row[4] else 0.0
+                        rate = float(row[5].replace(',','.')) if len(row) >= 6 and row[5] else 16.0
+                        bonus = float(row[6].replace(',','.')) if len(row) >= 7 and row[6] else 0.0
+                        adv = float(row[7].replace(',','.')) if len(row) >= 8 and row[7] else 0.0
+                        
+                        if is_bonus:
+                            bonus = new_val
+                        else:
+                            adv = new_val
+                            
+                        ws.update_cell(i + 1, 9, (hours * rate) + bonus - adv)
+                    except Exception as e:
+                        logging.error(f"Lỗi update tổng thực nhận: {e}")
+                        
+                    return True
+            return False
+        except Exception as e:
+            logging.error(f"Lỗi update_salary_modifier cho {nickname}: {e}")
+            raise e
