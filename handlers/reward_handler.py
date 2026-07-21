@@ -106,7 +106,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Lệnh /start để hiển thị bàn phím ảo (Reply Keyboard)"""
-    if not update.effective_chat or not (update.effective_chat.id == Config.GROUP_CHAT_ID or is_admin(update.effective_chat.id, context)):
+    if not update.effective_chat:
         return
 
     keyboard = get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id)) if is_admin(update.effective_chat.id, context) else get_main_keyboard()
