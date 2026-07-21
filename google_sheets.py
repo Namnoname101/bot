@@ -247,15 +247,16 @@ class GoogleSheetsService:
             return 0
 
     def get_all_salary_rates(self) -> dict:
-        """Lấy mức lương/giờ của tất cả nhân viên từ sheet Mapping (cột 3)."""
+        """Lấy mức lương/giờ của tất cả nhân viên từ sheet Mapping (cột 5)."""
         try:
             records = self.ws_balance.get_all_values()
             rates = {}
             for row in records[1:]:  # Bỏ qua dòng tiêu đề
-                if len(row) > 1 and row[1].strip():
-                    nick = row[1].strip()
+                nick_idx = self.col_nickname_index - 1
+                if len(row) > nick_idx and row[nick_idx].strip():
+                    nick = row[nick_idx].strip()
                     try:
-                        rate = float(row[2].strip().replace(',', '.')) if len(row) > 2 and row[2].strip() else 16.0
+                        rate = float(row[4].strip().replace(',', '.')) if len(row) > 4 and row[4].strip() else 16.0
                     except:
                         rate = 16.0
                     rates[nick] = rate
@@ -265,15 +266,22 @@ class GoogleSheetsService:
             return {}
 
     def update_salary_rate(self, nickname: str, new_rate: str) -> bool:
-        """Cập nhật mức lương/giờ cho một nhân viên trên sheet Mapping."""
+        """Cập nhật mức lương/giờ cho một nhân viên trên sheet Mapping (cột 5)."""
         try:
-            col_nicks = self.ws_balance.col_values(2)  # Cột Nickname Bot
+            col_nicks = self.ws_balance.col_values(self.col_nickname_index)
             target = nickname.strip().lower()
             
             for i, v in enumerate(col_nicks):
                 if v.strip().lower() == target:
-                    # Cập nhật cột C (Mức Lương/Giờ)
-                    self.ws_balance.update_cell(i + 1, 3, new_rate)
+                    # Đảm bảo header có Mức Lương/Giờ nếu chưa có
+                    try:
+                        header = self.ws_balance.cell(1, 5).value
+                        if not header:
+                            self.ws_balance.update_cell(1, 5, "Mức Lương/Giờ")
+                    except Exception:
+                        pass
+                    # Cập nhật cột E (Mức Lương/Giờ - cột số 5)
+                    self.ws_balance.update_cell(i + 1, 5, new_rate)
                     return True
             return False
         except Exception as e:
