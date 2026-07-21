@@ -638,8 +638,8 @@ async def _start_edit_salary_rate(query, context: ContextTypes.DEFAULT_TYPE, nic
     await query.edit_message_text(
         f"💵 *SỬA MỨC LƯƠNG*\n\n"
         f"Nhân viên: *{nickname}*\n"
-        f"Mức lương hiện tại: *{current_rate:g}k/h*\n\n"
-        f"Gõ số lương mới (VD: gõ 16 cho 16k, gõ 18 cho 18k) và gửi vào đây:",
+        f"Mức hiện tại: *{current_rate}k/giờ*\n\n"
+        f"Gõ mức lương/giờ mới (VD: 16, 18.5, 20):",
         parse_mode='Markdown'
     )
 
