@@ -367,6 +367,11 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await handle_mgmt_callback(query, context)
         return
 
+    if data.startswith('salary_') or data.startswith('sal_emp_'):
+        from handlers.salary_handler import salary_inline_handler
+        await salary_inline_handler(update, context)
+        return
+
     if data.startswith('ks_ca_'):
         await handle_endshift_ca_selected(query, context)
         return
