@@ -487,6 +487,43 @@ class GoogleSheetsService:
             logger.error(f"Lỗi khi lấy danh sách check-in: {e}")
             return {}
 
+    def get_open_checkin_sessions(self, shift_type: str = None) -> list:
+        """Lấy danh sách các phiên check-in chưa check-out.
+        
+        Args:
+            shift_type: Lọc theo loại ca (Ca Chính, Ca Gãy). Nếu None, lấy tất cả.
+            
+        Returns:
+            list: [{'nickname': str, 'checkin_time': str, 'shift_type': str, 'note': str}, ...]
+        """
+        try:
+            all_data = self.ws_checkin.get_all_values()
+            open_sessions = []
+            for row in all_data[1:]:
+                if len(row) >= 3:
+                    row_nick = row[1].strip()
+                    row_checkin = row[2].strip()
+                    row_checkout = row[3].strip() if len(row) > 3 else ""
+                    row_note = row[5].strip() if len(row) > 5 else ""
+                    
+                    if not row_checkout:
+                        is_ca_gay = "ca gãy" in row_note.lower()
+                        current_shift = "Ca Gãy" if is_ca_gay else "Ca Chính"
+                        
+                        if shift_type and current_shift != shift_type:
+                            continue
+                            
+                        open_sessions.append({
+                            'nickname': row_nick,
+                            'checkin_time': row_checkin,
+                            'shift_type': current_shift,
+                            'note': row_note
+                        })
+            return open_sessions
+        except Exception as e:
+            logger.error(f"Lỗi lấy phiên mở: {e}")
+            return []
+
     def checkin(self, nickname: str, shift_type: str = "") -> dict:
         """Ghi nhận check-in cho nhân viên vào sheet Checkin.
         
