@@ -1008,7 +1008,7 @@ class GoogleSheetsService:
         import logging
         try:
             # 1. Đảm bảo có sheet
-            month_str = f"T{month}-{year}"
+            month_str = f"Báo Cáo T{month}-{year}"
             try:
                 ws = self.sh_salary.worksheet(month_str)
             except Exception:
@@ -1110,7 +1110,7 @@ class GoogleSheetsService:
         """Cập nhật ứng/thưởng cho nhân viên trong tháng."""
         import logging
         try:
-            month_str = f"T{month}-{year}"
+            month_str = f"Báo Cáo T{month}-{year}"
             try:
                 ws = self.sh_salary.worksheet(month_str)
             except Exception:
