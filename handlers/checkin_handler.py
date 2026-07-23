@@ -91,20 +91,22 @@ async def midnight_auto_cleanup(context):
             shift_ca = session.get('ca', '')
             shift_type = session.get('shift_type', '')
             
-            # Chỉ tự động chốt cho Ca Chính. Ca Gãy bỏ qua hoặc có thể xử lý sau.
+            # Tự động chốt cho cả Ca Chính và Ca Gãy
+            force_time = None
             if shift_type == "Ca Chính":
-                force_time = None
                 if shift_ca == 'Sáng':
                     force_time = "12:00:00"
                 elif shift_ca == 'Chiều':
                     force_time = "18:00:00"
                 elif shift_ca == 'Tối':
                     force_time = "23:00:00"
+            elif shift_type == "Ca Gãy":
+                force_time = "21:30:00"
                 
-                if force_time:
-                    result = await asyncio.to_thread(sheets.checkout, nickname, shift_type, force_time)
-                    if result.get('success'):
-                        closed_count += 1
+            if force_time:
+                result = await asyncio.to_thread(sheets.checkout, nickname, shift_type, force_time)
+                if result.get('success'):
+                    closed_count += 1
                         
         if closed_count > 0:
             await context.bot.send_message(
