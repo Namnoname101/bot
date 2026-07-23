@@ -14,7 +14,7 @@ except ImportError:
 
 from handlers.report_handler import handle_photo_report
 from handlers.reward_handler import use_reward, check_reward, check_all_rewards, help_command, start_command, button_click_handler, quick_report_command, inline_button_handler, announce_command
-from handlers.checkin_handler import handle_checkin_photo, send_checkout_reminder, alert_unclosed_sessions, midnight_auto_cleanup
+from handlers.checkin_handler import send_checkout_reminder, alert_unclosed_sessions, midnight_auto_cleanup
 from handlers.endshift_handler import handle_endshift_photo
 
 logger = logging.getLogger(__name__)
@@ -28,11 +28,6 @@ async def photo_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat or update.effective_chat.id not in [Config.GROUP_CHAT_ID, Config.ADMIN_CHAT_ID]:
         return
     
-    # ưu tiên xử lý check-in photo nếu đang chờ
-    if context.chat_data.get('awaiting_checkin_photo'):
-        await handle_checkin_photo(update, context)
-        return
-
     # Ảnh kết ca
     if context.chat_data.get('awaiting_endshift_photo'):
         await handle_endshift_photo(update, context)
