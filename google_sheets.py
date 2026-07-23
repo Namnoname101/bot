@@ -518,10 +518,18 @@ class GoogleSheetsService:
                         if shift_type and current_shift != shift_type:
                             continue
                             
+                        # Phục hồi 'ca' (Sáng/Chiều/Tối) từ giờ check-in để auto-checkout cuối ngày nhận diện được
+                        try:
+                            checkin_dt = datetime.strptime(row_checkin, "%H:%M:%S")
+                            ca_label = self._get_shift_info(checkin_dt)['ca']
+                        except Exception:
+                            ca_label = ""
+                            
                         open_sessions.append({
                             'nickname': row_nick,
                             'checkin_time': row_checkin,
                             'shift_type': current_shift,
+                            'ca': ca_label,
                             'note': row_note
                         })
             return open_sessions
