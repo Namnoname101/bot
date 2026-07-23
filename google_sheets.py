@@ -612,7 +612,7 @@ class GoogleSheetsService:
             logger.error(f"Lỗi khi check-in cho {nickname}: {e}")
             return {'success': False, 'error': str(e)}
 
-    def checkout(self, nickname: str) -> dict:
+    def checkout(self, nickname: str, shift_type: str = None, force_time: str = None) -> dict:
         """Ghi nhận check-out cho nhân viên.
         
         Tìm hàng check-in mới nhất (hôm nay, chưa có giờ ra) và cập nhật.
@@ -623,7 +623,7 @@ class GoogleSheetsService:
         try:
             now = datetime.now()
             today = now.strftime("%d/%m/%Y")
-            time_str = now.strftime("%H:%M:%S")
+            time_str = force_time if force_time else now.strftime("%H:%M:%S")
             
             # Tìm hàng check-in hôm nay chưa có giờ ra
             all_data = self.ws_checkin.get_all_values()
