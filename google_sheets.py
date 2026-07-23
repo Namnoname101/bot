@@ -247,22 +247,27 @@ class GoogleSheetsService:
             return 0
 
     def get_all_salary_rates(self) -> dict:
-        """Lấy mức lương/giờ của tất cả nhân viên từ sheet Mapping (cột 5)."""
+        """Lấy mức lương/giờ của tất cả nhân viên từ sheet Mapping (file Bảng Lương)."""
+        import logging
         try:
-            records = self.ws_balance.get_all_values()
+            try:
+                ws_mapping = self.sh_salary.worksheet("Mapping")
+            except Exception:
+                return {}
+            
+            records = ws_mapping.get_all_values()
             rates = {}
-            for row in records[1:]:  # Bỏ qua dòng tiêu đề
-                nick_idx = self.col_nickname_index - 1
-                if len(row) > nick_idx and row[nick_idx].strip():
-                    nick = row[nick_idx].strip()
+            for row in records[1:]:
+                if len(row) >= 3 and row[1].strip():
+                    nick = row[1].strip()
                     try:
-                        rate = float(row[4].strip().replace(',', '.')) if len(row) > 4 and row[4].strip() else 16.0
+                        rate = float(row[2].strip().replace(',', '.'))
                     except:
                         rate = 16.0
                     rates[nick] = rate
             return rates
         except Exception as e:
-            logger.error(f"Lỗi khi lấy danh sách mức lương: {e}")
+            logging.error(f"Lỗi khi lấy danh sách mức lương từ Mapping: {e}")
             return {}
 
     def update_salary_rate(self, nickname: str, new_rate: str) -> bool:
