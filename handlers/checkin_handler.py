@@ -292,7 +292,7 @@ async def handle_checkout_employee_selected(query, context: ContextTypes.DEFAULT
     keyboard = get_admin_keyboard(is_super_admin=is_super_admin(query.message.chat.id)) if is_admin(query.message.chat.id, context) else get_main_keyboard()
     await context.bot.send_message(
         chat_id=query.message.chat.id,
-        text=confirm_text,
+        text=f"✅ Cảm ơn {nickname}, đã ghi nhận check-out thành công!",
         reply_markup=keyboard
     )
 
@@ -387,7 +387,7 @@ async def handle_checkin_photo(update: Update, context: ContextTypes.DEFAULT_TYP
     keyboard = get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id)) if is_admin(update.effective_chat.id, context) else get_main_keyboard()
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=f"✅ {nickname} — {time_str} | Ca {ca} | {note}",
+        text=f"✅ Cảm ơn {nickname}, đã ghi nhận check-in thành công!",
         reply_markup=keyboard
     )
 
