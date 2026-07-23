@@ -297,6 +297,80 @@ async def handle_checkin_employee_selected(query, context: ContextTypes.DEFAULT_
 
 
 
+
+async def handle_checkout_employee_selected(query, context: ContextTypes.DEFAULT_TYPE):
+    """Callback khi nhân viên chọn tên để check-out (Xử lý trực tiếp, KHÔNG cần gửi ảnh)"""
+    payload = query.data[len("co_sel_"):]
+    
+    if payload == "cancel":
+        await _cancel_flow(query, context)
+        return
+
+    # Callback mới có dạng co_sel_main_<nickname> hoặc co_sel_ot_<nickname>.
+    # Vẫn chấp nhận payload cũ chỉ chứa nickname để không làm hỏng nút cũ.
+    shift_type = None
+    if payload.startswith("main_"):
+        shift_type = "Ca Chính"
+        nickname = payload[len("main_"):]
+    elif payload.startswith("ot_"):
+        shift_type = "Ca Gãy"
+        nickname = payload[len("ot_"):]
+    else:
+        nickname = payload
+    
+    sheets_service = context.bot_data['sheets']
+    
+    # Sửa tin nhắn chọn tên thành trạng thái đang xử lý
+    shift_label = f" ({shift_type})" if shift_type else ""
+    await query.edit_message_text(f"⏳ Đang ghi nhận check-out cho {nickname}{shift_label}...")
+    
+    result = await asyncio.to_thread(sheets_service.checkout, nickname, shift_type)
+    
+    if not result['success']:
+        error = result.get('error', '')
+        if error == 'not_checked_in':
+            text = f"⚠️ {nickname} chưa check-in hôm nay! Hãy bấm 📥 Check In trước."
+        else:
+            text = f"❌ Lỗi check-out: {error}"
+            
+        try:
+            await query.message.delete()
+        except Exception:
+            pass
+        keyboard = get_admin_keyboard(is_super_admin=is_super_admin(query.message.chat.id)) if is_admin(query.message.chat.id, context) else get_main_keyboard()
+        await context.bot.send_message(chat_id=query.message.chat.id, text=text, reply_markup=keyboard)
+        return
+    
+    # Xóa message chọn tên, gửi 1 message kết quả + keyboard
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
+
+    result_shift = result.get('shift_type') or shift_type or 'Ca làm việc'
+    confirm_text = f"✅ {nickname} ra {result_shift} — {result['time']} ({result['total_hours']}h)"
+        
+    keyboard = get_admin_keyboard(is_super_admin=is_super_admin(query.message.chat.id)) if is_admin(query.message.chat.id, context) else get_main_keyboard()
+    await context.bot.send_message(
+        chat_id=query.message.chat.id,
+        text=f"✅ Cảm ơn {nickname}, đã ghi nhận check-out thành công!",
+        reply_markup=keyboard
+    )
+
+    # Gửi thông báo cho quản lý để xác nhận các ca ra muộn/làm thêm.
+    try:
+        await context.bot.send_message(
+            chat_id=Config.ADMIN_CHAT_ID,
+            text=(
+                f"📤 Check Out cần quản lý kiểm tra\n"
+                f"👤 {nickname}\n"
+                f"🕐 {result_shift}: {result['time']}\n"
+                f"⏱ Tổng thời gian: {result['total_hours']}h"
+            )
+        )
+    except Exception as e:
+        logger.warning(f"Không thể báo quản lý sau khi check-out: {e}")
+
 async def handle_mark_reported_late(query, context: ContextTypes.DEFAULT_TYPE):
     """Admin bấm nút xác nhận nhân viên đã báo trước khi trễ"""
     # callback_data format: mark_reported_{date_str}_{nickname}
