@@ -397,6 +397,11 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await handle_checkout_employee_selected(query, context)
         return
     
+    if data.startswith("alert_ig_") or data.startswith("alert_co_"):
+        from handlers.checkin_handler import handle_alert_co
+        await handle_alert_co(query, context)
+        return
+    
     if data.startswith("ot_sel_"):
         await handle_overtime_employee_selected(query, context)
         return

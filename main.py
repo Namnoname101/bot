@@ -70,7 +70,7 @@ async def post_init(application):
             name=f'remind_checkout_{shift_ca}'
         )
         # Báo cáo các phiên quên check out sau 15 phút
-        alert_time = (datetime.datetime.combine(datetime.date.today(), shift_time) + datetime.timedelta(minutes=15)).time().replace(tzinfo=tz)
+        alert_time = (datetime.datetime.combine(datetime.date.today(), shift_time) + datetime.timedelta(minutes=30)).time().replace(tzinfo=tz)
         application.job_queue.run_daily(
             alert_unclosed_sessions,
             time=alert_time,
