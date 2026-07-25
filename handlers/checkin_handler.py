@@ -325,12 +325,13 @@ async def handle_checkin_employee_selected(query, context: ContextTypes.DEFAULT_
 
     # Gửi admin thông báo check-in
     try:
-        admin_text = f"📥 {nickname} — {time_str} Ca {ca} | {note}"
-        await context.bot.send_message(
-            chat_id=Config.ADMIN_CHAT_ID,
-            text=admin_text
-        )
         if late_minutes > 0:
+            admin_text = f"📥 {nickname} — {time_str} Ca {ca} | {note}"
+            await context.bot.send_message(
+                chat_id=Config.ADMIN_CHAT_ID,
+                text=admin_text
+            )
+            
             late_keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("✅ Đã báo trước",
                     callback_data=f"mark_reported_{date_str}_{nickname}"),

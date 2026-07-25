@@ -574,6 +574,11 @@ class GoogleSheetsService:
             current_minutes = now.hour * 60 + now.minute
             late_minutes = max(0, current_minutes - standard_start)
             
+            # Format standard start time as HH:MM:SS
+            std_hour = standard_start // 60
+            std_minute = standard_start % 60
+            time_str = f"{std_hour:02d}:{std_minute:02d}:00"
+            
             if late_minutes > 0:
                 note = f"{shift_type} - Đi muộn {late_minutes}p" if shift_type else f"Đi muộn {late_minutes}p"
             else:
