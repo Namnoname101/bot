@@ -572,7 +572,11 @@ class GoogleSheetsService:
                 standard_start = 19 * 60 + 30
                 
             current_minutes = now.hour * 60 + now.minute
-            late_minutes = max(0, current_minutes - standard_start)
+            # Cho phép trễ tối đa 5 phút (grace period)
+            if current_minutes <= standard_start + 5:
+                late_minutes = 0
+            else:
+                late_minutes = current_minutes - standard_start
             
             # Format standard start time as HH:MM:SS
             std_hour = standard_start // 60
