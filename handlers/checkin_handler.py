@@ -52,7 +52,7 @@ async def send_checkout_reminder(context):
 
 
 async def alert_unclosed_sessions(context):
-    """Sau 30 phút, báo quản lý các phiên ca chính vẫn chưa chốt."""
+    """Sau 30 phút, tự động chốt các phiên ca chính vẫn chưa chốt (không cần admin xác nhận)."""
     shift_ca = _job_shift_ca(context)
     if not shift_ca:
         return
@@ -65,75 +65,41 @@ async def alert_unclosed_sessions(context):
 
         for session in sessions:
             nickname = session['nickname']
-            ca = session.get('ca') or session.get('shift_type')
             shift_type = session.get('shift_type')
             
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Quên ra (Chốt đúng giờ)", callback_data=f"alert_co_{shift_type}_{nickname}")],
-                [InlineKeyboardButton("⏳ Khách đông (Làm tiếp)", callback_data=f"alert_ig_{nickname}")]
-            ])
+            # Xác định giờ ép buộc ra (force_time) dựa trên ca
+            force_time = None
+            if shift_ca == "Sáng":
+                force_time = "12:00:00"
+            elif shift_ca == "Chiều":
+                force_time = "18:00:00"
+            elif shift_ca == "Tối":
+                force_time = "23:00:00"
+                
+            # Logic ca gãy
+            if shift_type == "Ca Gãy":
+                force_time = "21:30:00"
             
-            await context.bot.send_message(
-                chat_id=Config.ADMIN_CHAT_ID,
-                text=f"⚠️ Nhân viên **{nickname}** (Ca {ca}) đã quá 30 phút vẫn chưa check out!\nQuản lý xác nhận:",
-                reply_markup=keyboard,
-                parse_mode='Markdown'
-            )
+            # Thực hiện checkout
+            result = await asyncio.to_thread(sheets.checkout, nickname, shift_type, force_time)
             
-        logger.info("Đã báo quản lý các phiên mở quá hạn ca %s.", shift_ca)
+            if result['success']:
+                result_shift = result.get('shift_type') or shift_type or 'Ca làm việc'
+                text = f"✅ Hệ thống tự động chốt **{nickname}** ra {result_shift} — {result['time']} ({result['total_hours']}h) do quá hạn 30 phút."
+                
+                # Thông báo về nhóm để nhân viên biết
+                await context.bot.send_message(
+                    chat_id=Config.GROUP_CHAT_ID,
+                    text=text,
+                    parse_mode='Markdown'
+                )
+            else:
+                error = result.get('error', '')
+                logger.error(f"Lỗi tự động chốt ca cho {nickname}: {error}")
+            
+        logger.info("Đã tự động chốt các phiên mở quá hạn ca %s.", shift_ca)
     except Exception as e:
         logger.error(f"Lỗi khi alert_unclosed_sessions: {e}")
-
-async def handle_alert_co(query, context: ContextTypes.DEFAULT_TYPE):
-    """Xử lý nút Quản lý bấm Check Out thay hoặc Cho làm tiếp."""
-    data = query.data
-    sheets_service = context.bot_data['sheets']
-    
-    if data.startswith("alert_ig_"):
-        nickname = data[len("alert_ig_"):]
-        await query.edit_message_text(f"✅ Đã xác nhận **{nickname}** tiếp tục làm việc.", parse_mode='Markdown')
-        return
-        
-    if data.startswith("alert_co_"):
-        payload = data[len("alert_co_"):]
-        parts = payload.split('_', 1)
-        if len(parts) == 2:
-            shift_type, nickname = parts
-        else:
-            shift_type = None
-            nickname = payload
-            
-        await query.edit_message_text(f"⏳ Đang xử lý chốt ca cho **{nickname}**...", parse_mode='Markdown')
-        
-        # Xác định giờ ép buộc ra (force_time)
-        force_time = None
-        if shift_type == "Ca Chính":
-            msg_text = query.message.text
-            if "Sáng" in msg_text:
-                force_time = "12:00:00"
-            elif "Chiều" in msg_text:
-                force_time = "18:00:00"
-            elif "Tối" in msg_text:
-                force_time = "23:00:00"
-        elif shift_type == "Ca Gãy":
-            force_time = "21:30:00"
-            
-        result = await asyncio.to_thread(sheets_service.checkout, nickname, shift_type, force_time)
-        
-        if result['success']:
-            result_shift = result.get('shift_type') or shift_type or 'Ca làm việc'
-            text = f"✅ Quản lý đã chốt **{nickname}** ra {result_shift} — {result['time']} ({result['total_hours']}h)"
-            await query.edit_message_text(text, parse_mode='Markdown')
-            # Thông báo về nhóm để nhân viên biết
-            await context.bot.send_message(
-                chat_id=Config.GROUP_CHAT_ID,
-                text=text,
-                parse_mode='Markdown'
-            )
-        else:
-            error = result.get('error', '')
-            text = f"❌ Lỗi chốt ca cho **{nickname}**: {error}"
-            await query.edit_message_text(text, parse_mode='Markdown')
 
 
 async def midnight_auto_cleanup(context):
