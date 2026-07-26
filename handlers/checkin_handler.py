@@ -92,20 +92,6 @@ async def alert_unclosed_sessions(context):
                     text=f"✅ Cảm ơn {nickname}, đã ghi nhận check-out thành công!",
                     parse_mode='Markdown'
                 )
-                
-                # Gửi thông báo cho quản lý (như bình thường)
-                try:
-                    await context.bot.send_message(
-                        chat_id=Config.ADMIN_CHAT_ID,
-                        text=(
-                            f"📤 Check Out cần quản lý kiểm tra\n"
-                            f"👤 {nickname}\n"
-                            f"🕐 {result_shift}: {result['time']}\n"
-                            f"⏱ Tổng thời gian: {result['total_hours']}h"
-                        )
-                    )
-                except Exception as e:
-                    logger.warning(f"Lỗi gửi admin thông báo checkout tự động: {e}")
             else:
                 error = result.get('error', '')
                 logger.error(f"Lỗi tự động chốt ca cho {nickname}: {error}")
@@ -398,20 +384,6 @@ async def handle_checkout_employee_selected(query, context: ContextTypes.DEFAULT
         text=f"✅ Cảm ơn {nickname}, đã ghi nhận check-out thành công!",
         reply_markup=keyboard
     )
-
-    # Gửi thông báo cho quản lý để xác nhận các ca ra muộn/làm thêm.
-    try:
-        await context.bot.send_message(
-            chat_id=Config.ADMIN_CHAT_ID,
-            text=(
-                f"📤 Check Out cần quản lý kiểm tra\n"
-                f"👤 {nickname}\n"
-                f"🕐 {result_shift}: {result['time']}\n"
-                f"⏱ Tổng thời gian: {result['total_hours']}h"
-            )
-        )
-    except Exception as e:
-        logger.warning(f"Không thể báo quản lý sau khi check-out: {e}")
 
 async def handle_mark_reported_late(query, context: ContextTypes.DEFAULT_TYPE):
     """Admin bấm nút xác nhận nhân viên đã báo trước khi trễ"""
