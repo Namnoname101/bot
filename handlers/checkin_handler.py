@@ -85,14 +85,27 @@ async def alert_unclosed_sessions(context):
             
             if result['success']:
                 result_shift = result.get('shift_type') or shift_type or 'Ca làm việc'
-                text = f"✅ Hệ thống tự động chốt **{nickname}** ra {result_shift} — {result['time']} ({result['total_hours']}h) do quá hạn 30 phút."
                 
-                # Thông báo về nhóm để nhân viên biết
+                # Thông báo về nhóm chung (như bình thường)
                 await context.bot.send_message(
                     chat_id=Config.GROUP_CHAT_ID,
-                    text=text,
+                    text=f"✅ Cảm ơn {nickname}, đã ghi nhận check-out thành công!",
                     parse_mode='Markdown'
                 )
+                
+                # Gửi thông báo cho quản lý (như bình thường)
+                try:
+                    await context.bot.send_message(
+                        chat_id=Config.ADMIN_CHAT_ID,
+                        text=(
+                            f"📤 Check Out cần quản lý kiểm tra\n"
+                            f"👤 {nickname}\n"
+                            f"🕐 {result_shift}: {result['time']}\n"
+                            f"⏱ Tổng thời gian: {result['total_hours']}h"
+                        )
+                    )
+                except Exception as e:
+                    logger.warning(f"Lỗi gửi admin thông báo checkout tự động: {e}")
             else:
                 error = result.get('error', '')
                 logger.error(f"Lỗi tự động chốt ca cho {nickname}: {error}")
