@@ -1,13 +1,13 @@
 import asyncio
 import logging
-from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from config import Config
 from utils.auto_delete import track_message, delete_tracked_messages, get_admin_keyboard
 from utils.admin import is_admin, is_super_admin
-from utils.validators import _parse_amount_str
+from utils.validators import _parse_amount_str, validate_nickname
+from utils.time_utils import local_now
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────────
 
 def _is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    return bool(update.effective_chat and is_admin(update.effective_chat.id, context))
+    return bool(update.effective_user and is_admin(update.effective_user.id, context))
 
 
 def _fmt_revenue(raw) -> str:
@@ -66,7 +66,7 @@ async def handle_checkin_history_button(update: Update, context: ContextTypes.DE
 
     sheets = context.bot_data['sheets']
     records = await asyncio.to_thread(sheets.get_checkin_history_today)
-    today = datetime.now().strftime("%d/%m/%Y")
+    today = local_now().strftime("%d/%m/%Y")
 
     if not records:
         reply = await update.message.reply_text(
@@ -106,7 +106,7 @@ async def handle_late_stats_button(update: Update, context: ContextTypes.DEFAULT
         return
 
     sheets = context.bot_data['sheets']
-    month_year = datetime.now().strftime("%m/%Y")
+    month_year = local_now().strftime("%m/%Y")
     records = await asyncio.to_thread(sheets.get_late_statistics, month_year)
 
     if not records:
@@ -166,7 +166,7 @@ async def handle_edit_report_button(update: Update, context: ContextTypes.DEFAUL
         return
 
     # Lưu tạm trong bot_data để callback truy xuất
-    context.bot_data['edit_report_sessions'] = sessions
+    context.user_data['edit_report_sessions'] = sessions
 
     keyboard = []
     for i, s in enumerate(sessions):
@@ -192,24 +192,25 @@ async def handle_edit_report_button(update: Update, context: ContextTypes.DEFAUL
 
 async def handle_add_employee_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """Xử lý khi admin nhập tên NV mới. Return True nếu đã xử lý."""
-    if not context.chat_data.get('awaiting_add_employee_name'):
+    if not context.user_data.get('awaiting_add_employee_name'):
         return False
 
     nickname = update.message.text.strip()
-    del context.chat_data['awaiting_add_employee_name']
-
     try:
         await update.message.delete()
     except Exception:
         pass
 
-    if not nickname:
+    valid, validation_error = validate_nickname(nickname)
+    if not valid:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="❌ Tên không được để trống!",
-            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id))
+            text=f"❌ {validation_error}",
+            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id))
         )
         return True
+
+    context.user_data.pop('awaiting_add_employee_name', None)
 
     sheets = context.bot_data['sheets']
     status_msg = await context.bot.send_message(
@@ -223,7 +224,7 @@ async def handle_add_employee_input(update: Update, context: ContextTypes.DEFAUL
         await status_msg.edit_text(
             f"✅ Đã thêm *{nickname}* (số dư: 0 ly)",
             parse_mode='Markdown',
-            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id))
+        reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id))
         )
     else:
         err = result.get('error', '')
@@ -235,7 +236,7 @@ async def handle_add_employee_input(update: Update, context: ContextTypes.DEFAUL
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="↩️",
-        reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id))
+        reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id))
     )
     return True
 
@@ -266,7 +267,7 @@ async def _show_edit_list(query, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _start_edit_name(query, context: ContextTypes.DEFAULT_TYPE, nickname: str):
-    context.chat_data['awaiting_edit_emp_name'] = nickname
+    context.user_data['awaiting_edit_emp_name'] = nickname
     await query.edit_message_text(
         f"✏️ *SỬA TÊN NHÂN VIÊN*\n\n"
         f"Đang sửa tên cho: *{nickname}*\n"
@@ -278,26 +279,27 @@ async def _start_edit_name(query, context: ContextTypes.DEFAULT_TYPE, nickname: 
 
 async def handle_edit_employee_name_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """Xử lý input tên mới của nhân viên từ quản lý."""
-    old_nickname = context.chat_data.get('awaiting_edit_emp_name')
+    old_nickname = context.user_data.get('awaiting_edit_emp_name')
     if not old_nickname:
         return False
 
     text = update.message.text.strip()
     if text.startswith('/cancel'):
-        context.chat_data.pop('awaiting_edit_emp_name', None)
+        context.user_data.pop('awaiting_edit_emp_name', None)
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text="❌ Đã huỷ thao tác sửa tên nhân viên.",
-            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id))
+            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id))
         )
         return True
 
     new_nickname = text
-    if not new_nickname:
+    valid, validation_error = validate_nickname(new_nickname)
+    if not valid:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="❌ Tên không được để trống!",
-            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id))
+            text=f"❌ {validation_error}",
+            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id))
         )
         return True
 
@@ -310,7 +312,7 @@ async def handle_edit_employee_name_input(update: Update, context: ContextTypes.
     )
     result = await asyncio.to_thread(sheets.rename_employee, old_nickname, new_nickname)
     
-    context.chat_data.pop('awaiting_edit_emp_name', None)
+    context.user_data.pop('awaiting_edit_emp_name', None)
 
     try:
         await status_msg.delete()
@@ -322,7 +324,7 @@ async def handle_edit_employee_name_input(update: Update, context: ContextTypes.
             chat_id=update.effective_chat.id,
             text=f"✅ Đã đổi tên thành công:\n*{old_nickname}* ➡️ *{new_nickname}*",
             parse_mode='Markdown',
-            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id))
+            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id))
         )
     else:
         err = result.get('error', '')
@@ -337,7 +339,7 @@ async def handle_edit_employee_name_input(update: Update, context: ContextTypes.
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=f"❌ Thất bại: {msg}",
-            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id))
+            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id))
         )
 
     return True
@@ -345,10 +347,10 @@ async def handle_edit_employee_name_input(update: Update, context: ContextTypes.
 
 async def handle_edit_revenue_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """Xử lý khi admin nhập doanh thu mới. Return True nếu đã xử lý."""
-    if not context.chat_data.get('awaiting_edit_report_revenue'):
+    if not context.user_data.get('awaiting_edit_report_revenue'):
         return False
 
-    session_info = context.chat_data.pop('awaiting_edit_report_revenue')
+    session_info = context.user_data.get('awaiting_edit_report_revenue')
     raw = update.message.text.strip()
 
     try:
@@ -357,11 +359,11 @@ async def handle_edit_revenue_input(update: Update, context: ContextTypes.DEFAUL
         pass
 
     new_revenue = _parse_amount_str(raw)
-    if new_revenue is None or new_revenue < 0:
+    if new_revenue is None or new_revenue <= 0 or new_revenue > 100_000_000:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text="❌ Số tiền không hợp lệ. Vui lòng thử lại (VD: 1500k, 2M, 1500000).",
-            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(query.message.chat.id))
+            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id))
         )
         return True
 
@@ -372,7 +374,7 @@ async def handle_edit_revenue_input(update: Update, context: ContextTypes.DEFAUL
     )
     success = await asyncio.to_thread(
         sheets.update_report_revenue,
-        session_info['row_indices'],
+        session_info,
         new_revenue
     )
 
@@ -380,6 +382,7 @@ async def handle_edit_revenue_input(update: Update, context: ContextTypes.DEFAUL
     emps = ', '.join(session_info['employees'])
 
     if success:
+        context.user_data.pop('awaiting_edit_report_revenue', None)
         await status_msg.edit_text(
             f"✅ Đã cập nhật: {session_info['date']} Ca {session_info['ca']} — {old_str} → {new_revenue:,}đ",
             parse_mode='Markdown'
@@ -390,7 +393,7 @@ async def handle_edit_revenue_input(update: Update, context: ContextTypes.DEFAUL
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="↩️",
-        reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(query.message.chat.id))
+        reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id))
     )
     return True
 
@@ -401,6 +404,9 @@ async def handle_edit_revenue_input(update: Update, context: ContextTypes.DEFAUL
 
 async def handle_mgmt_callback(query, context: ContextTypes.DEFAULT_TYPE):
     """Dispatcher cho mọi callback_data bắt đầu bằng 'mgmt_'."""
+    if not is_admin(query.from_user.id, context):
+        await query.answer("⛔ Chỉ quản lý được thao tác.", show_alert=True)
+        return
     data = query.data
 
     if data == 'mgmt_cancel':
@@ -454,7 +460,7 @@ async def handle_mgmt_callback(query, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _start_add_employee(query, context: ContextTypes.DEFAULT_TYPE):
-    context.chat_data['awaiting_add_employee_name'] = True
+    context.user_data['awaiting_add_employee_name'] = True
     await query.edit_message_text(
         "➕ *THÊM NHÂN VIÊN MỚI*\n\n"
         "Vui lòng gõ *nickname* cho nhân viên mới và gửi vào đây:",
@@ -574,20 +580,14 @@ async def _show_reward_history(query, context: ContextTypes.DEFAULT_TYPE, nickna
 async def _start_edit_report(query, context: ContextTypes.DEFAULT_TYPE, idx_str: str):
     try:
         idx = int(idx_str)
-        sessions = context.bot_data.get('edit_report_sessions', [])
+        sessions = context.user_data.get('edit_report_sessions', [])
         session = sessions[idx]
     except (ValueError, IndexError):
         await query.edit_message_text("❌ Phiên đã hết hạn. Bấm '✏️ Sửa Doanh Thu' lại.")
         return
 
     # Lưu state
-    context.chat_data['awaiting_edit_report_revenue'] = {
-        'row_indices': session['row_indices'],
-        'date':        session['date'],
-        'ca':          session['ca'],
-        'employees':   session['employees'],
-        'old_revenue': session.get('revenue', '')
-    }
+    context.user_data['awaiting_edit_report_revenue'] = dict(session)
 
     emps = ', '.join(session['employees'])
     old_str = _fmt_revenue(session.get('revenue'))
@@ -628,7 +628,7 @@ async def _show_salary_list(query, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def _start_edit_salary_rate(query, context: ContextTypes.DEFAULT_TYPE, nickname: str):
-    context.chat_data['awaiting_edit_salary_rate'] = nickname
+    context.user_data['awaiting_edit_salary_rate'] = nickname
     
     sheets = context.bot_data['sheets']
     import asyncio
@@ -644,13 +644,15 @@ async def _start_edit_salary_rate(query, context: ContextTypes.DEFAULT_TYPE, nic
     )
 
 async def handle_edit_salary_rate_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    nickname = context.chat_data.pop('awaiting_edit_salary_rate', None)
+    nickname = context.user_data.get('awaiting_edit_salary_rate')
     if not nickname:
         return False
         
     text = update.message.text.strip()
     try:
         new_rate = float(text.replace(',', '.'))
+        if new_rate <= 0 or new_rate > 1000:
+            raise ValueError
     except ValueError:
         reply = await update.message.reply_text("❌ Vui lòng nhập số hợp lệ (VD: 16 hoặc 16.5).")
         track_message(context, reply.message_id)
@@ -661,16 +663,17 @@ async def handle_edit_salary_rate_input(update: Update, context: ContextTypes.DE
     success = await asyncio.to_thread(sheets.update_salary_rate, nickname, str(new_rate))
     
     if success:
+        context.user_data.pop('awaiting_edit_salary_rate', None)
         reply = await update.message.reply_text(
             f"✅ Đã cập nhật mức lương cho *{nickname}* thành *{new_rate:g}k/h*.",
             parse_mode='Markdown',
-            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id))
+            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id))
         )
     else:
         reply = await update.message.reply_text(
             f"❌ Không thể cập nhật mức lương cho *{nickname}*. Vui lòng thử lại.",
             parse_mode='Markdown',
-            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_chat.id))
+            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id))
         )
     track_message(context, reply.message_id)
     return True

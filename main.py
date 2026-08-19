@@ -1,19 +1,18 @@
+import asyncio
 import logging
-from telegram import BotCommand, Update
+from zoneinfo import ZoneInfo
+from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, CallbackQueryHandler, ContextTypes
 
 from config import Config
-from utils.auto_delete import GUIDE_MESSAGE, get_main_keyboard
-# Import các service (Hỗ trợ cả trường hợp bạn để file trong thư mục services/ hoặc ở ngoài thư mục gốc)
-try:
-    from services.google_sheets import GoogleSheetsService
-    from services.google_drive import GoogleDriveService
-except ImportError:
-    from google_sheets import GoogleSheetsService
-    from google_drive import GoogleDriveService
+from google_sheets import GoogleSheetsService
 
 from handlers.report_handler import handle_photo_report
-from handlers.reward_handler import use_reward, check_reward, check_all_rewards, help_command, start_command, button_click_handler, quick_report_command, inline_button_handler, announce_command
+from handlers.reward_handler import (
+    announce_command, button_click_handler, cancel_command, check_all_rewards,
+    check_reward, help_command, inline_button_handler, quick_report_command,
+    start_command, use_reward,
+)
 from handlers.checkin_handler import send_checkout_reminder, alert_unclosed_sessions, midnight_auto_cleanup
 from handlers.endshift_handler import handle_endshift_photo
 
@@ -23,13 +22,13 @@ logger = logging.getLogger(__name__)
 async def photo_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Phân loại ảnh: check-in/check-out hoặc báo cáo doanh thu.
     
-    Kiểm tra trạng thái chat_data để xác định ảnh này dùng cho mục đích gì.
+    Kiểm tra trạng thái riêng của người gửi để xác định mục đích ảnh.
     """
     if not update.effective_chat or update.effective_chat.id not in [Config.GROUP_CHAT_ID, Config.ADMIN_CHAT_ID]:
         return
     
     # Ảnh kết ca
-    if context.chat_data.get('awaiting_endshift_photo'):
+    if context.user_data.get('awaiting_endshift_photo'):
         await handle_endshift_photo(update, context)
         return
     
@@ -43,10 +42,15 @@ async def post_init(application):
 
     # Khởi tạo các Job Queue
     import datetime
-    import pytz
-    from handlers.checkin_handler import send_checkout_reminder, alert_unclosed_sessions, midnight_auto_cleanup
+    tz = ZoneInfo(Config.TIMEZONE)
 
-    tz = pytz.timezone('Asia/Ho_Chi_Minh')
+    try:
+        application.bot_data['admin_ids'] = await asyncio.to_thread(
+            application.bot_data['sheets'].get_admin_list
+        )
+    except Exception:
+        logger.exception("Không tải được danh sách admin phụ; chỉ dùng admin gốc.")
+        application.bot_data['admin_ids'] = set()
 
     # 1. Quét dọn lúc 23:55 (Tự động chốt ca cho những người quên)
     application.job_queue.run_daily(
@@ -69,8 +73,13 @@ async def post_init(application):
             data={'shift_ca': shift_ca},
             name=f'remind_checkout_{shift_ca}'
         )
-        # Báo cáo các phiên quên check out sau 15 phút
-        alert_time = (datetime.datetime.combine(datetime.date.today(), shift_time) + datetime.timedelta(minutes=30)).time().replace(tzinfo=tz)
+        # Tự động xử lý các phiên quên check out sau 30 phút
+        alert_minutes = (shift_time.hour * 60 + shift_time.minute + 30) % (24 * 60)
+        alert_time = datetime.time(
+            hour=alert_minutes // 60,
+            minute=alert_minutes % 60,
+            tzinfo=tz,
+        )
         application.job_queue.run_daily(
             alert_unclosed_sessions,
             time=alert_time,
@@ -90,12 +99,20 @@ async def post_init(application):
         except Exception as e:
             logger.error(f"Lỗi bảo trì Bảng Lương: {e}")
 
-    import asyncio
     application.job_queue.run_daily(
         scheduled_salary_sheet_maintenance,
         time=datetime.time(hour=0, minute=5, tzinfo=tz),
         name='salary-sheet-maintenance',
     )
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """Ghi đầy đủ exception để một update lỗi không biến mất im lặng."""
+    error = context.error
+    logger.error(
+        "Lỗi khi xử lý Telegram update",
+        exc_info=(type(error), error, error.__traceback__) if error else None,
+    )
+
 
 def main():
     logger.info("Đang khởi động Bot...")
@@ -103,17 +120,25 @@ def main():
     # 1. Khởi tạo các Service kết nối Google
     try:
         sheets_service = GoogleSheetsService()
-        drive_service = GoogleDriveService()
     except Exception as e:
         logger.error(f"Không thể khởi tạo Service. Bot sẽ dừng lại. Lỗi: {e}")
         return
 
     # 2. Khởi tạo Application của Telegram
-    app = ApplicationBuilder().token(Config.BOT_TOKEN).post_init(post_init).build()
+    app = (
+        ApplicationBuilder()
+        .token(Config.BOT_TOKEN)
+        .connect_timeout(15)
+        .read_timeout(30)
+        .write_timeout(30)
+        .pool_timeout(15)
+        .post_init(post_init)
+        .build()
+    )
 
     # Truyền service vào bot_data để các handlers có thể gọi được mà không cần khởi tạo lại
     app.bot_data['sheets'] = sheets_service
-    app.bot_data['drive'] = drive_service
+    app.bot_data['processed_reports'] = set()
 
     # 3. Đăng ký các Handlers
     # Nhận ảnh (check-in/check-out hoặc báo cáo)
@@ -125,6 +150,7 @@ def main():
     app.add_handler(CommandHandler("baodoanhthu", quick_report_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("announce", announce_command))
+    app.add_handler(CommandHandler("cancel", cancel_command))
     
     # Khởi động bàn phím ảo & Bắt sự kiện bấm nút
     app.add_handler(CommandHandler("start", start_command))
@@ -132,10 +158,11 @@ def main():
     
     # Bắt sự kiện bấm nút Inline Keyboard (Tra cứu thưởng / Báo dùng thưởng)
     app.add_handler(CallbackQueryHandler(inline_button_handler))
+    app.add_error_handler(error_handler)
 
     # 4. Chạy bot
     logger.info("✅ Bot đã sẵn sàng và đang chạy! Nhấn Ctrl + C để dừng.")
-    app.run_polling()
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
     main()

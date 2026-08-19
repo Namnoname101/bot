@@ -238,7 +238,7 @@ assert_eq("3.04 Danh sách rỗng", deduplicate_employees([]), [])
 assert_eq("3.05 1 phần tử", deduplicate_employees(['solo']), ['solo'])
 assert_eq("3.06 Giữ phần tử đầu khi trùng", deduplicate_employees(['a', 'b', 'a', 'c']), ['a', 'b', 'c'])
 assert_eq("3.07 Tất cả trùng 5 phần tử", deduplicate_employees(['x']*5), ['x'])
-assert_eq("3.08 Case-sensitive: 'A' ≠ 'a'", deduplicate_employees(['A', 'a']), ['A', 'a'])
+assert_eq("3.08 Deduplicate không phân biệt hoa/thường", deduplicate_employees(['A', 'a']), ['A'])
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -520,7 +520,7 @@ from utils.auto_delete import GUIDE_MESSAGE
 assert_true("10.09 GUIDE_MESSAGE không rỗng", len(GUIDE_MESSAGE) > 0)
 assert_true("10.10 GUIDE_MESSAGE chứa 'Check In'", 'Check In' in GUIDE_MESSAGE)
 assert_true("10.11 GUIDE_MESSAGE chứa 'Check Out'", 'Check Out' in GUIDE_MESSAGE)
-assert_true("10.12 GUIDE_MESSAGE chứa 'Doanh Thu'", 'Doanh Thu' in GUIDE_MESSAGE)
+assert_true("10.12 GUIDE_MESSAGE chứa 'Báo Dùng Thưởng'", 'Báo Dùng Thưởng' in GUIDE_MESSAGE)
 
 
 # ═══════════════════════════════════════════════════════════════════

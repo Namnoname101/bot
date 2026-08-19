@@ -11,11 +11,23 @@ credentials.json
 
 # Local diagnostics and generated data.
 backup.xlsx
+backup*.xlsx
+backups
 temp_logs*.txt
 sheet_research*.txt
 research_sheet.py
+report_out.txt
+logs
 
 # Development-only files.
 test_*.py
 scripts
 *.md
+append_*.py
+apply_fixes.py
+fix_*.py
+generate_template.py
+rename_sheets.py
+restore_names.py
+setup_formulas.py
+update_*formulas.py

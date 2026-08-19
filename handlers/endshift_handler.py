@@ -1,11 +1,11 @@
 import asyncio
 import logging
-from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.auto_delete import delete_tracked_messages, track_message, get_main_keyboard, get_admin_keyboard
 from utils.admin import is_admin, is_super_admin
 from config import Config
+from utils.time_utils import local_now
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ async def handle_endshift_button(update: Update, context: ContextTypes.DEFAULT_T
 
 async def handle_endshift_ca_selected(query, context: ContextTypes.DEFAULT_TYPE):
     ca = query.data[len("ks_ca_"):]
-    context.chat_data['ks_ca'] = ca
+    context.user_data['ks_ca'] = ca
 
     keyboard = InlineKeyboardMarkup([
         [
@@ -65,11 +65,12 @@ async def handle_endshift_ca_selected(query, context: ContextTypes.DEFAULT_TYPE)
 
 async def handle_endshift_role_selected(query, context: ContextTypes.DEFAULT_TYPE):
     role = query.data[len("ks_role_"):]
-    ca   = context.chat_data.get('ks_ca', '?')
+    ca   = context.user_data.get('ks_ca', '?')
 
-    context.chat_data['awaiting_endshift_photo'] = {'ca': ca, 'role': role}
-    context.chat_data['endshift_all_photos'] = []
-    context.chat_data['endshift_albums']     = {}
+    context.user_data['awaiting_endshift_photo'] = {'ca': ca, 'role': role}
+    context.user_data['endshift_all_photos'] = []
+    context.user_data['endshift_albums'] = {}
+    context.user_data['endshift_sent_count'] = 0
 
     if query.message and query.message.chat.id == Config.GROUP_CHAT_ID:
         await delete_tracked_messages(context, query.message.chat.id)
@@ -94,7 +95,7 @@ async def handle_endshift_role_selected(query, context: ContextTypes.DEFAULT_TYP
 # ── Nhận ảnh: gom theo album, xóa bên nhân viên, lưu file_id ───────────────
 
 async def handle_endshift_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    info = context.chat_data.get('awaiting_endshift_photo')
+    info = context.user_data.get('awaiting_endshift_photo')
     if not info:
         return
 
@@ -103,9 +104,9 @@ async def handle_endshift_photo(update: Update, context: ContextTypes.DEFAULT_TY
     chat_id  = update.effective_chat.id
     group_id = message.media_group_id or f"single_{message.message_id}"
 
-    context.chat_data.setdefault('endshift_all_photos', []).append(photo.file_id)
+    context.user_data.setdefault('endshift_all_photos', []).append(photo.file_id)
 
-    albums: dict = context.chat_data.setdefault('endshift_albums', {})
+    albums: dict = context.user_data.setdefault('endshift_albums', {})
     if group_id not in albums:
         albums[group_id] = {'msg_ids': [], 'task': None}
 
@@ -128,7 +129,7 @@ async def _delete_album(group_id: str, chat_id: int, context: ContextTypes.DEFAU
     except asyncio.CancelledError:
         return
 
-    albums: dict = context.chat_data.get('endshift_albums', {})
+    albums: dict = context.user_data.get('endshift_albums', {})
     album = albums.pop(group_id, None)
     if not album or not album.get('msg_ids'):
         return
@@ -148,16 +149,14 @@ async def _delete_album(group_id: str, chat_id: int, context: ContextTypes.DEFAU
 
 async def handle_endshift_send(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Nhân viên bấm nút → chờ album cuối xóa xong → gửi toàn bộ sang admin."""
-    info = context.chat_data.pop('awaiting_endshift_photo', None)
+    info = context.user_data.get('awaiting_endshift_photo')
     if not info:
         return
 
     # Chờ các album đang pending xóa xong
     await asyncio.sleep(_ALBUM_WAIT + 0.3)
 
-    all_photos = context.chat_data.pop('endshift_all_photos', [])
-    context.chat_data.pop('endshift_albums', None)
-    context.chat_data.pop('ks_ca', None)
+    all_photos = list(context.user_data.get('endshift_all_photos', []))
 
     chat_id = update.effective_chat.id
     ca      = info['ca']
@@ -175,31 +174,56 @@ async def handle_endshift_send(update: Update, context: ContextTypes.DEFAULT_TYP
         await context.bot.send_message(
             chat_id=chat_id,
             text="⚠️ Chưa có ảnh nào được gửi.",
-            reply_markup=get_main_keyboard(),
+            reply_markup=_get_endshift_keyboard(),
         )
         return
 
     # Gửi tất cả sang admin — caption ở ảnh cuối cùng
     try:
-        now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+        now_str = local_now().strftime("%d/%m/%Y %H:%M")
         header  = (
             f"🔚 **KẾT CA {ca.upper()} — {role}**\n"
             f"🕐 {now_str}  |  📷 {total} ảnh"
         )
-        chunks = [all_photos[i:i + 10] for i in range(0, total, 10)]
+        sent_count = int(context.user_data.get('endshift_sent_count', 0))
+        remaining = all_photos[sent_count:]
+        chunks = [remaining[i:i + 10] for i in range(0, len(remaining), 10)]
         for idx, chunk in enumerate(chunks):
             is_last = (idx == len(chunks) - 1)
-            media = [
-                InputMediaPhoto(
-                    media=fid,
-                    caption=header if (is_last and j == len(chunk) - 1) else None,
-                    parse_mode='Markdown',
+            if len(chunk) == 1:
+                await context.bot.send_photo(
+                    chat_id=Config.ADMIN_CHAT_ID,
+                    photo=chunk[0],
+                    caption=header if is_last else None,
+                    parse_mode='Markdown' if is_last else None,
                 )
-                for j, fid in enumerate(chunk)
-            ]
-            await context.bot.send_media_group(chat_id=Config.ADMIN_CHAT_ID, media=media)
+            else:
+                media = [
+                    InputMediaPhoto(
+                        media=fid,
+                        caption=header if (is_last and j == len(chunk) - 1) else None,
+                        parse_mode='Markdown' if (is_last and j == len(chunk) - 1) else None,
+                    )
+                    for j, fid in enumerate(chunk)
+                ]
+                await context.bot.send_media_group(chat_id=Config.ADMIN_CHAT_ID, media=media)
+            sent_count += len(chunk)
+            context.user_data['endshift_sent_count'] = sent_count
     except Exception as e:
-        logger.warning(f"Không thể forward ảnh kết ca: {e}")
+        logger.exception("Không thể gửi ảnh kết ca")
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=("❌ Chưa gửi đủ ảnh cho quản lý. Ảnh đã được giữ lại; "
+                  "hãy bấm 📤 Gửi ảnh kết ca để thử lại."),
+            reply_markup=_get_endshift_keyboard(),
+        )
+        return
+
+    context.user_data.pop('awaiting_endshift_photo', None)
+    context.user_data.pop('endshift_all_photos', None)
+    context.user_data.pop('endshift_albums', None)
+    context.user_data.pop('endshift_sent_count', None)
+    context.user_data.pop('ks_ca', None)
 
     await context.bot.send_message(
         chat_id=chat_id,
@@ -221,17 +245,19 @@ async def handle_endshift_cancel(query, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         pass
 
-    keyboard = get_admin_keyboard(is_super_admin=is_super_admin(chat_id)) if is_admin(chat_id, context) else get_main_keyboard()
+    user_id = query.from_user.id
+    keyboard = get_admin_keyboard(is_super_admin=is_super_admin(user_id)) if is_admin(user_id, context) else get_main_keyboard()
     msg = await context.bot.send_message(chat_id=chat_id, text="❌ Đã hủy kết ca.", reply_markup=keyboard)
     track_message(context, msg.message_id)
 
 
 def _cancel_endshift_tasks(context: ContextTypes.DEFAULT_TYPE):
-    albums: dict = context.chat_data.pop('endshift_albums', {})
+    albums: dict = context.user_data.pop('endshift_albums', {})
     for album in albums.values():
         t = album.get('task')
         if t and not t.done():
             t.cancel()
-    context.chat_data.pop('ks_ca', None)
-    context.chat_data.pop('awaiting_endshift_photo', None)
-    context.chat_data.pop('endshift_all_photos', None)
+    context.user_data.pop('ks_ca', None)
+    context.user_data.pop('awaiting_endshift_photo', None)
+    context.user_data.pop('endshift_all_photos', None)
+    context.user_data.pop('endshift_sent_count', None)

@@ -1,8 +1,5 @@
-python-telegram-bot[webhooks,job-queue]>=21.1.1
+python-telegram-bot[job-queue]==22.7
 gspread==6.0.0
 google-api-python-client==2.118.0
 google-auth-httplib2==0.2.0
-google-auth-oauthlib==1.2.0
 python-dotenv==1.0.1
-google-cloud-storage==2.11.0
-pytz

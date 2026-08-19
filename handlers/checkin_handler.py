@@ -34,7 +34,7 @@ async def send_checkout_reminder(context):
 
     try:
         sheets = context.bot_data['sheets']
-        sessions = await asyncio.to_thread(sheets.get_open_checkin_sessions, shift_ca)
+        sessions = await asyncio.to_thread(sheets.get_open_checkin_sessions, ca=shift_ca)
         if not sessions:
             return
 
@@ -59,7 +59,7 @@ async def alert_unclosed_sessions(context):
 
     try:
         sheets = context.bot_data['sheets']
-        sessions = await asyncio.to_thread(sheets.get_open_checkin_sessions, shift_ca)
+        sessions = await asyncio.to_thread(sheets.get_open_checkin_sessions, ca=shift_ca)
         if not sessions:
             return
 
@@ -185,19 +185,64 @@ async def handle_checkin_type_selected(query, context: ContextTypes.DEFAULT_TYPE
         await _cancel_flow(query, context)
         return
         
-    context.chat_data['awaiting_checkin_type'] = f"Ca {shift_type}"
-    
+    selected_type = f"Ca {shift_type}"
+    context.user_data['awaiting_checkin_type'] = selected_type
+
+    if selected_type == 'Ca Chính':
+        keyboard = [
+            [InlineKeyboardButton("🌅 Ca Sáng", callback_data="ci_ca_Sáng")],
+            [InlineKeyboardButton("☀️ Ca Chiều", callback_data="ci_ca_Chiều")],
+            [InlineKeyboardButton("🌙 Ca Tối", callback_data="ci_ca_Tối")],
+            [InlineKeyboardButton("❌ Hủy", callback_data="ci_ca_cancel")],
+        ]
+        await query.edit_message_text(
+            "📥 **CHECK IN — CA CHÍNH**\nChọn ca làm việc:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown',
+        )
+        return
+
+    # Ca Gãy luôn thuộc ca Tối, không cần hỏi thêm một bước.
+    context.user_data['awaiting_checkin_ca'] = 'Tối'
+    await _show_checkin_employee_picker(query, context)
+
+
+async def handle_checkin_ca_selected(query, context: ContextTypes.DEFAULT_TYPE):
+    """Callback chọn ca Sáng/Chiều/Tối cho Ca Chính."""
+    selected_ca = query.data[len("ci_ca_"):]
+    if selected_ca == 'cancel':
+        await _cancel_flow(query, context)
+        return
+    if (
+        context.user_data.get('awaiting_checkin_type') != 'Ca Chính'
+        or selected_ca not in {'Sáng', 'Chiều', 'Tối'}
+    ):
+        await query.answer("Phiên check-in đã hết hạn. Vui lòng thao tác lại.", show_alert=True)
+        return
+
+    context.user_data['awaiting_checkin_ca'] = selected_ca
+    await _show_checkin_employee_picker(query, context)
+
+
+async def _show_checkin_employee_picker(query, context: ContextTypes.DEFAULT_TYPE):
+    """Tải và hiển thị danh sách nhân viên sau khi đã chọn loại/ca."""
     await query.edit_message_text("⏳ Đang tải danh sách nhân viên...")
-    
+
     sheets_service = context.bot_data['sheets']
     balances = await asyncio.to_thread(sheets_service.get_all_balances)
-    
+
     if not balances:
         await query.edit_message_text("📉 Chưa có dữ liệu nhân viên trên hệ thống.")
         return
-        
+
     reply_markup = _build_employee_picker(balances, "ci_sel")
-    await query.edit_message_text(f"📥 **CHECK IN** ({context.chat_data['awaiting_checkin_type']}) — Bạn là ai?", reply_markup=reply_markup, parse_mode='Markdown')
+    shift_type = context.user_data['awaiting_checkin_type']
+    selected_ca = context.user_data['awaiting_checkin_ca']
+    await query.edit_message_text(
+        f"📥 **CHECK IN** ({shift_type} — {selected_ca}) — Bạn là ai?",
+        reply_markup=reply_markup,
+        parse_mode='Markdown',
+    )
 
 
 
@@ -245,7 +290,11 @@ async def handle_checkin_employee_selected(query, context: ContextTypes.DEFAULT_
         await _cancel_flow(query, context)
         return
         
-    shift_type = context.chat_data.pop('awaiting_checkin_type', '')
+    shift_type = context.user_data.pop('awaiting_checkin_type', '')
+    selected_ca = context.user_data.pop('awaiting_checkin_ca', '')
+    if shift_type not in {'Ca Chính', 'Ca Gãy'} or selected_ca not in {'Sáng', 'Chiều', 'Tối'}:
+        await query.answer("Phiên check-in đã hết hạn. Vui lòng thao tác lại.", show_alert=True)
+        return
     sheets_service = context.bot_data['sheets']
     
     # Xóa message chọn tên
@@ -262,7 +311,7 @@ async def handle_checkin_employee_selected(query, context: ContextTypes.DEFAULT_
         text=f"⏳ Đang ghi nhận check-in cho {nickname}..."
     )
     
-    result = await asyncio.to_thread(sheets_service.checkin, nickname, shift_type)
+    result = await asyncio.to_thread(sheets_service.checkin, nickname, shift_type, selected_ca)
     
     if not result['success']:
         error = result.get('error', '')
@@ -271,6 +320,18 @@ async def handle_checkin_employee_selected(query, context: ContextTypes.DEFAULT_
             text = (f"⚠️ **{nickname}** đã check-in hôm nay rồi!\n"
                     f"⏰ Giờ vào: {checkin_time}\n\n"
                     f"Hãy bấm 📤 **Check Out** khi kết thúc ca.")
+        elif error == 'too_early':
+            allowed_time = result.get('allowed_time', '?')
+            text = (
+                f"⚠️ Ca {result.get('ca') or selected_ca} chỉ được check-in sớm tối đa 30 phút.\n"
+                f"Bạn có thể check-in từ {allowed_time}."
+            )
+        elif error == 'shift_ended':
+            text = f"⚠️ Ca {result.get('ca') or selected_ca} đã kết thúc. Vui lòng chọn đúng ca."
+        elif error == 'invalid_shift_ca':
+            text = "⚠️ Ca làm việc không hợp lệ. Vui lòng thao tác lại."
+        elif error == 'invalid_shift_type':
+            text = "⚠️ Loại ca không hợp lệ. Vui lòng thao tác lại."
         else:
             text = f"❌ Lỗi check-in: {error}"
             
@@ -278,7 +339,8 @@ async def handle_checkin_employee_selected(query, context: ContextTypes.DEFAULT_
             await status_msg.delete()
         except Exception:
             pass
-        keyboard = get_admin_keyboard(is_super_admin=is_super_admin(query.message.chat.id)) if is_admin(query.message.chat.id, context) else get_main_keyboard()
+        user_id = query.from_user.id
+        keyboard = get_admin_keyboard(is_super_admin=is_super_admin(user_id)) if is_admin(user_id, context) else get_main_keyboard()
         await context.bot.send_message(chat_id=query.message.chat.id, text=text, reply_markup=keyboard, parse_mode='Markdown')
         return
 
@@ -316,7 +378,8 @@ async def handle_checkin_employee_selected(query, context: ContextTypes.DEFAULT_
         await status_msg.delete()
     except Exception:
         pass
-    keyboard = get_admin_keyboard(is_super_admin=is_super_admin(query.message.chat.id)) if is_admin(query.message.chat.id, context) else get_main_keyboard()
+    user_id = query.from_user.id
+    keyboard = get_admin_keyboard(is_super_admin=is_super_admin(user_id)) if is_admin(user_id, context) else get_main_keyboard()
     await context.bot.send_message(
         chat_id=query.message.chat.id,
         text=f"✅ Cảm ơn {nickname}, đã ghi nhận check-in thành công!",
@@ -358,6 +421,11 @@ async def handle_checkout_employee_selected(query, context: ContextTypes.DEFAULT
         error = result.get('error', '')
         if error == 'not_checked_in':
             text = f"⚠️ {nickname} chưa check-in hôm nay! Hãy bấm 📥 Check In trước."
+        elif error == 'checkout_before_start':
+            text = (
+                f"⚠️ Ca của {nickname} chưa bắt đầu (giờ tính công: "
+                f"{result.get('start_time', '?')}). Không thể Check Out lúc này."
+            )
         else:
             text = f"❌ Lỗi check-out: {error}"
             
@@ -365,7 +433,8 @@ async def handle_checkout_employee_selected(query, context: ContextTypes.DEFAULT
             await query.message.delete()
         except Exception:
             pass
-        keyboard = get_admin_keyboard(is_super_admin=is_super_admin(query.message.chat.id)) if is_admin(query.message.chat.id, context) else get_main_keyboard()
+        user_id = query.from_user.id
+        keyboard = get_admin_keyboard(is_super_admin=is_super_admin(user_id)) if is_admin(user_id, context) else get_main_keyboard()
         await context.bot.send_message(chat_id=query.message.chat.id, text=text, reply_markup=keyboard)
         return
     
@@ -378,7 +447,8 @@ async def handle_checkout_employee_selected(query, context: ContextTypes.DEFAULT
     result_shift = result.get('shift_type') or shift_type or 'Ca làm việc'
     confirm_text = f"✅ {nickname} ra {result_shift} — {result['time']} ({result['total_hours']}h)"
         
-    keyboard = get_admin_keyboard(is_super_admin=is_super_admin(query.message.chat.id)) if is_admin(query.message.chat.id, context) else get_main_keyboard()
+    user_id = query.from_user.id
+    keyboard = get_admin_keyboard(is_super_admin=is_super_admin(user_id)) if is_admin(user_id, context) else get_main_keyboard()
     await context.bot.send_message(
         chat_id=query.message.chat.id,
         text=f"✅ Cảm ơn {nickname}, đã ghi nhận check-out thành công!",
@@ -387,6 +457,9 @@ async def handle_checkout_employee_selected(query, context: ContextTypes.DEFAULT
 
 async def handle_mark_reported_late(query, context: ContextTypes.DEFAULT_TYPE):
     """Admin bấm nút xác nhận nhân viên đã báo trước khi trễ"""
+    if not is_admin(query.from_user.id, context):
+        await query.answer("⛔ Chỉ quản lý được thao tác.", show_alert=True)
+        return
     # callback_data format: mark_reported_{date_str}_{nickname}
     data = query.data[len("mark_reported_"):]
     # date_str format: dd/mm/YYYY — split from the right since nickname may contain _
@@ -410,6 +483,9 @@ async def handle_mark_reported_late(query, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_mark_unreported_late(query, context: ContextTypes.DEFAULT_TYPE):
     """Admin bấm nút xác nhận nhân viên không báo trước khi trễ"""
+    if not is_admin(query.from_user.id, context):
+        await query.answer("⛔ Chỉ quản lý được thao tác.", show_alert=True)
+        return
     data = query.data[len("mark_unreported_"):]
     parts = data.split("_", 1)
     if len(parts) != 2:
@@ -432,9 +508,10 @@ async def handle_mark_unreported_late(query, context: ContextTypes.DEFAULT_TYPE)
 
 async def _cancel_flow(query, context: ContextTypes.DEFAULT_TYPE):
     """Hủy flow check-in/check-out và gửi lại bàn phím"""
-    context.chat_data.pop('awaiting_checkin_photo', None)
-    context.chat_data.pop('awaiting_checkin_type', None)
-    context.chat_data.pop('awaiting_checkout_photo', None)
+    context.user_data.pop('awaiting_checkin_photo', None)
+    context.user_data.pop('awaiting_checkin_type', None)
+    context.user_data.pop('awaiting_checkin_ca', None)
+    context.user_data.pop('awaiting_checkout_photo', None)
     
     chat_id = query.message.chat.id
     
@@ -444,6 +521,7 @@ async def _cancel_flow(query, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         pass
     
-    keyboard = get_admin_keyboard(is_super_admin=is_super_admin(chat_id)) if is_admin(chat_id, context) else get_main_keyboard()
+    user_id = query.from_user.id
+    keyboard = get_admin_keyboard(is_super_admin=is_super_admin(user_id)) if is_admin(user_id, context) else get_main_keyboard()
     msg = await context.bot.send_message(chat_id=chat_id, text="❌ Đã huỷ thao tác.", reply_markup=keyboard)
     track_message(context, msg.message_id)

@@ -1,17 +1,43 @@
 import os
 import json
 import logging
+from logging.handlers import TimedRotatingFileHandler
 from dotenv import load_dotenv
 
-# Thiết lập logging cơ bản cho toàn bộ project để dễ dàng debug và theo dõi trên server
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+# Load biến môi trường trước khi cấu hình các thành phần phụ thuộc.
+load_dotenv()
+
+# Thiết lập logging đúng một lần. Trên Fly ưu tiên stdout; file log chỉ bật khi cần.
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+if not getattr(root_logger, '_sober_configured', False):
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    root_logger.addHandler(stream_handler)
+
+    if os.getenv('LOG_TO_FILE', '').strip().lower() in {'1', 'true', 'yes'}:
+        os.makedirs("logs", exist_ok=True)
+        file_handler = TimedRotatingFileHandler(
+            "logs/bot.log",
+            when="midnight",
+            interval=1,
+            backupCount=30,
+            encoding='utf-8',
+        )
+        file_handler.setFormatter(formatter)
+        root_logger.addHandler(file_handler)
+
+    root_logger._sober_configured = True
+
 logger = logging.getLogger(__name__)
 
-# Load biến môi trường từ file .env
-load_dotenv()
+# httpx ghi toàn bộ URL Telegram ở mức INFO; URL này chứa bot token.
+# Chỉ giữ cảnh báo/lỗi để secret không xuất hiện trong log vận hành.
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
 
 class Config:
     BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -34,13 +60,16 @@ class Config:
     GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")
     # Khi deploy trên server (Render...), paste toàn bộ nội dung credentials.json vào env var này
     GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")    # ID của Google Spreadsheet (File lưu dữ liệu chính)
-    SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "1dE0_l25uY05q-0L5u3Q9mXW10Z-9mNn923S-T2_R")
+    SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
     
     # ID của Google Spreadsheet (File Tính Lương)
-    SALARY_SPREADSHEET_ID = os.getenv("SALARY_SPREADSHEET_ID", "170ThkLaXrriHsi9iUB2m-FyRZ73iz8SYpJwy6jU0sjU")
+    SALARY_SPREADSHEET_ID = os.getenv("SALARY_SPREADSHEET_ID")
 
     # Thư mục Google Drive lưu ảnh check-in
-    DRIVE_FOLDER_ID = os.getenv("DRIVE_FOLDER_ID", "1lJ9m_X-Z_R-K2m2k9_3L_Z_2-9_R_3_9")
+    DRIVE_FOLDER_ID = os.getenv("DRIVE_FOLDER_ID")
+
+    DEFAULT_HOURLY_RATE_K = float(os.getenv("DEFAULT_HOURLY_RATE_K", "16"))
+    TIMEZONE = os.getenv("TIMEZONE", "Asia/Ho_Chi_Minh")
 
     @classmethod
     def get_google_credentials_info(cls) -> dict:
@@ -56,7 +85,7 @@ class Config:
         missing_keys = []
         if not cls.BOT_TOKEN: missing_keys.append("BOT_TOKEN")
         if not cls.SPREADSHEET_ID: missing_keys.append("SPREADSHEET_ID")
-        if not cls.DRIVE_FOLDER_ID: missing_keys.append("DRIVE_FOLDER_ID")
+        if not cls.SALARY_SPREADSHEET_ID: missing_keys.append("SALARY_SPREADSHEET_ID")
         
         if missing_keys:
             error_msg = f"Thiếu các biến môi trường bắt buộc trong file .env: {', '.join(missing_keys)}"

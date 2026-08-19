@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 GUIDE_MESSAGE = (
     "🤖 *BOT SOBER* — Hướng dẫn nhanh\n\n"
-    "📥 *Check In:* Chấm công vào ca (gửi ảnh xác nhận).\n"
+    "📥 *Check In:* Chọn loại ca, ca làm và tên. Đi sớm được ghi công từ giờ chuẩn.\n"
     "📤 *Check Out:* Chấm công ra ca (chọn tên là xong).\n"
     "⚡ *Thưởng Doanh Thu:* Chọn nhân viên có mặt để cộng 1 ly.\n"
     "🥤 *Báo Dùng Thưởng:* Chọn tên để trừ 1 ly đã dùng.\n"
@@ -28,15 +28,15 @@ def get_main_keyboard():
 def get_admin_keyboard(is_super_admin=False):
     keyboard = [
         [KeyboardButton("📊 Bảng Thưởng (QL)"), KeyboardButton("🧾 Quản Lý NV (QL)")],
-        [KeyboardButton("📋 Lịch Sử Check-In"),  KeyboardButton("⚠️ Thống Kê Đi Muộn")],
-        [KeyboardButton("📊 Thống Kê Giờ LT"), KeyboardButton("💰 Tính Lương (QL)")],
+        [KeyboardButton("✏️ Sửa Doanh Thu"), KeyboardButton("📋 Lịch Sử Check-In")],
+        [KeyboardButton("⚠️ Thống Kê Đi Muộn"), KeyboardButton("📊 Thống Kê Giờ LT")],
+        [KeyboardButton("💰 Tính Lương (QL)"), KeyboardButton("➕ Giờ LT (QL)")],
+        [KeyboardButton("⚡ Thưởng Doanh Thu")],
         [KeyboardButton("💸 Ứng Lương (QL)"), KeyboardButton("🎁 Thưởng Tiền (QL)")],
     ]
     if is_super_admin:
         keyboard.append([KeyboardButton("👑 Cấp Quyền QL")])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
-
-import asyncio
 
 async def _bg_delete(bot, chat_id, msg_ids):
     for m_id in msg_ids:

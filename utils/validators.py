@@ -84,7 +84,12 @@ def parse_report_text(text: str) -> Tuple[List[str], int, str, str]:
         (employees, revenue, ca, error_msg)
     """
     # Tìm dòng chứa tên nhân viên
-    nv_match = re.search(r'(?:nv|nhân viên|nhan vien)[:\-]?[ \t]*([^\n]*)', text, re.IGNORECASE)
+    nv_match = re.search(
+        r'(?:^|\n)[ \t]*(?:nv|nhân viên|nhan vien)[:\-]?[ \t]*'
+        r'(.*?)(?=[ \t]+(?:doanh thu|doanhthu|dt)[:\-]|\n|$)',
+        text,
+        re.IGNORECASE,
+    )
     # Tìm dòng chứa doanh thu
     dt_match = re.search(r'(?:doanh thu|dt|doanhthu)[:\-]?[ \t]*(\-?[\d\.\,kKmM]+)', text, re.IGNORECASE)
     
@@ -103,7 +108,7 @@ def parse_report_text(text: str) -> Tuple[List[str], int, str, str]:
         return [], 0, "", "Doanh thu không hợp lệ. Vui lòng chỉ nhập số (VD: 1500000, 1500k, 1.5M, 1.500k)."
     
     # Validation
-    if revenue < 0:
+    if revenue <= 0:
         return [], 0, "", "❌ Doanh thu phải lớn hơn 0 VNĐ. Vui lòng kiểm tra lại."
     if revenue > 100_000_000:
         return [], 0, "", "❌ Doanh thu quá lớn (tối đa 100,000,000 VNĐ). Vui lòng kiểm tra lại."
@@ -159,4 +164,46 @@ def deduplicate_employees(employees: List[str]) -> List[str]:
     Loại bỏ nhân viên trùng lặp trong danh sách, giữ nguyên thứ tự.
     Ví dụ: ['anhuy', 'anhuy', 'xuanhau'] -> ['anhuy', 'xuanhau']
     """
-    return list(dict.fromkeys(employees))
+    result = []
+    seen = set()
+    for employee in employees:
+        key = normalize_name(employee)
+        if key and key not in seen:
+            seen.add(key)
+            result.append(employee)
+    return result
+
+
+def normalize_name(s: str) -> str:
+    """Chuẩn hóa Unicode và loại bỏ dấu Tiếng Việt để so sánh tên nhân viên.
+
+    Ví dụ: 'Hoà' (NFC) và 'Hoà' (NFD) sẽ thành 'hoa' khi so sánh.
+    Đặc biệt: 'Đ'/'đ' (U+0110/U+0111) không tách được qua NFD nên xử lý thủ công.
+    """
+    import unicodedata
+    if not s:
+        return ''
+    s = str(s).strip()
+    s = s.replace('Đ', 'D').replace('đ', 'd')
+    s = unicodedata.normalize('NFD', s)
+    s = ''.join(ch for ch in s if not unicodedata.combining(ch))
+    s = re.sub(r'[^0-9a-zA-Z]', '', s).lower()
+    return s
+
+
+def validate_nickname(nickname: str) -> Tuple[bool, str]:
+    """Kiểm tra nickname trước khi đưa vào Sheet/callback Telegram."""
+    nickname = str(nickname or '').strip()
+    if not nickname:
+        return False, "Tên không được để trống."
+    if len(nickname) > 30:
+        return False, "Tên tối đa 30 ký tự."
+    if len(nickname.encode('utf-8')) > 36:
+        return False, "Tên có quá nhiều ký tự Unicode để dùng trên nút Telegram."
+    if any(ch in nickname for ch in "\n\r\t"):
+        return False, "Tên không được chứa ký tự xuống dòng hoặc tab."
+    if any(not (ch.isalnum() or ch in {' ', '-'}) for ch in nickname):
+        return False, "Tên chỉ được chứa chữ, số, khoảng trắng hoặc dấu gạch ngang."
+    if not normalize_name(nickname):
+        return False, "Tên phải có ít nhất một chữ cái hoặc chữ số."
+    return True, ""

@@ -15,3 +15,11 @@ credentials.json
 
 # Logs
 *.log
+temp_logs*.txt
+
+# Dữ liệu thật / artifact sinh ra cục bộ
+backup*.xlsx
+backups/
+sheet_research*.txt
+report_out.txt
+logs/

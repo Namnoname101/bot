@@ -262,8 +262,8 @@ def test_unicode_normalization():
         {
             "name1": "Hòa",
             "name2": "hòa",
-            "should_match": False,  # Khác nhau ở case sensitivity
-            "reason": "Khác nhau về case (cần chuẩn hóa lowercase)"
+            "should_match": True,
+            "reason": "Khác nhau về chữ hoa/thường vẫn phải khớp sau chuẩn hóa"
         }
     ]
     

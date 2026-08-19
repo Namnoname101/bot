@@ -1,12 +1,13 @@
 import asyncio
 import logging
-from datetime import datetime
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from config import Config
 from utils.decorators import group_only
-from utils.validators import parse_report_text, check_reward_eligibility, deduplicate_employees
+from utils.validators import parse_report_text, check_reward_eligibility, deduplicate_employees, normalize_name
 from utils.auto_delete import delete_tracked_messages, track_message
+from utils.time_utils import local_now
 
 logger = logging.getLogger(__name__)
 
@@ -42,15 +43,7 @@ async def handle_photo_report(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Kiểm tra nickname có tồn tại trong hệ thống (Sheet SoDuThuong) không
     sheets_service = context.bot_data['sheets']
     valid_nicknames = await asyncio.to_thread(sheets_service.get_all_nicknames)
-    # FIX VẤN ĐỀ 2: phải normalize cùng chuẩn với get_all_nicknames (xóa dấu, xóa khoảng trắng)
-    # vì parse_report_text chỉ .lower() còn get_all_nicknames dùng _normalize_name_for_comparison
-    import unicodedata, re as _re
-    def _normalize(s: str) -> str:
-        s = unicodedata.normalize('NFD', str(s).strip())
-        s = ''.join(ch for ch in s if not unicodedata.combining(ch))
-        s = _re.sub(r'[^0-9a-zA-Z]', '', s).lower()
-        return s
-    invalid_emps = [emp for emp in employees if _normalize(emp) not in valid_nicknames]
+    invalid_emps = [emp for emp in employees if normalize_name(emp) not in valid_nicknames]
     
     if invalid_emps:
         err_reply = await message.reply_text(f"❌ Sai tên nhân viên: {', '.join(invalid_emps)}.\nVui lòng kiểm tra lại chính tả hoặc báo Quản lý thêm tên vào danh sách (Sheet SoDuThuong) trước khi báo cáo.")
@@ -60,8 +53,15 @@ async def handle_photo_report(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     reward_count = check_reward_eligibility(len(employees), revenue)
 
+    report_key = f"{update.effective_chat.id}:{message.message_id}"
+    processed = context.bot_data.setdefault('processed_reports', set())
+    if report_key in processed:
+        await message.reply_text("ℹ️ Báo cáo này đã được xử lý trước đó.")
+        return
+    processed.add(report_key)
+
     # Tự động lưu báo cáo vào Sheet (không cần duyệt)
-    now = datetime.now()
+    now = local_now()
     date_str = now.strftime("%d/%m/%Y")
     
     status_msg = await message.reply_text("⏳ Đang lưu báo cáo...")
@@ -74,17 +74,43 @@ async def handle_photo_report(update: Update, context: ContextTypes.DEFAULT_TYPE
         date=date_str,
         employees=", ".join(employees),
         revenue=revenue,
-        ca=ca
+        ca=ca,
+        report_key=report_key,
     )
 
     if not success:
+        processed.discard(report_key)
         await status_msg.edit_text("❌ Lỗi khi lưu báo cáo. Hãy thử lại!")
+        return
+
+    if success == 'duplicate':
+        await status_msg.edit_text("ℹ️ Báo cáo này đã được xử lý trước đó.")
         return
 
     # Cộng thưởng nếu đạt chỉ tiêu
     if reward_count > 0:
-        for emp in employees:
-            await asyncio.to_thread(sheets_service.update_balance, emp, reward_count)
+        reward_success = False
+        for _ in range(2):
+            reward_success = await asyncio.to_thread(
+                sheets_service.batch_update_balances,
+                employees,
+                reward_count,
+            )
+            if reward_success:
+                break
+        if not reward_success:
+            await status_msg.edit_text(
+                "⚠️ Báo cáo đã được lưu nhưng chưa cộng được thưởng. Quản lý đã được báo để xử lý."
+            )
+            try:
+                await context.bot.send_message(
+                    chat_id=Config.ADMIN_CHAT_ID,
+                    text=(f"⚠️ Báo cáo {report_key} đã lưu nhưng cộng thưởng thất bại: "
+                          f"{', '.join(employees)} (+{reward_count})."),
+                )
+            except Exception:
+                logger.exception("Không báo được lỗi cộng thưởng cho admin")
+            return
 
     # Gửi xác nhận đến group
     confirm_msg = f"✅ **ĐÃ GHI NHẬN BÁO CÁO**\n"
@@ -94,7 +120,7 @@ async def handle_photo_report(update: Update, context: ContextTypes.DEFAULT_TYPE
         confirm_msg += f"🎁 Cộng {reward_count} ly thưởng cho mỗi bạn\n"
     # FIX VẤN ĐỀ 4: Hiển thị ca luôn luôn (kể cả khi cà được tự động phát hiện từ giờ)
     if not ca:
-        now_inner = datetime.now()
+        now_inner = local_now()
         if now_inner.hour < 12:
             ca = 'Sáng'
         elif now_inner.hour < 18:

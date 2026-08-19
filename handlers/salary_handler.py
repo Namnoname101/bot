@@ -1,24 +1,25 @@
 import asyncio
 import logging
-from datetime import datetime
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from utils.admin import is_admin
 from utils.auto_delete import track_message
+from utils.time_utils import local_now
 
 logger = logging.getLogger(__name__)
 
 
 def _selected_salary_month(context: ContextTypes.DEFAULT_TYPE) -> tuple[int, int]:
-    selected = context.chat_data.get('salary_month') or {}
-    now = datetime.now()
-    return int(selected.get('month', now.month)), int(selected.get('year', now.year))
+    selected = context.user_data.get('salary_month') or {}
+    if not selected:
+        return _current_salary_month()
+    return int(selected['month']), int(selected['year'])
 
 
 def _set_salary_month(context: ContextTypes.DEFAULT_TYPE, month: int, year: int):
-    context.chat_data['salary_month'] = {'month': int(month), 'year': int(year)}
+    context.user_data['salary_month'] = {'month': int(month), 'year': int(year)}
 
 
 def _salary_period_label(month: int, year: int) -> str:
@@ -30,7 +31,7 @@ def _salary_period_label(month: int, year: int) -> str:
 
 
 def _current_salary_month() -> tuple[int, int]:
-    now = datetime.now()
+    now = local_now()
     if now.day >= 17:
         if now.month == 12:
             return 1, now.year + 1
@@ -71,8 +72,8 @@ async def _load_month_options(sheets) -> list:
     options = await asyncio.to_thread(sheets.get_salary_month_options)
     if options:
         return options
-    now = datetime.now()
-    return [{'month': now.month, 'year': now.year, 'exists': False}]
+    month, year = _current_salary_month()
+    return [{'month': month, 'year': year, 'exists': False}]
 
 
 async def _show_selected_report(query, context: ContextTypes.DEFAULT_TYPE):
@@ -93,10 +94,10 @@ async def handle_salary_button(update: Update, context: ContextTypes.DEFAULT_TYP
     """Admin bấm nút 💰 Tính Lương (QL) → chọn tháng cần xem."""
     logger.info(
         "handle_salary_button called by user %s in chat %s",
-        update.effective_user.id,
-        update.effective_chat.id,
+        update.effective_user.id if update.effective_user else None,
+        update.effective_chat.id if update.effective_chat else None,
     )
-    if not is_admin(update.effective_chat.id, context):
+    if not update.effective_user or not is_admin(update.effective_user.id, context):
         logger.info("User is not admin, ignoring.")
         return
 
@@ -106,13 +107,13 @@ async def handle_salary_button(update: Update, context: ContextTypes.DEFAULT_TYP
         options = await _load_month_options(context.bot_data['sheets'])
         await wait_msg.edit_text(
             "💰 *TÍNH LƯƠNG* — Chọn tháng cần xem:\n"
-            "_Dấu ✨ nghĩa là bảng tháng hiện tại sẽ được tạo từ form cũ khi mở._",
+            "_Dấu ✨ nghĩa là bảng báo cáo chuẩn sẽ được tạo khi mở._",
             parse_mode="Markdown",
             reply_markup=_salary_month_keyboard(options),
         )
     except Exception as e:
         logger.error(f"Lỗi tải danh sách tháng lương: {e}")
-        await wait_msg.edit_text(f"❌ Lỗi: {e}")
+        await wait_msg.edit_text("❌ Không tải được danh sách tháng lương. Vui lòng kiểm tra log.")
 
 
 async def handle_salary_modifier_request(
@@ -122,7 +123,9 @@ async def handle_salary_modifier_request(
 ):
     """Yêu cầu ứng lương/thưởng cho đúng tháng đang được chọn."""
     action_name = "Ứng lương" if data == "salary_adv" else "Thưởng"
-    context.chat_data['salary_action'] = "advance" if data == "salary_adv" else "bonus"
+    if not update.effective_user or not is_admin(update.effective_user.id, context):
+        return
+    context.user_data['salary_action'] = "advance" if data == "salary_adv" else "bonus"
     month, year = _selected_salary_month(context)
     _set_salary_month(context, month, year)
 
@@ -131,6 +134,7 @@ async def handle_salary_modifier_request(
         balances = await asyncio.to_thread(sheets.get_all_balances)
         nicks = list(balances.keys())
         if not nicks:
+            context.user_data.pop('salary_action', None)
             if update.callback_query:
                 await update.callback_query.answer("Chưa có nhân viên nào!", show_alert=True)
             else:
@@ -157,17 +161,19 @@ async def handle_salary_modifier_request(
             )
             track_message(context, msg.message_id)
     except Exception as e:
+        context.user_data.pop('salary_action', None)
+        logger.exception("Lỗi mở luồng ứng/thưởng")
         if update.callback_query:
-            await update.callback_query.answer(f"Lỗi: {e}", show_alert=True)
+            await update.callback_query.answer("Không thể tải danh sách nhân viên.", show_alert=True)
         else:
-            msg = await update.message.reply_text(f"Lỗi: {e}")
+            msg = await update.message.reply_text("❌ Không thể tải danh sách nhân viên.")
             track_message(context, msg.message_id)
 
 
 async def salary_inline_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Xử lý toàn bộ nút inline của phần lương."""
     query = update.callback_query
-    if not is_admin(update.effective_chat.id, context):
+    if not update.effective_user or not is_admin(update.effective_user.id, context):
         try:
             await query.answer("⛔ Chỉ quản lý được dùng chức năng này.", show_alert=True)
         except Exception:
@@ -183,14 +189,14 @@ async def salary_inline_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     if data == "salary_cancel":
         await query.message.delete()
-        context.chat_data.pop('salary_action', None)
-        context.chat_data.pop('salary_emp', None)
-        context.chat_data.pop('salary_month', None)
+        context.user_data.pop('salary_action', None)
+        context.user_data.pop('salary_emp', None)
+        context.user_data.pop('salary_month', None)
         return
 
     if data == "salary_choose_month":
-        context.chat_data.pop('salary_action', None)
-        context.chat_data.pop('salary_emp', None)
+        context.user_data.pop('salary_action', None)
+        context.user_data.pop('salary_emp', None)
         options = await _load_month_options(context.bot_data['sheets'])
         await query.edit_message_text(
             "💰 *TÍNH LƯƠNG* — Chọn tháng cần xem:",
@@ -217,8 +223,8 @@ async def salary_inline_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     if data == "salary_back_main":
-        context.chat_data.pop('salary_action', None)
-        context.chat_data.pop('salary_emp', None)
+        context.user_data.pop('salary_action', None)
+        context.user_data.pop('salary_emp', None)
         try:
             await _show_selected_report(query, context)
         except Exception as e:
@@ -227,8 +233,8 @@ async def salary_inline_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
     if data.startswith("sal_emp_"):
         emp_name = data[len("sal_emp_"):]
-        context.chat_data['salary_emp'] = emp_name
-        action = context.chat_data.get('salary_action')
+        context.user_data['salary_emp'] = emp_name
+        action = context.user_data.get('salary_action')
         action_name = "Ứng lương" if action == "advance" else "Thưởng tiền"
         month, year = _selected_salary_month(context)
         await query.edit_message_text(
@@ -245,8 +251,8 @@ async def salary_inline_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def process_salary_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
     """Bắt số tiền và cập nhật đúng bảng lương tháng đã chọn."""
-    action = context.chat_data.get('salary_action')
-    emp = context.chat_data.get('salary_emp')
+    action = context.user_data.get('salary_action')
+    emp = context.user_data.get('salary_emp')
     if not (action and emp):
         return False
 
@@ -257,7 +263,7 @@ async def process_salary_input(update: Update, context: ContextTypes.DEFAULT_TYP
             amount = int(text[:-1].replace(',', '').replace('.', ''))
         else:
             amount = int(text.replace(',', '').replace('.', ''))
-        if amount <= 0:
+        if amount <= 0 or amount > 1_000_000:
             raise ValueError
 
         wait_msg = await update.message.reply_text("⏳ Đang cập nhật Google Sheets...")
@@ -266,7 +272,7 @@ async def process_salary_input(update: Update, context: ContextTypes.DEFAULT_TYP
         month, year = _selected_salary_month(context)
         is_bonus = action == "bonus"
 
-        await asyncio.to_thread(
+        success = await asyncio.to_thread(
             sheets.update_salary_modifier,
             emp,
             is_bonus,
@@ -274,9 +280,11 @@ async def process_salary_input(update: Update, context: ContextTypes.DEFAULT_TYP
             month,
             year,
         )
+        if not success:
+            raise RuntimeError("Không tìm thấy nhân viên trong bảng lương hoặc không thể cập nhật.")
         report = await asyncio.to_thread(sheets.get_salary_report, month, year)
-        context.chat_data.pop('salary_action', None)
-        context.chat_data.pop('salary_emp', None)
+        context.user_data.pop('salary_action', None)
+        context.user_data.pop('salary_emp', None)
 
         try:
             await wait_msg.delete()
@@ -291,10 +299,10 @@ async def process_salary_input(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         track_message(context, msg.message_id)
     except ValueError:
-        msg = await update.message.reply_text("❌ Vui lòng nhập số tiền lớn hơn 0.")
+        msg = await update.message.reply_text("❌ Số tiền phải lớn hơn 0 và không quá 1 tỷ đồng.")
         track_message(context, msg.message_id)
     except Exception as e:
-        logger.error(f"Lỗi nhập ứng/thưởng: {e}")
-        msg = await update.message.reply_text(f"❌ Lỗi: {e}")
+        logger.exception("Lỗi nhập ứng/thưởng")
+        msg = await update.message.reply_text("❌ Không thể cập nhật lương. Vui lòng thử lại.")
         track_message(context, msg.message_id)
     return True

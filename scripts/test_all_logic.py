@@ -19,7 +19,7 @@ os.environ.setdefault("SPREADSHEET_ID", "FAKE")
 os.environ.setdefault("DRIVE_FOLDER_ID", "FAKE")
 
 from utils.validators import parse_report_text, check_reward_eligibility, deduplicate_employees
-from google_sheets import _normalize_name_for_comparison
+from google_sheets import GoogleSheetsService, _normalize_name_for_comparison
 
 passed = 0
 failed = 0
@@ -140,10 +140,10 @@ emps, rev, ca, err = parse_report_text("NV: anh, bao\nDT: 1000k")
 # 'anh, bao' should NOT include '\nDT: 1000k'
 assert_eq("1.21a Regex NV chỉ lấy đúng tên", 'dt' not in ' '.join(emps).lower(), True)
 
-# 1.22 DT: 0 (doanh thu = 0 hợp lệ)
+# 1.22 DT: 0 bị từ chối vì doanh thu phải dương
 emps, rev, ca, err = parse_report_text("NV: a\nDT: 0")
-assert_eq("1.22 DT = 0 hợp lệ", rev, 0)
-assert_false("1.22b Không lỗi", err)
+assert_eq("1.22 DT = 0 không được lưu", rev, 0)
+assert_true("1.22b Có lỗi", err)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -284,17 +284,7 @@ assert_eq("6.3 Callback split reject", (action2, report_id2), ('reject', 'rpt_cm
 # 6.4 chr(64 + col_index) cho các cột > Z (col 27+)
 col_index = 26  # Z
 assert_eq("6.4a chr(64+26) = Z", chr(64 + col_index), 'Z')
-col_index_bad = 27  # [  ← không phải ký tự hợp lệ cho cột Sheets!
-result_char = chr(64 + col_index_bad)
-is_valid_col = result_char.isalpha()
-if not is_valid_col:
-    failed += 1
-    msg = f"  ❌ 6.4b BUG: chr(64+27) = '{result_char}' — không hợp lệ cho cột Sheets khi có >26 cột"
-    print(msg)
-    errors.append(msg)
-else:
-    passed += 1
-    print(f"  ✅ 6.4b chr(64+27) hợp lệ")
+assert_eq("6.4b Cột 27 dùng helper = AA", GoogleSheetsService._column_letter(27), 'AA')
 
 # 6.5 Ca detection false positive: tên NV chứa "sang"
 emps, rev, ca, err = parse_report_text("NV: sang\nDT: 1000k")
