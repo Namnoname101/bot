@@ -396,9 +396,6 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await handle_salary_modifier_request(update, context, "salary_bon")
         
     elif text == "⚡ Thưởng Doanh Thu":
-        if not is_admin(user_id, context):
-            await update.message.reply_text("⛔ Chỉ quản lý được cộng thưởng thủ công.")
-            return
         sheets_service = context.bot_data['sheets']
         balances = await asyncio.to_thread(sheets_service.get_all_balances)
         if not balances:
@@ -560,9 +557,6 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     if data.startswith("toggle_emp_"):
-        if not is_admin(query.from_user.id, context):
-            await query.answer("⛔ Chỉ quản lý được cộng thưởng.", show_alert=True)
-            return
         nickname = data[len("toggle_emp_"):]
         if 'report_selection' in context.user_data:
             context.user_data['report_selection'][nickname] = not context.user_data['report_selection'].get(nickname, False)
@@ -570,11 +564,9 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.edit_message_reply_markup(reply_markup=reply_markup)
             
     elif data == "confirm_report_emps":
-        if not is_admin(query.from_user.id, context):
-            await query.answer("⛔ Chỉ quản lý được cộng thưởng.", show_alert=True)
-            return
+        is_user_admin = is_admin(query.from_user.id, context)
         if 'report_selection' not in context.user_data:
-            await query.edit_message_text("❌ Phiên làm việc đã hết hạn. Vui lòng bấm '⚡ Báo Doanh Thu' lại.")
+            await query.edit_message_text("❌ Phiên làm việc đã hết hạn. Vui lòng bấm '⚡ Thưởng Doanh Thu' lại.")
             return
 
         selected = [nick for nick, is_sel in context.user_data['report_selection'].items() if is_sel]
@@ -596,20 +588,51 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
         ca = 'Sáng' if hour < 12 else ('Chiều' if hour < 18 else 'Tối')
         sheets_service = context.bot_data['sheets']
 
-        success = await asyncio.to_thread(sheets_service.batch_update_balances, selected, 1)
-        if not success:
+        if is_user_admin:
+            success = await asyncio.to_thread(sheets_service.batch_update_balances, selected, 1)
+            if not success:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="❌ Không thể cộng thưởng. Dữ liệu chưa được xác nhận.",
+                )
+                return
+
+            keyboard = get_admin_keyboard(is_super_admin=is_super_admin(query.from_user.id))
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
-                text="❌ Không thể cộng thưởng. Dữ liệu chưa được xác nhận.",
+                text=f"✅ +1 ly → {', '.join(selected)} (Ca {ca})",
+                reply_markup=keyboard
             )
-            return
-
-        keyboard = get_admin_keyboard(is_super_admin=is_super_admin(query.from_user.id))
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=f"✅ +1 ly → {', '.join(selected)} (Ca {ca})",
-            reply_markup=keyboard
-        )
+        else:
+            # Gửi yêu cầu duyệt cho admin
+            request_id = f"{update.effective_chat.id}_{query.message.message_id}_{int(local_now().timestamp())}"
+            temp_requests = context.bot_data.setdefault('reward_requests', {})
+            temp_requests[request_id] = {
+                'group_chat_id': update.effective_chat.id,
+                'employees': selected,
+                'ca': ca,
+                'sender': query.from_user.full_name
+            }
+            
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+            keyboard = [
+                [InlineKeyboardButton("✅ Duyệt", callback_data=f"appr_rew_{request_id}"),
+                 InlineKeyboardButton("❌ Từ chối", callback_data=f"rej_rew_{request_id}")]
+            ]
+            await context.bot.send_message(
+                chat_id=Config.ADMIN_CHAT_ID,
+                text=f"🎁 **YÊU CẦU CỘNG THƯỞNG**\n\n👤 Người gửi: {query.from_user.full_name}\n⏰ Ca: {ca}\n👥 Nhân viên: {', '.join(selected)}\n\nBạn có đồng ý cộng 1 ly thưởng cho các nhân viên này không?",
+                parse_mode='Markdown',
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            
+            keyboard_main = get_main_keyboard()
+            msg = await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=f"✅ Đã gửi yêu cầu cộng 1 ly thưởng cho: {', '.join(selected)}.\nĐang chờ Quản lý duyệt!",
+                reply_markup=keyboard_main
+            )
+            track_message(context, msg.message_id)
 
 
     elif data == "cancel_report_emps":
@@ -626,6 +649,46 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
             keyboard = get_admin_keyboard(is_super_admin=is_super_admin(user_id)) if is_admin(user_id, context) else get_main_keyboard()
             msg = await context.bot.send_message(chat_id=chat_id, text="❌ Đã huỷ thao tác.", reply_markup=keyboard)
             track_message(context, msg.message_id)
+
+    elif data.startswith("appr_rew_") or data.startswith("rej_rew_"):
+        if not is_admin(query.from_user.id, context):
+            await query.answer("⛔ Chỉ quản lý được duyệt.", show_alert=True)
+            return
+
+        action, request_id = data.split('_rew_')
+        temp_requests = context.bot_data.get('reward_requests', {})
+        req_data = temp_requests.get(request_id)
+        
+        if not req_data:
+            await query.edit_message_text("❌ Yêu cầu này đã được xử lý hoặc đã hết hạn.")
+            return
+            
+        group_chat_id = req_data['group_chat_id']
+        selected = req_data['employees']
+        ca = req_data['ca']
+        
+        if action == "appr":
+            sheets_service = context.bot_data['sheets']
+            success = await asyncio.to_thread(sheets_service.batch_update_balances, selected, 1)
+            
+            if success:
+                await query.edit_message_text(f"✅ ĐÃ DUYỆT CỘNG THƯỞNG.\nNhân viên: {', '.join(selected)}\nCa: {ca}")
+                await context.bot.send_message(
+                    chat_id=group_chat_id,
+                    text=f"🎉 **Quản lý đã DUYỆT cộng thưởng!**\n🎁 +1 ly → {', '.join(selected)} (Ca {ca})",
+                    parse_mode='Markdown'
+                )
+            else:
+                await query.edit_message_text("❌ Lỗi khi cộng thưởng vào Google Sheets.")
+        else:
+            await query.edit_message_text(f"❌ ĐÃ TỪ CHỐI CỘNG THƯỞNG.\nNhân viên: {', '.join(selected)}\nCa: {ca}")
+            await context.bot.send_message(
+                chat_id=group_chat_id,
+                text=f"❌ **Quản lý đã TỪ CHỐI cộng thưởng!**\nNhân viên: {', '.join(selected)} (Ca {ca})",
+                parse_mode='Markdown'
+            )
+            
+        del temp_requests[request_id]
 
     elif data.startswith("check_reward_"):
         nickname = data[len("check_reward_"):]
