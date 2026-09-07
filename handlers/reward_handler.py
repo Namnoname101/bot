@@ -248,7 +248,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         track_message(context, reply.message_id)
 
 def build_multi_select_keyboard(selection: dict):
-    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
     keyboard = []
     row = []
     for nick, is_sel in selection.items():
@@ -419,7 +418,6 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                 track_message(context, reply.message_id)
             return
             
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
         keyboard = []
         row = []
         for nick in balances.keys():
@@ -445,7 +443,6 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                 track_message(context, reply.message_id)
             return
             
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
         keyboard = []
         row = []
         for nick in balances.keys():
@@ -614,7 +611,6 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
                 'sender': query.from_user.full_name
             }
             
-            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
             keyboard = [
                 [InlineKeyboardButton("✅ Duyệt", callback_data=f"appr_rew_{request_id}"),
                  InlineKeyboardButton("❌ Từ chối", callback_data=f"rej_rew_{request_id}")]
