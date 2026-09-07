@@ -288,7 +288,7 @@ class GoogleSheetsService:
                 1 if len(headers) > 1 else 0,
             )
             rate_col = next(
-                (i for i, h in enumerate(headers) if 'luong' in h or 'rate' in h),
+                (i for i, h in enumerate(headers) if ('luong' in h and 'ten' not in h) or 'rate' in h),
                 2,
             )
             for row in records[1:]:
