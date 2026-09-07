@@ -1,0 +1,1934 @@
+﻿PROJECT LEARNING SCAN
+Generated: 2026-08-28 13:11:09
+Root: E:\Du An\Python\Sober\Bot
+
+====================================================================================================
+1. CURRENT PATH
+====================================================================================================
+
+Path                     
+----                     
+E:\Du An\Python\Sober\Bot
+
+
+
+
+====================================================================================================
+2. ROOT FILES / FOLDERS
+====================================================================================================
+
+Mode   Length LastWriteTime         Name                           
+----   ------ -------------         ----                           
+d--h--        8/19/2026 8:13:27 PM  .git                           
+d-----        6/20/2026 6:17:33 AM  .github                        
+d-----        5/20/2026 4:16:01 PM  .venv                          
+d-----        8/11/2026 4:41:04 PM  handlers                       
+d-----        8/11/2026 4:14:57 PM  logs                           
+d-----        7/26/2026 4:10:58 PM  scripts                        
+d-----        8/11/2026 5:07:52 PM  tests                          
+d-----        8/11/2026 5:04:23 PM  utils                          
+d-----        8/11/2026 6:51:11 PM  __pycache__                    
+-a---- 468    8/11/2026 4:55:01 PM  .dockerignore                  
+-a---- 414    8/11/2026 4:48:04 PM  .env                           
+-a---- 470    8/11/2026 4:47:01 PM  .env.example                   
+-a---- 307    8/11/2026 4:47:02 PM  .gitignore                     
+-a---- 1717   7/21/2026 10:57:21 AM append_handlers.py             
+-a---- 1453   7/21/2026 10:59:46 AM append_handlers2.py            
+-a---- 932    7/21/2026 2:38:26 AM  append_method.py               
+-a---- 1787   7/21/2026 2:28:08 AM  apply_fixes.py                 
+-a---- 53791  7/17/2026 8:45:46 AM  backup.xlsx                    
+-a---- 4010   8/11/2026 6:51:07 PM  config.py                      
+-a---- 2394   5/20/2026 3:58:17 PM  credentials.json               
+-a---- 241    8/11/2026 4:47:24 PM  Dockerfile                     
+-a---- 1044   7/21/2026 2:42:36 AM  fix_dai.py                     
+-a---- 1807   7/21/2026 1:54:06 AM  fix_names.py                   
+-a---- 283    8/11/2026 4:47:24 PM  fly.toml                       
+-a---- 9119   5/28/2026 3:00:58 PM  FULL_AUDIT_REPORT_28_05_2026.md
+-a---- 5269   7/21/2026 1:42:53 AM  generate_template.py           
+-a---- 2076   6/20/2026 1:39:26 AM  google_drive.py                
+-a---- 69351  8/11/2026 5:34:25 PM  google_sheets.py               
+-a---- 6839   8/11/2026 5:06:55 PM  main.py                        
+-a---- 23     6/20/2026 1:38:52 AM  Procfile                       
+-a---- 11874  5/21/2026 9:13:59 PM  qa_audit_report.md             
+-a---- 1030   7/21/2026 10:25:49 AM rename_sheets.py               
+-a---- 973    7/21/2026 12:25:30 PM report_out.txt                 
+-a---- 135    8/11/2026 4:52:17 PM  requirements.txt               
+-a---- 708    7/17/2026 9:32:37 AM  research_sheet.py              
+-a---- 944    7/21/2026 1:55:54 AM  restore_names.py               
+-a---- 14     6/20/2026 1:38:55 AM  runtime.txt                    
+-a---- 1635   7/21/2026 1:33:18 AM  setup_formulas.py              
+-a---- 20117  7/17/2026 9:16:06 AM  sheet_research.txt             
+-a---- 2491   7/17/2026 9:16:35 AM  sheet_research2.txt            
+-a---- 4391   7/17/2026 9:50:00 AM  sheet_research3.txt            
+-a---- 40924  7/20/2026 10:33:48 PM temp.log                       
+-a---- 43690  7/23/2026 1:01:01 PM  temp_logs.txt                  
+-a---- 34032  7/19/2026 1:46:13 PM  temp_logs2.txt                 
+-a---- 34538  7/19/2026 1:46:49 PM  temp_logs3.txt                 
+-a---- 34756  7/19/2026 1:47:51 PM  temp_logs4.txt                 
+-a---- 29452  7/23/2026 4:05:57 PM  temp_logs_2.txt                
+-a---- 29782  7/23/2026 4:10:34 PM  temp_logs_3.txt                
+-a---- 29782  7/23/2026 4:11:04 PM  temp_logs_4.txt                
+-a---- 37184  7/23/2026 4:11:54 PM  temp_logs_5.txt                
+-a---- 30726  7/19/2026 2:16:00 PM  temp_logs_crash.txt            
+-a---- 29282  7/19/2026 2:18:15 PM  temp_logs_start2.txt           
+-a---- 28760  7/19/2026 2:17:01 PM  temp_logs_startup.txt          
+-a---- 7186   5/28/2026 3:00:58 PM  test_advanced_audit.py         
+-a---- 483    7/17/2026 8:45:21 AM  test_export.py                 
+-a---- 12319  8/11/2026 4:50:06 PM  test_project_issues.py         
+-a---- 1131   7/17/2026 10:40:26 AM test_salary_read.py            
+-a---- 4306   7/21/2026 1:58:46 AM  update_formulas.py             
+-a---- 2434   7/21/2026 11:00:31 AM update_salary_formulas.py      
+-a---- 634    8/28/2026 1:11:09 PM  _LEARN_PROJECT_SCAN.txt        
+
+
+
+
+====================================================================================================
+3. IMPORTANT PROJECT FILES
+====================================================================================================
+
+FullName                                   Length LastWriteTime       
+--------                                   ------ -------------       
+E:\Du An\Python\Sober\Bot\.env.example        470 8/11/2026 4:47:01 PM
+E:\Du An\Python\Sober\Bot\.gitignore          307 8/11/2026 4:47:02 PM
+E:\Du An\Python\Sober\Bot\Dockerfile          241 8/11/2026 4:47:24 PM
+E:\Du An\Python\Sober\Bot\requirements.txt    135 8/11/2026 4:52:17 PM
+E:\Du An\Python\Sober\Bot\.venv\.gitignore      2 5/20/2026 4:17:14 PM
+
+
+
+
+====================================================================================================
+4. SOURCE FILE LIST
+====================================================================================================
+
+RelativePath                                                                                       Lines SizeKB
+------------                                                                                       ----- ------
+.venv\Lib\site-packages\anyio\__init__.py                                                            103   6.03
+.venv\Lib\site-packages\anyio\_backends\__init__.py                                                    0      0
+.venv\Lib\site-packages\anyio\_backends\_asyncio.py                                                 2488  97.14
+.venv\Lib\site-packages\anyio\_backends\_trio.py                                                    1089   40.4
+.venv\Lib\site-packages\anyio\_core\__init__.py                                                        0      0
+.venv\Lib\site-packages\anyio\_core\_asyncio_selector_thread.py                                      138   5.49
+.venv\Lib\site-packages\anyio\_core\_contextmanagers.py                                              158   7.05
+.venv\Lib\site-packages\anyio\_core\_eventloop.py                                                    170    6.3
+.venv\Lib\site-packages\anyio\_core\_exceptions.py                                                   115    4.3
+.venv\Lib\site-packages\anyio\_core\_fileio.py                                                       633  25.06
+.venv\Lib\site-packages\anyio\_core\_resources.py                                                     12   0.42
+.venv\Lib\site-packages\anyio\_core\_signals.py                                                       21   0.99
+.venv\Lib\site-packages\anyio\_core\_sockets.py                                                      825  34.16
+.venv\Lib\site-packages\anyio\_core\_streams.py                                                       41   1.76
+.venv\Lib\site-packages\anyio\_core\_subprocesses.py                                                 170   7.73
+.venv\Lib\site-packages\anyio\_core\_synchronization.py                                              569  20.57
+.venv\Lib\site-packages\anyio\_core\_tasks.py                                                        129   5.31
+.venv\Lib\site-packages\anyio\_core\_tempfile.py                                                     510  19.16
+.venv\Lib\site-packages\anyio\_core\_testing.py                                                       59   2.29
+.venv\Lib\site-packages\anyio\_core\_typedattr.py                                                     59   2.45
+.venv\Lib\site-packages\anyio\abc\__init__.py                                                         54    2.8
+.venv\Lib\site-packages\anyio\abc\_eventloop.py                                                      345  10.38
+.venv\Lib\site-packages\anyio\abc\_resources.py                                                       24   0.76
+.venv\Lib\site-packages\anyio\abc\_sockets.py                                                        308  12.82
+.venv\Lib\site-packages\anyio\abc\_streams.py                                                        177   7.31
+.venv\Lib\site-packages\anyio\abc\_subprocesses.py                                                    59   2.02
+.venv\Lib\site-packages\anyio\abc\_tasks.py                                                           91   3.63
+.venv\Lib\site-packages\anyio\abc\_testing.py                                                         53   1.78
+.venv\Lib\site-packages\anyio\from_thread.py                                                         480  18.69
+.venv\Lib\site-packages\anyio\functools.py                                                           332  11.79
+.venv\Lib\site-packages\anyio\lowlevel.py                                                            140   5.04
+.venv\Lib\site-packages\anyio\pytest_plugin.py                                                       294  12.48
+.venv\Lib\site-packages\anyio\streams\__init__.py                                                      0      0
+.venv\Lib\site-packages\anyio\streams\buffered.py                                                    151   6.12
+.venv\Lib\site-packages\anyio\streams\file.py                                                        116   4.32
+.venv\Lib\site-packages\anyio\streams\memory.py                                                      260  10.49
+.venv\Lib\site-packages\anyio\streams\stapled.py                                                     110   4.29
+.venv\Lib\site-packages\anyio\streams\text.py                                                        137   5.63
+.venv\Lib\site-packages\anyio\streams\tls.py                                                         359  14.94
+.venv\Lib\site-packages\anyio\to_interpreter.py                                                      195   6.93
+.venv\Lib\site-packages\anyio\to_process.py                                                          227   9.57
+.venv\Lib\site-packages\anyio\to_thread.py                                                            63   2.63
+.venv\Lib\site-packages\apiclient\__init__.py                                                         22   0.73
+.venv\Lib\site-packages\apscheduler\__init__.py                                                        9   0.37
+.venv\Lib\site-packages\apscheduler\events.py                                                        115    3.5
+.venv\Lib\site-packages\apscheduler\executors\__init__.py                                              0      0
+.venv\Lib\site-packages\apscheduler\executors\asyncio.py                                              41   1.73
+.venv\Lib\site-packages\apscheduler\executors\base.py                                                173   6.95
+.venv\Lib\site-packages\apscheduler\executors\debug.py                                                15   0.56
+.venv\Lib\site-packages\apscheduler\executors\gevent.py                                               22   0.74
+.venv\Lib\site-packages\apscheduler\executors\pool.py                                                 65   2.62
+.venv\Lib\site-packages\apscheduler\executors\tornado.py                                              37   1.54
+.venv\Lib\site-packages\apscheduler\executors\twisted.py                                              18   0.71
+.venv\Lib\site-packages\apscheduler\job.py                                                           270  10.97
+.venv\Lib\site-packages\apscheduler\jobstores\__init__.py                                              0      0
+.venv\Lib\site-packages\apscheduler\jobstores\base.py                                                106   4.31
+.venv\Lib\site-packages\apscheduler\jobstores\etcd.py                                                146   5.57
+.venv\Lib\site-packages\apscheduler\jobstores\memory.py                                               84   3.51
+.venv\Lib\site-packages\apscheduler\jobstores\mongodb.py                                             132   5.19
+.venv\Lib\site-packages\apscheduler\jobstores\redis.py                                               132   5.35
+.venv\Lib\site-packages\apscheduler\jobstores\rethinkdb.py                                           143   5.78
+.venv\Lib\site-packages\apscheduler\jobstores\sqlalchemy.py                                          170   6.64
+.venv\Lib\site-packages\apscheduler\jobstores\zookeeper.py                                           171   6.29
+.venv\Lib\site-packages\apscheduler\schedulers\__init__.py                                             8    0.4
+.venv\Lib\site-packages\apscheduler\schedulers\asyncio.py                                             54    2.1
+.venv\Lib\site-packages\apscheduler\schedulers\background.py                                          32   1.44
+.venv\Lib\site-packages\apscheduler\schedulers\base.py                                              1054  47.21
+.venv\Lib\site-packages\apscheduler\schedulers\blocking.py                                            24   0.85
+.venv\Lib\site-packages\apscheduler\schedulers\gevent.py                                              25   0.96
+.venv\Lib\site-packages\apscheduler\schedulers\qt.py                                                  34   1.21
+.venv\Lib\site-packages\apscheduler\schedulers\tornado.py                                             55   2.12
+.venv\Lib\site-packages\apscheduler\schedulers\twisted.py                                             50   1.93
+.venv\Lib\site-packages\apscheduler\triggers\__init__.py                                               0      0
+.venv\Lib\site-packages\apscheduler\triggers\base.py                                                  27    1.3
+.venv\Lib\site-packages\apscheduler\triggers\calendarinterval.py                                     159   7.24
+.venv\Lib\site-packages\apscheduler\triggers\combining.py                                             91   3.95
+.venv\Lib\site-packages\apscheduler\triggers\cron\__init__.py                                        263   9.85
+.venv\Lib\site-packages\apscheduler\triggers\cron\expressions.py                                     223   8.83
+.venv\Lib\site-packages\apscheduler\triggers\cron\fields.py                                          117   3.53
+.venv\Lib\site-packages\apscheduler\triggers\date.py                                                  37   1.66
+.venv\Lib\site-packages\apscheduler\triggers\interval.py                                             118   4.56
+.venv\Lib\site-packages\apscheduler\util.py                                                          372  13.89
+.venv\Lib\site-packages\certifi\__init__.py                                                            3   0.09
+.venv\Lib\site-packages\certifi\__main__.py                                                            9   0.24
+.venv\Lib\site-packages\certifi\core.py                                                               68   3.31
+.venv\Lib\site-packages\cffi\__init__.py                                                              11    0.5
+.venv\Lib\site-packages\cffi\_cffi_errors.h                                                          127   3.82
+.venv\Lib\site-packages\cffi\_cffi_include.h                                                         344   14.7
+.venv\Lib\site-packages\cffi\_embedding.h                                                            468  18.35
+.venv\Lib\site-packages\cffi\_imp_emulation.py                                                        71   2.89
+.venv\Lib\site-packages\cffi\_shimmed_dist_utils.py                                                   38   2.18
+.venv\Lib\site-packages\cffi\api.py                                                                  889  41.18
+.venv\Lib\site-packages\cffi\backend_ctypes.py                                                       982  41.46
+.venv\Lib\site-packages\cffi\cffi_opcode.py                                                          173    5.6
+.venv\Lib\site-packages\cffi\commontypes.py                                                           68   2.74
+.venv\Lib\site-packages\cffi\cparser.py                                                              970  43.74
+.venv\Lib\site-packages\cffi\error.py                                                                 26   0.86
+.venv\Lib\site-packages\cffi\ffiplatform.py                                                          100    3.5
+.venv\Lib\site-packages\cffi\lock.py                                                                  26   0.73
+.venv\Lib\site-packages\cffi\model.py                                                                517  21.29
+.venv\Lib\site-packages\cffi\parse_c_type.h                                                          162   5.84
+.venv\Lib\site-packages\cffi\pkgconfig.py                                                             99   4.27
+.venv\Lib\site-packages\cffi\recompiler.py                                                          1472  63.97
+.venv\Lib\site-packages\cffi\setuptools_ext.py                                                       199   9.19
+.venv\Lib\site-packages\cffi\vengine_cpy.py                                                          996  42.85
+.venv\Lib\site-packages\cffi\vengine_gen.py                                                          618  26.31
+.venv\Lib\site-packages\cffi\verifier.py                                                             273  10.92
+.venv\Lib\site-packages\charset_normalizer\__init__.py                                                40    1.6
+.venv\Lib\site-packages\charset_normalizer\__main__.py                                                 4   0.11
+.venv\Lib\site-packages\charset_normalizer\api.py                                                    894   38.9
+.venv\Lib\site-packages\charset_normalizer\cd.py                                                     354  15.26
+.venv\Lib\site-packages\charset_normalizer\cli\__init__.py                                             6   0.14
+.venv\Lib\site-packages\charset_normalizer\cli\__main__.py                                           325  12.01
+.venv\Lib\site-packages\charset_normalizer\constant.py                                              2021  45.39
+.venv\Lib\site-packages\charset_normalizer\legacy.py                                                  64   2.68
+.venv\Lib\site-packages\charset_normalizer\md.py                                                     782  30.64
+.venv\Lib\site-packages\charset_normalizer\models.py                                                 309  12.88
+.venv\Lib\site-packages\charset_normalizer\utils.py                                                  309  12.41
+.venv\Lib\site-packages\charset_normalizer\version.py                                                  6   0.12
+.venv\Lib\site-packages\cryptography\__about__.py                                                     12   0.43
+.venv\Lib\site-packages\cryptography\__init__.py                                                      10   0.36
+.venv\Lib\site-packages\cryptography\exceptions.py                                                    31   1.06
+.venv\Lib\site-packages\cryptography\fernet.py                                                       184    6.8
+.venv\Lib\site-packages\cryptography\hazmat\__init__.py                                               10   0.44
+.venv\Lib\site-packages\cryptography\hazmat\_oid.py                                                  324  16.84
+.venv\Lib\site-packages\cryptography\hazmat\asn1\__init__.py                                          41   0.73
+.venv\Lib\site-packages\cryptography\hazmat\asn1\asn1.py                                             357  14.38
+.venv\Lib\site-packages\cryptography\hazmat\backends\__init__.py                                       8   0.35
+.venv\Lib\site-packages\cryptography\hazmat\backends\openssl\__init__.py                               6    0.3
+.venv\Lib\site-packages\cryptography\hazmat\backends\openssl\backend.py                              264  10.27
+.venv\Lib\site-packages\cryptography\hazmat\bindings\__init__.py                                       3   0.18
+.venv\Lib\site-packages\cryptography\hazmat\bindings\openssl\__init__.py                               3   0.18
+.venv\Lib\site-packages\cryptography\hazmat\bindings\openssl\_conditional.py                         156   5.48
+.venv\Lib\site-packages\cryptography\hazmat\bindings\openssl\binding.py                               99      4
+.venv\Lib\site-packages\cryptography\hazmat\decrepit\__init__.py                                       4   0.21
+.venv\Lib\site-packages\cryptography\hazmat\decrepit\ciphers\__init__.py                               4   0.21
+.venv\Lib\site-packages\cryptography\hazmat\decrepit\ciphers\algorithms.py                           105   3.48
+.venv\Lib\site-packages\cryptography\hazmat\decrepit\ciphers\modes.py                                 36   1.61
+.venv\Lib\site-packages\cryptography\hazmat\primitives\__init__.py                                     3   0.18
+.venv\Lib\site-packages\cryptography\hazmat\primitives\_asymmetric.py                                 14   0.52
+.venv\Lib\site-packages\cryptography\hazmat\primitives\_cipheralgorithm.py                            46   1.49
+.venv\Lib\site-packages\cryptography\hazmat\primitives\_modes.py                                      83      3
+.venv\Lib\site-packages\cryptography\hazmat\primitives\_serialization.py                             108   4.34
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\__init__.py                          3   0.18
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\dh.py                              126   3.82
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\dsa.py                             143   4.38
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\ec.py                              293   9.94
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\ed25519.py                          92   2.93
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\ed448.py                           113   3.91
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\mldsa.py                           348  11.94
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\mlkem.py                           219   7.72
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\padding.py                          80   2.79
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\rsa.py                             248   8.29
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\types.py                           119   3.23
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\utils.py                            19    0.8
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\x25519.py                          106    3.8
+.venv\Lib\site-packages\cryptography\hazmat\primitives\asymmetric\x448.py                            108   3.82
+.venv\Lib\site-packages\cryptography\hazmat\primitives\ciphers\__init__.py                            24   0.66
+.venv\Lib\site-packages\cryptography\hazmat\primitives\ciphers\aead.py                                19   0.62
+.venv\Lib\site-packages\cryptography\hazmat\primitives\ciphers\algorithms.py                         109   3.41
+.venv\Lib\site-packages\cryptography\hazmat\primitives\ciphers\base.py                               116   4.15
+.venv\Lib\site-packages\cryptography\hazmat\primitives\ciphers\modes.py                              157   5.87
+.venv\Lib\site-packages\cryptography\hazmat\primitives\cmac.py                                         7   0.33
+.venv\Lib\site-packages\cryptography\hazmat\primitives\constant_time.py                                9   0.41
+.venv\Lib\site-packages\cryptography\hazmat\primitives\hashes.py                                     180   5.06
+.venv\Lib\site-packages\cryptography\hazmat\primitives\hmac.py                                         9   0.41
+.venv\Lib\site-packages\cryptography\hazmat\primitives\hpke.py                                        23   0.84
+.venv\Lib\site-packages\cryptography\hazmat\primitives\kdf\__init__.py                                25   1.01
+.venv\Lib\site-packages\cryptography\hazmat\primitives\kdf\argon2.py                                  13   0.62
+.venv\Lib\site-packages\cryptography\hazmat\primitives\kdf\concatkdf.py                               11   0.58
+.venv\Lib\site-packages\cryptography\hazmat\primitives\kdf\hkdf.py                                    11   0.53
+.venv\Lib\site-packages\cryptography\hazmat\primitives\kdf\kbkdf.py                                   17   0.72
+.venv\Lib\site-packages\cryptography\hazmat\primitives\kdf\pbkdf2.py                                   9   0.46
+.venv\Lib\site-packages\cryptography\hazmat\primitives\kdf\scrypt.py                                  13   0.58
+.venv\Lib\site-packages\cryptography\hazmat\primitives\kdf\x963kdf.py                                  9   0.45
+.venv\Lib\site-packages\cryptography\hazmat\primitives\keywrap.py                                    147   5.64
+.venv\Lib\site-packages\cryptography\hazmat\primitives\padding.py                                     48   1.82
+.venv\Lib\site-packages\cryptography\hazmat\primitives\poly1305.py                                     7   0.35
+.venv\Lib\site-packages\cryptography\hazmat\primitives\serialization\__init__.py                      62   1.67
+.venv\Lib\site-packages\cryptography\hazmat\primitives\serialization\base.py                          10    0.6
+.venv\Lib\site-packages\cryptography\hazmat\primitives\serialization\pkcs12.py                       147   4.98
+.venv\Lib\site-packages\cryptography\hazmat\primitives\serialization\pkcs7.py                        352  13.67
+.venv\Lib\site-packages\cryptography\hazmat\primitives\serialization\ssh.py                         1401  52.53
+.venv\Lib\site-packages\cryptography\hazmat\primitives\twofactor\__init__.py                           6   0.25
+.venv\Lib\site-packages\cryptography\hazmat\primitives\twofactor\hotp.py                              78   3.18
+.venv\Lib\site-packages\cryptography\hazmat\primitives\twofactor\totp.py                              47   1.61
+.venv\Lib\site-packages\cryptography\utils.py                                                        101   4.18
+.venv\Lib\site-packages\cryptography\x509\__init__.py                                                261   8.08
+.venv\Lib\site-packages\cryptography\x509\base.py                                                    668  25.39
+.venv\Lib\site-packages\cryptography\x509\certificate_transparency.py                                 22   0.78
+.venv\Lib\site-packages\cryptography\x509\extensions.py                                             1992  76.14
+.venv\Lib\site-packages\cryptography\x509\general_name.py                                            211   7.65
+.venv\Lib\site-packages\cryptography\x509\name.py                                                    392     15
+.venv\Lib\site-packages\cryptography\x509\ocsp.py                                                    323   12.4
+.venv\Lib\site-packages\cryptography\x509\oid.py                                                      34   0.91
+.venv\Lib\site-packages\cryptography\x509\verification.py                                             29   0.94
+.venv\Lib\site-packages\docs\conf.py                                                                 304  12.13
+.venv\Lib\site-packages\dotenv\__init__.py                                                            40   1.26
+.venv\Lib\site-packages\dotenv\__main__.py                                                             4   0.13
+.venv\Lib\site-packages\dotenv\cli.py                                                                165   5.67
+.venv\Lib\site-packages\dotenv\ipython.py                                                             32   1.27
+.venv\Lib\site-packages\dotenv\main.py                                                               323  11.81
+.venv\Lib\site-packages\dotenv\parser.py                                                             139   5.06
+.venv\Lib\site-packages\dotenv\variables.py                                                           64   2.29
+.venv\Lib\site-packages\dotenv\version.py                                                              1   0.02
+.venv\Lib\site-packages\google\api\annotations_pb2.py                                                 40   2.13
+.venv\Lib\site-packages\google\api\auth_pb2.py                                                        48   3.52
+.venv\Lib\site-packages\google\api\backend_pb2.py                                                     52   3.74
+.venv\Lib\site-packages\google\api\billing_pb2.py                                                     40   2.26
+.venv\Lib\site-packages\google\api\client_pb2.py                                                     103  12.53
+.venv\Lib\site-packages\google\api\config_change_pb2.py                                               44   2.63
+.venv\Lib\site-packages\google\api\consumer_pb2.py                                                    42   2.51
+.venv\Lib\site-packages\google\api\context_pb2.py                                                     40   2.32
+.venv\Lib\site-packages\google\api\control_pb2.py                                                     39   2.13
+.venv\Lib\site-packages\google\api\distribution_pb2.py                                                54   4.38
+.venv\Lib\site-packages\google\api\documentation_pb2.py                                               44   2.78
+.venv\Lib\site-packages\google\api\endpoint_pb2.py                                                    38   2.06
+.venv\Lib\site-packages\google\api\error_reason_pb2.py                                                40   3.91
+.venv\Lib\site-packages\google\api\field_behavior_pb2.py                                              43   2.62
+.venv\Lib\site-packages\google\api\field_info_pb2.py                                                  45   2.75
+.venv\Lib\site-packages\google\api\http_pb2.py                                                        42    2.8
+.venv\Lib\site-packages\google\api\httpbody_pb2.py                                                    39   2.14
+.venv\Lib\site-packages\google\api\label_pb2.py                                                       40   2.27
+.venv\Lib\site-packages\google\api\launch_stage_pb2.py                                                40   2.16
+.venv\Lib\site-packages\google\api\log_pb2.py                                                         39   2.19
+.venv\Lib\site-packages\google\api\logging_pb2.py                                                     40   2.34
+.venv\Lib\site-packages\google\api\metric_pb2.py                                                      65   5.34
+.venv\Lib\site-packages\google\api\monitored_resource_pb2.py                                          57   4.05
+.venv\Lib\site-packages\google\api\monitoring_pb2.py                                                  42   2.39
+.venv\Lib\site-packages\google\api\policy_pb2.py                                                      41   2.62
+.venv\Lib\site-packages\google\api\quota_pb2.py                                                       50   3.53
+.venv\Lib\site-packages\google\api\resource_pb2.py                                                    45   3.45
+.venv\Lib\site-packages\google\api\routing_pb2.py                                                     41   2.43
+.venv\Lib\site-packages\google\api\service_pb2.py                                                     61   5.72
+.venv\Lib\site-packages\google\api\source_info_pb2.py                                                 41    2.1
+.venv\Lib\site-packages\google\api\system_parameter_pb2.py                                            44   2.55
+.venv\Lib\site-packages\google\api\usage_pb2.py                                                       40    2.3
+.venv\Lib\site-packages\google\api\visibility_pb2.py                                                  43   3.04
+.venv\Lib\site-packages\google\api_core\__init__.py                                                   34   1.62
+.venv\Lib\site-packages\google\api_core\_python_package_support.py                                   195   8.94
+.venv\Lib\site-packages\google\api_core\_python_version_support.py                                   230  10.31
+.venv\Lib\site-packages\google\api_core\_rest_streaming_base.py                                      103   4.25
+.venv\Lib\site-packages\google\api_core\bidi.py                                                      596  27.03
+.venv\Lib\site-packages\google\api_core\bidi_async.py                                                195   8.57
+.venv\Lib\site-packages\google\api_core\bidi_base.py                                                  71   3.41
+.venv\Lib\site-packages\google\api_core\client_info.py                                                90      4
+.venv\Lib\site-packages\google\api_core\client_logging.py                                            114   4.91
+.venv\Lib\site-packages\google\api_core\client_options.py                                            128    6.7
+.venv\Lib\site-packages\google\api_core\datetime_helpers.py                                          235   8.82
+.venv\Lib\site-packages\google\api_core\exceptions.py                                                471  20.66
+.venv\Lib\site-packages\google\api_core\extended_operation.py                                        186   8.43
+.venv\Lib\site-packages\google\api_core\future\__init__.py                                            16   0.69
+.venv\Lib\site-packages\google\api_core\future\_helpers.py                                            31   1.22
+.venv\Lib\site-packages\google\api_core\future\async_future.py                                       126   5.23
+.venv\Lib\site-packages\google\api_core\future\base.py                                                49   1.72
+.venv\Lib\site-packages\google\api_core\future\polling.py                                            263  14.01
+.venv\Lib\site-packages\google\api_core\gapic_v1\__init__.py                                          27   0.96
+.venv\Lib\site-packages\google\api_core\gapic_v1\client_info.py                                       46   2.36
+.venv\Lib\site-packages\google\api_core\gapic_v1\config.py                                           136   6.15
+.venv\Lib\site-packages\google\api_core\gapic_v1\config_async.py                                      36   1.69
+.venv\Lib\site-packages\google\api_core\gapic_v1\method.py                                           204   9.12
+.venv\Lib\site-packages\google\api_core\gapic_v1\method_async.py                                      50   2.04
+.venv\Lib\site-packages\google\api_core\gapic_v1\routing_header.py                                    70   3.02
+.venv\Lib\site-packages\google\api_core\general_helpers.py                                            42   2.23
+.venv\Lib\site-packages\google\api_core\grpc_helpers.py                                              491  23.08
+.venv\Lib\site-packages\google\api_core\grpc_helpers_async.py                                        267  12.92
+.venv\Lib\site-packages\google\api_core\iam.py                                                       328   12.9
+.venv\Lib\site-packages\google\api_core\operation.py                                                 295  12.89
+.venv\Lib\site-packages\google\api_core\operation_async.py                                           186   7.86
+.venv\Lib\site-packages\google\api_core\operations_v1\__init__.py                                     35    1.6
+.venv\Lib\site-packages\google\api_core\operations_v1\abstract_operations_base_client.py             327   14.8
+.venv\Lib\site-packages\google\api_core\operations_v1\abstract_operations_client.py                  340   15.7
+.venv\Lib\site-packages\google\api_core\operations_v1\operations_async_client.py                     319  14.45
+.venv\Lib\site-packages\google\api_core\operations_v1\operations_client.py                           330  14.92
+.venv\Lib\site-packages\google\api_core\operations_v1\operations_client_config.py                     58   2.23
+.venv\Lib\site-packages\google\api_core\operations_v1\operations_rest_client_async.py                305  14.27
+.venv\Lib\site-packages\google\api_core\operations_v1\pagers.py                                       58   2.41
+.venv\Lib\site-packages\google\api_core\operations_v1\pagers_async.py                                 61   2.56
+.venv\Lib\site-packages\google\api_core\operations_v1\pagers_base.py                                  63   2.59
+.venv\Lib\site-packages\google\api_core\operations_v1\transports\__init__.py                          34   1.42
+.venv\Lib\site-packages\google\api_core\operations_v1\transports\base.py                             266   11.5
+.venv\Lib\site-packages\google\api_core\operations_v1\transports\rest.py                             421  20.42
+.venv\Lib\site-packages\google\api_core\operations_v1\transports\rest_asyncio.py                     513  25.52
+.venv\Lib\site-packages\google\api_core\page_iterator.py                                             474  19.85
+.venv\Lib\site-packages\google\api_core\page_iterator_async.py                                       233  10.05
+.venv\Lib\site-packages\google\api_core\path_template.py                                             290  11.41
+.venv\Lib\site-packages\google\api_core\protobuf_helpers.py                                          295  12.16
+.venv\Lib\site-packages\google\api_core\rest_helpers.py                                               82   3.45
+.venv\Lib\site-packages\google\api_core\rest_streaming.py                                             55   2.16
+.venv\Lib\site-packages\google\api_core\rest_streaming_async.py                                       74   3.26
+.venv\Lib\site-packages\google\api_core\retry\__init__.py                                             48   2.04
+.venv\Lib\site-packages\google\api_core\retry\retry_base.py                                          313  12.68
+.venv\Lib\site-packages\google\api_core\retry\retry_streaming.py                                     230  10.77
+.venv\Lib\site-packages\google\api_core\retry\retry_streaming_async.py                               291  14.18
+.venv\Lib\site-packages\google\api_core\retry\retry_unary.py                                         250   13.2
+.venv\Lib\site-packages\google\api_core\retry\retry_unary_async.py                                   198   9.37
+.venv\Lib\site-packages\google\api_core\retry_async.py                                                33   1.48
+.venv\Lib\site-packages\google\api_core\timeout.py                                                   227  10.04
+.venv\Lib\site-packages\google\api_core\universe.py                                                   64   2.88
+.venv\Lib\site-packages\google\api_core\version.py                                                    14   0.58
+.venv\Lib\site-packages\google\api_core\version_header.py                                             24   1.02
+.venv\Lib\site-packages\google\auth\__init__.py                                                       25   1.04
+.venv\Lib\site-packages\google\auth\_agent_identity_utils.py                                         253  11.25
+.venv\Lib\site-packages\google\auth\_cache.py                                                         54   1.82
+.venv\Lib\site-packages\google\auth\_cloud_sdk.py                                                    126   5.09
+.venv\Lib\site-packages\google\auth\_credentials_async.py                                            125   6.64
+.venv\Lib\site-packages\google\auth\_credentials_base.py                                              59   2.63
+.venv\Lib\site-packages\google\auth\_default.py                                                      610  30.54
+.venv\Lib\site-packages\google\auth\_default_async.py                                                231  11.57
+.venv\Lib\site-packages\google\auth\_exponential_backoff.py                                          126   5.25
+.venv\Lib\site-packages\google\auth\_helpers.py                                                      421  16.96
+.venv\Lib\site-packages\google\auth\_jwt_async.py                                                    121   5.83
+.venv\Lib\site-packages\google\auth\_oauth2client.py                                                 129   5.74
+.venv\Lib\site-packages\google\auth\_refresh_worker.py                                                88    3.3
+.venv\Lib\site-packages\google\auth\_regional_access_boundary_utils.py                               318  15.05
+.venv\Lib\site-packages\google\auth\_service_account_info.py                                          63   2.75
+.venv\Lib\site-packages\google\auth\aio\__init__.py                                                   19   0.85
+.venv\Lib\site-packages\google\auth\aio\_helpers.py                                                   51   2.28
+.venv\Lib\site-packages\google\auth\aio\credentials.py                                               109   5.15
+.venv\Lib\site-packages\google\auth\aio\transport\__init__.py                                        112   4.58
+.venv\Lib\site-packages\google\auth\aio\transport\aiohttp.py                                         168   7.38
+.venv\Lib\site-packages\google\auth\aio\transport\mtls.py                                            161   6.64
+.venv\Lib\site-packages\google\auth\aio\transport\sessions.py                                        512   23.4
+.venv\Lib\site-packages\google\auth\api_key.py                                                        66   2.52
+.venv\Lib\site-packages\google\auth\app_engine.py                                                    146   5.95
+.venv\Lib\site-packages\google\auth\aws.py                                                           723  33.76
+.venv\Lib\site-packages\google\auth\compute_engine\__init__.py                                        18   0.89
+.venv\Lib\site-packages\google\auth\compute_engine\_metadata.py                                      410  17.44
+.venv\Lib\site-packages\google\auth\compute_engine\_mtls.py                                          131   5.59
+.venv\Lib\site-packages\google\auth\compute_engine\credentials.py                                    484  21.43
+.venv\Lib\site-packages\google\auth\credentials.py                                                   612  28.35
+.venv\Lib\site-packages\google\auth\crypt\__init__.py                                                 76   3.07
+.venv\Lib\site-packages\google\auth\crypt\_cryptography_rsa.py                                       122   5.04
+.venv\Lib\site-packages\google\auth\crypt\_helpers.py                                                  0      0
+.venv\Lib\site-packages\google\auth\crypt\_python_rsa.py                                             161   6.59
+.venv\Lib\site-packages\google\auth\crypt\base.py                                                     97   4.09
+.venv\Lib\site-packages\google\auth\crypt\es.py                                                      179   7.83
+.venv\Lib\site-packages\google\auth\crypt\es256.py                                                    35   1.42
+.venv\Lib\site-packages\google\auth\crypt\rsa.py                                                     105   4.66
+.venv\Lib\site-packages\google\auth\downscoped.py                                                    434  21.28
+.venv\Lib\site-packages\google\auth\environment_vars.py                                              102   5.04
+.venv\Lib\site-packages\google\auth\exceptions.py                                                     67   3.12
+.venv\Lib\site-packages\google\auth\external_account.py                                              643  30.43
+.venv\Lib\site-packages\google\auth\external_account_authorized_user.py                              400  17.31
+.venv\Lib\site-packages\google\auth\iam.py                                                           116   5.48
+.venv\Lib\site-packages\google\auth\identity_pool.py                                                 487  24.12
+.venv\Lib\site-packages\google\auth\impersonated_credentials.py                                      597  26.95
+.venv\Lib\site-packages\google\auth\jwt.py                                                           707  30.45
+.venv\Lib\site-packages\google\auth\metrics.py                                                       117   5.48
+.venv\Lib\site-packages\google\auth\pluggable.py                                                     387  17.94
+.venv\Lib\site-packages\google\auth\transport\__init__.py                                             83   3.57
+.venv\Lib\site-packages\google\auth\transport\_aiohttp_requests.py                                   327  14.47
+.venv\Lib\site-packages\google\auth\transport\_custom_tls_signer.py                                  230   9.75
+.venv\Lib\site-packages\google\auth\transport\_http_client.py                                         90   3.71
+.venv\Lib\site-packages\google\auth\transport\_mtls_helper.py                                        423  19.22
+.venv\Lib\site-packages\google\auth\transport\_requests_base.py                                       43   1.62
+.venv\Lib\site-packages\google\auth\transport\grpc.py                                                273  13.42
+.venv\Lib\site-packages\google\auth\transport\mtls.py                                                116   5.04
+.venv\Lib\site-packages\google\auth\transport\requests.py                                            519  23.76
+.venv\Lib\site-packages\google\auth\transport\urllib3.py                                             401  17.92
+.venv\Lib\site-packages\google\auth\version.py                                                        14   0.58
+.venv\Lib\site-packages\google\cloud\common_resources_pb2.py                                          39   2.53
+.venv\Lib\site-packages\google\cloud\extended_operations_pb2.py                                       41   2.75
+.venv\Lib\site-packages\google\cloud\location\locations_pb2.py                                        67   4.96
+.venv\Lib\site-packages\google\gapic\metadata\gapic_metadata_pb2.py                                   60   4.72
+.venv\Lib\site-packages\google\logging\type\http_request_pb2.py                                       41   2.95
+.venv\Lib\site-packages\google\logging\type\log_severity_pb2.py                                       40   2.51
+.venv\Lib\site-packages\google\longrunning\operations_grpc.py                                         17    0.8
+.venv\Lib\site-packages\google\longrunning\operations_grpc_pb2.py                                     15   0.52
+.venv\Lib\site-packages\google\longrunning\operations_pb2.py                                          42   1.53
+.venv\Lib\site-packages\google\longrunning\operations_pb2_grpc.py                                    313  14.12
+.venv\Lib\site-packages\google\longrunning\operations_proto.py                                         4   0.24
+.venv\Lib\site-packages\google\longrunning\operations_proto_pb2.py                                    89   7.06
+.venv\Lib\site-packages\google\oauth2\__init__.py                                                     14    0.6
+.venv\Lib\site-packages\google\oauth2\_client.py                                                     535  22.18
+.venv\Lib\site-packages\google\oauth2\_client_async.py                                               235   9.93
+.venv\Lib\site-packages\google\oauth2\_credentials_async.py                                           98   4.37
+.venv\Lib\site-packages\google\oauth2\_id_token_async.py                                             231   9.93
+.venv\Lib\site-packages\google\oauth2\_reauth_async.py                                               281  11.44
+.venv\Lib\site-packages\google\oauth2\_service_account_async.py                                      115   5.74
+.venv\Lib\site-packages\google\oauth2\challenges.py                                                  234  10.16
+.venv\Lib\site-packages\google\oauth2\credentials.py                                                 554  25.27
+.venv\Lib\site-packages\google\oauth2\gdch_credentials.py                                            211    8.8
+.venv\Lib\site-packages\google\oauth2\id_token.py                                                    298  13.39
+.venv\Lib\site-packages\google\oauth2\reauth.py                                                      310  12.58
+.venv\Lib\site-packages\google\oauth2\service_account.py                                             735  32.79
+.venv\Lib\site-packages\google\oauth2\sts.py                                                         166   7.55
+.venv\Lib\site-packages\google\oauth2\utils.py                                                       138   6.17
+.venv\Lib\site-packages\google\oauth2\webauthn_handler.py                                             65   2.68
+.venv\Lib\site-packages\google\oauth2\webauthn_handler_factory.py                                     11   0.42
+.venv\Lib\site-packages\google\oauth2\webauthn_types.py                                              129   5.26
+.venv\Lib\site-packages\google\protobuf\__init__.py                                                    8   0.34
+.venv\Lib\site-packages\google\protobuf\any.py                                                        37   1.29
+.venv\Lib\site-packages\google\protobuf\any_pb2.py                                                    31   1.68
+.venv\Lib\site-packages\google\protobuf\api_pb2.py                                                    41   3.52
+.venv\Lib\site-packages\google\protobuf\compiler\__init__.py                                           0      0
+.venv\Lib\site-packages\google\protobuf\compiler\plugin_pb2.py                                        40   3.71
+.venv\Lib\site-packages\google\protobuf\descriptor.py                                               1441  51.89
+.venv\Lib\site-packages\google\protobuf\descriptor_database.py                                       152   6.39
+.venv\Lib\site-packages\google\protobuf\descriptor_pb2.py                                           3307 362.88
+.venv\Lib\site-packages\google\protobuf\descriptor_pool.py                                          1132  47.72
+.venv\Lib\site-packages\google\protobuf\duration.py                                                   70   2.61
+.venv\Lib\site-packages\google\protobuf\duration_pb2.py                                               31   1.76
+.venv\Lib\site-packages\google\protobuf\empty_pb2.py                                                  31   1.63
+.venv\Lib\site-packages\google\protobuf\field_mask_pb2.py                                             31   1.72
+.venv\Lib\site-packages\google\protobuf\internal\__init__.py                                           6   0.27
+.venv\Lib\site-packages\google\protobuf\internal\api_implementation.py                               113   4.56
+.venv\Lib\site-packages\google\protobuf\internal\builder.py                                           97   4.06
+.venv\Lib\site-packages\google\protobuf\internal\containers.py                                       599   22.9
+.venv\Lib\site-packages\google\protobuf\internal\decoder.py                                          898  37.12
+.venv\Lib\site-packages\google\protobuf\internal\encoder.py                                          664  26.66
+.venv\Lib\site-packages\google\protobuf\internal\enum_type_wrapper.py                                 90   3.66
+.venv\Lib\site-packages\google\protobuf\internal\extension_dict.py                                   151   6.97
+.venv\Lib\site-packages\google\protobuf\internal\field_mask.py                                       281  10.87
+.venv\Lib\site-packages\google\protobuf\internal\message_listener.py                                  40   1.96
+.venv\Lib\site-packages\google\protobuf\internal\python_edition_defaults.py                            5    0.6
+.venv\Lib\site-packages\google\protobuf\internal\python_message.py                                  1320  56.68
+.venv\Lib\site-packages\google\protobuf\internal\testing_refleaks.py                                 101   4.39
+.venv\Lib\site-packages\google\protobuf\internal\type_checkers.py                                    359   16.2
+.venv\Lib\site-packages\google\protobuf\internal\well_known_types.py                                 595  22.79
+.venv\Lib\site-packages\google\protobuf\internal\wire_format.py                                      166   6.92
+.venv\Lib\site-packages\google\protobuf\json_format.py                                               988  37.56
+.venv\Lib\site-packages\google\protobuf\message.py                                                   340  14.57
+.venv\Lib\site-packages\google\protobuf\message_factory.py                                           151   6.45
+.venv\Lib\site-packages\google\protobuf\proto.py                                                     114   4.29
+.venv\Lib\site-packages\google\protobuf\proto_builder.py                                              95    4.1
+.venv\Lib\site-packages\google\protobuf\proto_json.py                                                 70   2.88
+.venv\Lib\site-packages\google\protobuf\proto_text.py                                                105   4.54
+.venv\Lib\site-packages\google\protobuf\pyext\__init__.py                                              0      0
+.venv\Lib\site-packages\google\protobuf\pyext\cpp_message.py                                          36   1.67
+.venv\Lib\site-packages\google\protobuf\reflection.py                                                 26   1.21
+.venv\Lib\site-packages\google\protobuf\runtime_version.py                                            80   2.96
+.venv\Lib\site-packages\google\protobuf\service_reflection.py                                        213   9.82
+.venv\Lib\site-packages\google\protobuf\source_context_pb2.py                                         31   1.75
+.venv\Lib\site-packages\google\protobuf\struct_pb2.py                                                 41   2.99
+.venv\Lib\site-packages\google\protobuf\symbol_database.py                                           134   5.62
+.venv\Lib\site-packages\google\protobuf\testdata\__init__.py                                           0      0
+.venv\Lib\site-packages\google\protobuf\text_encoding.py                                              88   3.54
+.venv\Lib\site-packages\google\protobuf\text_format.py                                              1661  63.33
+.venv\Lib\site-packages\google\protobuf\timestamp.py                                                  79   3.06
+.venv\Lib\site-packages\google\protobuf\timestamp_pb2.py                                              31   1.77
+.venv\Lib\site-packages\google\protobuf\type_pb2.py                                                   47   5.31
+.venv\Lib\site-packages\google\protobuf\unknown_fields.py                                             76   2.99
+.venv\Lib\site-packages\google\protobuf\util\__init__.py                                               0      0
+.venv\Lib\site-packages\google\protobuf\wrappers_pb2.py                                               47   2.97
+.venv\Lib\site-packages\google\rpc\code_pb2.py                                                        38   2.42
+.venv\Lib\site-packages\google\rpc\context\attribute_context_pb2.py                                   78   8.29
+.venv\Lib\site-packages\google\rpc\context\audit_context_pb2.py                                       41   2.36
+.venv\Lib\site-packages\google\rpc\error_details_pb2.py                                               77   6.31
+.venv\Lib\site-packages\google\rpc\http_pb2.py                                                        42   2.51
+.venv\Lib\site-packages\google\rpc\status_pb2.py                                                      39   2.11
+.venv\Lib\site-packages\google\type\calendar_period_pb2.py                                            40   2.23
+.venv\Lib\site-packages\google\type\color_pb2.py                                                      39   2.16
+.venv\Lib\site-packages\google\type\date_pb2.py                                                       38   1.97
+.venv\Lib\site-packages\google\type\datetime_pb2.py                                                   43   2.63
+.venv\Lib\site-packages\google\type\dayofweek_pb2.py                                                  40   2.17
+.venv\Lib\site-packages\google\type\decimal_pb2.py                                                    38   1.94
+.venv\Lib\site-packages\google\type\expr_pb2.py                                                       38      2
+.venv\Lib\site-packages\google\type\fraction_pb2.py                                                   40      2
+.venv\Lib\site-packages\google\type\interval_pb2.py                                                   41   2.16
+.venv\Lib\site-packages\google\type\latlng_pb2.py                                                     38   1.96
+.venv\Lib\site-packages\google\type\localized_text_pb2.py                                             40   2.04
+.venv\Lib\site-packages\google\type\money_pb2.py                                                      38   1.97
+.venv\Lib\site-packages\google\type\month_pb2.py                                                      38   2.25
+.venv\Lib\site-packages\google\type\phone_number_pb2.py                                               42   2.36
+.venv\Lib\site-packages\google\type\postal_address_pb2.py                                             40   2.41
+.venv\Lib\site-packages\google\type\quaternion_pb2.py                                                 40   2.05
+.venv\Lib\site-packages\google\type\timeofday_pb2.py                                                  40   2.06
+.venv\Lib\site-packages\google_auth_httplib2.py                                                      244   9.97
+.venv\Lib\site-packages\google_auth_oauthlib\__init__.py                                              19   0.83
+.venv\Lib\site-packages\google_auth_oauthlib\flow.py                                                 411  19.15
+.venv\Lib\site-packages\google_auth_oauthlib\helpers.py                                              121   5.59
+.venv\Lib\site-packages\google_auth_oauthlib\interactive.py                                          141   5.92
+.venv\Lib\site-packages\google_auth_oauthlib\tool\__init__.py                                          0      0
+.venv\Lib\site-packages\google_auth_oauthlib\tool\__main__.py                                         98   3.75
+.venv\Lib\site-packages\googleapiclient\__init__.py                                                   22   0.88
+.venv\Lib\site-packages\googleapiclient\_auth.py                                                     139    5.6
+.venv\Lib\site-packages\googleapiclient\_helpers.py                                                  161   6.57
+.venv\Lib\site-packages\googleapiclient\channel.py                                                   261  10.79
+.venv\Lib\site-packages\googleapiclient\discovery.py                                                1362  61.76
+.venv\Lib\site-packages\googleapiclient\discovery_cache\__init__.py                                   61   2.26
+.venv\Lib\site-packages\googleapiclient\discovery_cache\appengine_memcache.py                         41   1.62
+.venv\Lib\site-packages\googleapiclient\discovery_cache\base.py                                       36   1.36
+.venv\Lib\site-packages\googleapiclient\discovery_cache\file_cache.py                                125   4.66
+.venv\Lib\site-packages\googleapiclient\errors.py                                                    144   5.33
+.venv\Lib\site-packages\googleapiclient\http.py                                                     1621  66.64
+.venv\Lib\site-packages\googleapiclient\mimeparse.py                                                 145   6.38
+.venv\Lib\site-packages\googleapiclient\model.py                                                     328  13.01
+.venv\Lib\site-packages\googleapiclient\sample_tools.py                                               91   4.21
+.venv\Lib\site-packages\googleapiclient\schema.py                                                    256  10.17
+.venv\Lib\site-packages\googleapiclient\version.py                                                    14   0.58
+.venv\Lib\site-packages\gspread\__init__.py                                                           22   0.53
+.venv\Lib\site-packages\gspread\auth.py                                                              256  12.26
+.venv\Lib\site-packages\gspread\cell.py                                                               72   2.32
+.venv\Lib\site-packages\gspread\client.py                                                            387  16.76
+.venv\Lib\site-packages\gspread\exceptions.py                                                         39   1.52
+.venv\Lib\site-packages\gspread\http_client.py                                                       297  15.55
+.venv\Lib\site-packages\gspread\spreadsheet.py                                                       568  26.84
+.venv\Lib\site-packages\gspread\urls.py                                                               28   1.26
+.venv\Lib\site-packages\gspread\utils.py                                                             691  25.67
+.venv\Lib\site-packages\gspread\worksheet.py                                                        2528 111.03
+.venv\Lib\site-packages\h11\__init__.py                                                               58   1.47
+.venv\Lib\site-packages\h11\_abnf.py                                                                 123    4.7
+.venv\Lib\site-packages\h11\_connection.py                                                           568  26.23
+.venv\Lib\site-packages\h11\_events.py                                                               277  11.52
+.venv\Lib\site-packages\h11\_headers.py                                                              246  10.17
+.venv\Lib\site-packages\h11\_readers.py                                                              216   8.39
+.venv\Lib\site-packages\h11\_receivebuffer.py                                                        126   5.13
+.venv\Lib\site-packages\h11\_state.py                                                                315  12.92
+.venv\Lib\site-packages\h11\_util.py                                                                 109   4.77
+.venv\Lib\site-packages\h11\_version.py                                                               14   0.67
+.venv\Lib\site-packages\h11\_writers.py                                                              118   4.96
+.venv\Lib\site-packages\httpcore\__init__.py                                                         131   3.36
+.venv\Lib\site-packages\httpcore\_api.py                                                              81   3.07
+.venv\Lib\site-packages\httpcore\_async\__init__.py                                                   32   1.19
+.venv\Lib\site-packages\httpcore\_async\connection.py                                                190   8.25
+.venv\Lib\site-packages\httpcore\_async\connection_pool.py                                           365   16.9
+.venv\Lib\site-packages\httpcore\_async\http_proxy.py                                                321  14.36
+.venv\Lib\site-packages\httpcore\_async\http11.py                                                    314  13.55
+.venv\Lib\site-packages\httpcore\_async\http2.py                                                     509  23.38
+.venv\Lib\site-packages\httpcore\_async\interfaces.py                                                114   4.35
+.venv\Lib\site-packages\httpcore\_async\socks_proxy.py                                               301  13.52
+.venv\Lib\site-packages\httpcore\_backends\__init__.py                                                 0      0
+.venv\Lib\site-packages\httpcore\_backends\anyio.py                                                  131   5.13
+.venv\Lib\site-packages\httpcore\_backends\auto.py                                                    43   1.62
+.venv\Lib\site-packages\httpcore\_backends\base.py                                                    79   2.97
+.venv\Lib\site-packages\httpcore\_backends\mock.py                                                   112   3.98
+.venv\Lib\site-packages\httpcore\_backends\sync.py                                                   210   7.79
+.venv\Lib\site-packages\httpcore\_backends\trio.py                                                   143   5.86
+.venv\Lib\site-packages\httpcore\_exceptions.py                                                       44   1.16
+.venv\Lib\site-packages\httpcore\_models.py                                                          438  17.21
+.venv\Lib\site-packages\httpcore\_ssl.py                                                               6   0.18
+.venv\Lib\site-packages\httpcore\_sync\__init__.py                                                    32   1.11
+.venv\Lib\site-packages\httpcore\_sync\connection.py                                                 190   8.04
+.venv\Lib\site-packages\httpcore\_sync\connection_pool.py                                            365  16.56
+.venv\Lib\site-packages\httpcore\_sync\http_proxy.py                                                 321  14.12
+.venv\Lib\site-packages\httpcore\_sync\http11.py                                                     314  13.16
+.venv\Lib\site-packages\httpcore\_sync\http2.py                                                      509  22.85
+.venv\Lib\site-packages\httpcore\_sync\interfaces.py                                                 114   4.24
+.venv\Lib\site-packages\httpcore\_sync\socks_proxy.py                                                301  13.29
+.venv\Lib\site-packages\httpcore\_synchronization.py                                                 249   9.21
+.venv\Lib\site-packages\httpcore\_trace.py                                                            95   3.86
+.venv\Lib\site-packages\httpcore\_utils.py                                                            31    1.5
+.venv\Lib\site-packages\httplib2\__init__.py                                                        1532  67.84
+.venv\Lib\site-packages\httplib2\auth.py                                                              49   1.99
+.venv\Lib\site-packages\httplib2\certs.py                                                             33   0.95
+.venv\Lib\site-packages\httplib2\error.py                                                             28   0.93
+.venv\Lib\site-packages\httplib2\iri2uri.py                                                          111   4.06
+.venv\Lib\site-packages\httpx\__init__.py                                                             98   2.12
+.venv\Lib\site-packages\httpx\__version__.py                                                           3   0.11
+.venv\Lib\site-packages\httpx\_api.py                                                                396  11.47
+.venv\Lib\site-packages\httpx\_auth.py                                                               274  11.61
+.venv\Lib\site-packages\httpx\_client.py                                                            1770  64.17
+.venv\Lib\site-packages\httpx\_config.py                                                             209   8.35
+.venv\Lib\site-packages\httpx\_content.py                                                            196   7.97
+.venv\Lib\site-packages\httpx\_decoders.py                                                           312  11.76
+.venv\Lib\site-packages\httpx\_exceptions.py                                                         280   8.33
+.venv\Lib\site-packages\httpx\_main.py                                                               458  15.26
+.venv\Lib\site-packages\httpx\_models.py                                                            1106  43.65
+.venv\Lib\site-packages\httpx\_multipart.py                                                          242   9.61
+.venv\Lib\site-packages\httpx\_status_codes.py                                                       139   5.51
+.venv\Lib\site-packages\httpx\_transports\__init__.py                                                 14   0.27
+.venv\Lib\site-packages\httpx\_transports\asgi.py                                                    141   5.37
+.venv\Lib\site-packages\httpx\_transports\base.py                                                     65   2.46
+.venv\Lib\site-packages\httpx\_transports\default.py                                                 351  13.66
+.venv\Lib\site-packages\httpx\_transports\mock.py                                                     31    1.2
+.venv\Lib\site-packages\httpx\_transports\wsgi.py                                                    120   4.71
+.venv\Lib\site-packages\httpx\_types.py                                                               93    2.9
+.venv\Lib\site-packages\httpx\_urlparse.py                                                           441  18.11
+.venv\Lib\site-packages\httpx\_urls.py                                                               510  21.04
+.venv\Lib\site-packages\httpx\_utils.py                                                              200   8.09
+.venv\Lib\site-packages\idna\__init__.py                                                              44   0.85
+.venv\Lib\site-packages\idna\codec.py                                                                119   4.93
+.venv\Lib\site-packages\idna\compat.py                                                                28   1.32
+.venv\Lib\site-packages\idna\core.py                                                                 507  22.58
+.venv\Lib\site-packages\idna\idnadata.py                                                            4360  90.44
+.venv\Lib\site-packages\idna\intranges.py                                                             44   1.84
+.venv\Lib\site-packages\idna\package_data.py                                                           1   0.02
+.venv\Lib\site-packages\idna\uts46data.py                                                           8378 197.93
+.venv\Lib\site-packages\oauthlib\__init__.py                                                          25   0.71
+.venv\Lib\site-packages\oauthlib\common.py                                                           337  13.12
+.venv\Lib\site-packages\oauthlib\oauth1\__init__.py                                                   22    0.8
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\__init__.py                                          307  16.38
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\endpoints\__init__.py                                  7   0.32
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\endpoints\access_token.py                            183   9.13
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\endpoints\authorization.py                           132   6.57
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\endpoints\base.py                                    202  11.26
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\endpoints\pre_configured.py                           11   0.53
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\endpoints\request_token.py                           180   9.07
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\endpoints\resource.py                                140    7.2
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\endpoints\signature_only.py                           67   3.25
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\errors.py                                             57   2.42
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\parameters.py                                         99   4.69
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\request_validator.py                                 640  30.26
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\signature.py                                         634  31.36
+.venv\Lib\site-packages\oauthlib\oauth1\rfc5849\utils.py                                              62   2.58
+.venv\Lib\site-packages\oauthlib\oauth2\__init__.py                                                   68   1.84
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\__init__.py                                           13   0.39
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\clients\__init__.py                                   13   0.49
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\clients\backend_application.py                        57   3.15
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\clients\base.py                                      469  25.75
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\clients\legacy_application.py                         68   3.94
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\clients\mobile_application.py                        142   8.67
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\clients\service_application.py                       145   7.65
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\clients\web_application.py                           181   11.8
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\endpoints\__init__.py                                 16   0.54
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\endpoints\authorization.py                            88   4.48
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\endpoints\base.py                                     94   4.02
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\endpoints\introspect.py                               98   4.83
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\endpoints\metadata.py                                186  10.31
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\endpoints\pre_configured.py                          262  11.39
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\endpoints\resource.py                                 66   3.17
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\endpoints\revocation.py                               98   5.09
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\endpoints\token.py                                    90   4.49
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\errors.py                                            306  12.63
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\grant_types\__init__.py                               11   0.36
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\grant_types\authorization_code.py                    450  25.47
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\grant_types\base.py                                  219  10.65
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\grant_types\client_credentials.py                     94   4.93
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\grant_types\implicit.py                              299  16.42
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\grant_types\refresh_token.py                         114   5.93
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\grant_types\resource_owner_password_credentials.py   156   8.29
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\parameters.py                                        415  20.85
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\request_validator.py                                 532  28.17
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\tokens.py                                            276  10.76
+.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\utils.py                                              62   2.16
+.venv\Lib\site-packages\oauthlib\oauth2\rfc8628\__init__.py                                           13   0.34
+.venv\Lib\site-packages\oauthlib\oauth2\rfc8628\clients\__init__.py                                    7    0.2
+.venv\Lib\site-packages\oauthlib\oauth2\rfc8628\clients\device.py                                     72   3.95
+.venv\Lib\site-packages\oauthlib\oauth2\rfc8628\endpoints\__init__.py                                  8   0.29
+.venv\Lib\site-packages\oauthlib\oauth2\rfc8628\endpoints\device_authorization.py                    193   9.49
+.venv\Lib\site-packages\oauthlib\oauth2\rfc8628\endpoints\pre_configured.py                           31   1.37
+.venv\Lib\site-packages\oauthlib\oauth2\rfc8628\errors.py                                             41   1.64
+.venv\Lib\site-packages\oauthlib\oauth2\rfc8628\grant_types\__init__.py                                1   0.07
+.venv\Lib\site-packages\oauthlib\oauth2\rfc8628\grant_types\device_code.py                            86   4.17
+.venv\Lib\site-packages\oauthlib\oauth2\rfc8628\request_validator.py                                  19   1.13
+.venv\Lib\site-packages\oauthlib\openid\__init__.py                                                    6   0.16
+.venv\Lib\site-packages\oauthlib\openid\connect\__init__.py                                            0      0
+.venv\Lib\site-packages\oauthlib\openid\connect\core\__init__.py                                       0      0
+.venv\Lib\site-packages\oauthlib\openid\connect\core\endpoints\__init__.py                             8   0.22
+.venv\Lib\site-packages\oauthlib\openid\connect\core\endpoints\pre_configured.py                     126   5.32
+.venv\Lib\site-packages\oauthlib\openid\connect\core\endpoints\userinfo.py                            86      4
+.venv\Lib\site-packages\oauthlib\openid\connect\core\exceptions.py                                   116   4.67
+.venv\Lib\site-packages\oauthlib\openid\connect\core\grant_types\__init__.py                          13   0.42
+.venv\Lib\site-packages\oauthlib\openid\connect\core\grant_types\authorization_code.py                34   1.41
+.venv\Lib\site-packages\oauthlib\openid\connect\core\grant_types\base.py                             274  15.14
+.venv\Lib\site-packages\oauthlib\openid\connect\core\grant_types\dispatchers.py                       77   3.87
+.venv\Lib\site-packages\oauthlib\openid\connect\core\grant_types\hybrid.py                            52   2.65
+.venv\Lib\site-packages\oauthlib\openid\connect\core\grant_types\implicit.py                          42   1.92
+.venv\Lib\site-packages\oauthlib\openid\connect\core\grant_types\refresh_token.py                     25   1.01
+.venv\Lib\site-packages\oauthlib\openid\connect\core\request_validator.py                            245  13.44
+.venv\Lib\site-packages\oauthlib\openid\connect\core\tokens.py                                        35   1.52
+.venv\Lib\site-packages\oauthlib\signals.py                                                           36   1.46
+.venv\Lib\site-packages\oauthlib\uri_validate.py                                                     135   5.98
+.venv\Lib\site-packages\pip\__init__.py                                                                8   0.35
+.venv\Lib\site-packages\pip\__main__.py                                                               20   0.83
+.venv\Lib\site-packages\pip\__pip-runner__.py                                                         33   1.42
+.venv\Lib\site-packages\pip\_internal\__init__.py                                                     12    0.5
+.venv\Lib\site-packages\pip\_internal\build_env.py                                                   275  10.34
+.venv\Lib\site-packages\pip\_internal\cache.py                                                       240  10.13
+.venv\Lib\site-packages\pip\_internal\cli\__init__.py                                                  3   0.13
+.venv\Lib\site-packages\pip\_internal\cli\autocompletion.py                                          158    6.7
+.venv\Lib\site-packages\pip\_internal\cli\base_command.py                                            191   8.09
+.venv\Lib\site-packages\pip\_internal\cli\cmdoptions.py                                              922   29.4
+.venv\Lib\site-packages\pip\_internal\cli\command_context.py                                          20   0.76
+.venv\Lib\site-packages\pip\_internal\cli\index_command.py                                           133    5.5
+.venv\Lib\site-packages\pip\_internal\cli\main.py                                                     64   2.75
+.venv\Lib\site-packages\pip\_internal\cli\main_parser.py                                             106   4.24
+.venv\Lib\site-packages\pip\_internal\cli\parser.py                                                  242  10.57
+.venv\Lib\site-packages\pip\_internal\cli\progress_bars.py                                            80   2.66
+.venv\Lib\site-packages\pip\_internal\cli\req_command.py                                             295  11.96
+.venv\Lib\site-packages\pip\_internal\cli\spinners.py                                                132      5
+.venv\Lib\site-packages\pip\_internal\cli\status_codes.py                                              6   0.11
+.venv\Lib\site-packages\pip\_internal\commands\__init__.py                                           120   3.79
+.venv\Lib\site-packages\pip\_internal\commands\cache.py                                              183   7.76
+.venv\Lib\site-packages\pip\_internal\commands\check.py                                               59   2.21
+.venv\Lib\site-packages\pip\_internal\commands\completion.py                                         121   4.19
+.venv\Lib\site-packages\pip\_internal\commands\configuration.py                                      236   9.54
+.venv\Lib\site-packages\pip\_internal\commands\debug.py                                              158   6.64
+.venv\Lib\site-packages\pip\_internal\commands\download.py                                           118   5.15
+.venv\Lib\site-packages\pip\_internal\commands\freeze.py                                              92   3.13
+.venv\Lib\site-packages\pip\_internal\commands\hash.py                                                48   1.66
+.venv\Lib\site-packages\pip\_internal\commands\help.py                                                30   1.11
+.venv\Lib\site-packages\pip\_internal\commands\index.py                                              112   4.62
+.venv\Lib\site-packages\pip\_internal\commands\inspect.py                                             83   3.11
+.venv\Lib\site-packages\pip\_internal\commands\install.py                                            691  28.74
+.venv\Lib\site-packages\pip\_internal\commands\list.py                                               317  12.47
+.venv\Lib\site-packages\pip\_internal\commands\search.py                                             142   5.49
+.venv\Lib\site-packages\pip\_internal\commands\show.py                                               188   7.33
+.venv\Lib\site-packages\pip\_internal\commands\uninstall.py                                          100    3.8
+.venv\Lib\site-packages\pip\_internal\commands\wheel.py                                              152   6.26
+.venv\Lib\site-packages\pip\_internal\configuration.py                                               312  13.68
+.venv\Lib\site-packages\pip\_internal\distributions\__init__.py                                       17   0.84
+.venv\Lib\site-packages\pip\_internal\distributions\base.py                                           39   1.74
+.venv\Lib\site-packages\pip\_internal\distributions\installed.py                                      22   0.82
+.venv\Lib\site-packages\pip\_internal\distributions\sdist.py                                         141   6.59
+.venv\Lib\site-packages\pip\_internal\distributions\wheel.py                                          33   1.29
+.venv\Lib\site-packages\pip\_internal\exceptions.py                                                  635  25.86
+.venv\Lib\site-packages\pip\_internal\index\__init__.py                                                2   0.03
+.venv\Lib\site-packages\pip\_internal\index\collector.py                                             410  15.88
+.venv\Lib\site-packages\pip\_internal\index\package_finder.py                                        877  36.78
+.venv\Lib\site-packages\pip\_internal\index\sources.py                                               226   8.43
+.venv\Lib\site-packages\pip\_internal\locations\__init__.py                                          372  14.58
+.venv\Lib\site-packages\pip\_internal\locations\_distutils.py                                        148   5.87
+.venv\Lib\site-packages\pip\_internal\locations\_sysconfig.py                                        176   7.54
+.venv\Lib\site-packages\pip\_internal\locations\base.py                                               63    2.5
+.venv\Lib\site-packages\pip\_internal\main.py                                                          8   0.33
+.venv\Lib\site-packages\pip\_internal\metadata\__init__.py                                            96   4.24
+.venv\Lib\site-packages\pip\_internal\metadata\_json.py                                               74   2.58
+.venv\Lib\site-packages\pip\_internal\metadata\base.py                                               568  24.71
+.venv\Lib\site-packages\pip\_internal\metadata\importlib\__init__.py                                   4   0.13
+.venv\Lib\site-packages\pip\_internal\metadata\importlib\_compat.py                                   62   2.73
+.venv\Lib\site-packages\pip\_internal\metadata\importlib\_dists.py                                   192   7.83
+.venv\Lib\site-packages\pip\_internal\metadata\importlib\_envs.py                                    156   7.26
+.venv\Lib\site-packages\pip\_internal\metadata\pkg_resources.py                                      250  10.29
+.venv\Lib\site-packages\pip\_internal\models\__init__.py                                               2   0.06
+.venv\Lib\site-packages\pip\_internal\models\candidate.py                                             17   0.74
+.venv\Lib\site-packages\pip\_internal\models\direct_url.py                                           181   6.42
+.venv\Lib\site-packages\pip\_internal\models\format_control.py                                        64   2.43
+.venv\Lib\site-packages\pip\_internal\models\index.py                                                 20   1.01
+.venv\Lib\site-packages\pip\_internal\models\installation_report.py                                   50   2.75
+.venv\Lib\site-packages\pip\_internal\models\link.py                                                 490  20.54
+.venv\Lib\site-packages\pip\_internal\models\scheme.py                                                18   0.56
+.venv\Lib\site-packages\pip\_internal\models\search_scope.py                                         107   4.42
+.venv\Lib\site-packages\pip\_internal\models\selection_prefs.py                                       46   1.97
+.venv\Lib\site-packages\pip\_internal\models\target_python.py                                        102   4.17
+.venv\Lib\site-packages\pip\_internal\models\wheel.py                                                 97   4.43
+.venv\Lib\site-packages\pip\_internal\network\__init__.py                                              2   0.05
+.venv\Lib\site-packages\pip\_internal\network\auth.py                                                462  20.32
+.venv\Lib\site-packages\pip\_internal\network\cache.py                                                85   3.84
+.venv\Lib\site-packages\pip\_internal\network\download.py                                            153   5.91
+.venv\Lib\site-packages\pip\_internal\network\lazy_wheel.py                                          173   7.44
+.venv\Lib\site-packages\pip\_internal\network\session.py                                             442   18.3
+.venv\Lib\site-packages\pip\_internal\network\utils.py                                                87   3.99
+.venv\Lib\site-packages\pip\_internal\network\xmlrpc.py                                               53   1.79
+.venv\Lib\site-packages\pip\_internal\operations\__init__.py                                           0      0
+.venv\Lib\site-packages\pip\_internal\operations\check.py                                            143   5.77
+.venv\Lib\site-packages\pip\_internal\operations\freeze.py                                           229   9.63
+.venv\Lib\site-packages\pip\_internal\operations\install\__init__.py                                   2   0.05
+.venv\Lib\site-packages\pip\_internal\operations\install\editable_legacy.py                           40   1.25
+.venv\Lib\site-packages\pip\_internal\operations\install\wheel.py                                    625  26.97
+.venv\Lib\site-packages\pip\_internal\operations\prepare.py                                          643  27.46
+.venv\Lib\site-packages\pip\_internal\pyproject.py                                                   156   7.12
+.venv\Lib\site-packages\pip\_internal\req\__init__.py                                                 73   2.59
+.venv\Lib\site-packages\pip\_internal\req\constructors.py                                            482     18
+.venv\Lib\site-packages\pip\_internal\req\req_file.py                                                482  18.31
+.venv\Lib\site-packages\pip\_internal\req\req_install.py                                             826  34.95
+.venv\Lib\site-packages\pip\_internal\req\req_set.py                                                  61   2.79
+.venv\Lib\site-packages\pip\_internal\req\req_uninstall.py                                           530  23.29
+.venv\Lib\site-packages\pip\_internal\resolution\__init__.py                                           0      0
+.venv\Lib\site-packages\pip\_internal\resolution\base.py                                              15   0.57
+.venv\Lib\site-packages\pip\_internal\resolution\legacy\__init__.py                                    0      0
+.venv\Lib\site-packages\pip\_internal\resolution\legacy\resolver.py                                  517   23.5
+.venv\Lib\site-packages\pip\_internal\resolution\resolvelib\__init__.py                                0      0
+.venv\Lib\site-packages\pip\_internal\resolution\resolvelib\base.py                                  105   4.91
+.venv\Lib\site-packages\pip\_internal\resolution\resolvelib\candidates.py                            477  19.53
+.venv\Lib\site-packages\pip\_internal\resolution\resolvelib\factory.py                               742   31.9
+.venv\Lib\site-packages\pip\_internal\resolution\resolvelib\found_candidates.py                      147   6.23
+.venv\Lib\site-packages\pip\_internal\resolution\resolvelib\provider.py                              223    9.7
+.venv\Lib\site-packages\pip\_internal\resolution\resolvelib\reporter.py                               62   3.09
+.venv\Lib\site-packages\pip\_internal\resolution\resolvelib\requirements.py                          183   7.88
+.venv\Lib\site-packages\pip\_internal\resolution\resolvelib\resolver.py                              272   12.3
+.venv\Lib\site-packages\pip\_internal\self_outdated_check.py                                         197   7.95
+.venv\Lib\site-packages\pip\_internal\utils\__init__.py                                                0      0
+.venv\Lib\site-packages\pip\_internal\utils\_jaraco_text.py                                           83   3.27
+.venv\Lib\site-packages\pip\_internal\utils\_log.py                                                   25   0.99
+.venv\Lib\site-packages\pip\_internal\utils\appdirs.py                                                36   1.63
+.venv\Lib\site-packages\pip\_internal\utils\compat.py                                                 58   2.34
+.venv\Lib\site-packages\pip\_internal\utils\compatibility_tags.py                                    158   6.12
+.venv\Lib\site-packages\pip\_internal\utils\datetime.py                                                7   0.24
+.venv\Lib\site-packages\pip\_internal\utils\deprecation.py                                           102   3.62
+.venv\Lib\site-packages\pip\_internal\utils\direct_url_helpers.py                                     80   3.12
+.venv\Lib\site-packages\pip\_internal\utils\egg_link.py                                               67   2.41
+.venv\Lib\site-packages\pip\_internal\utils\encoding.py                                               31   1.14
+.venv\Lib\site-packages\pip\_internal\utils\entrypoints.py                                            70   2.99
+.venv\Lib\site-packages\pip\_internal\utils\filesystem.py                                            120   4.83
+.venv\Lib\site-packages\pip\_internal\utils\filetypes.py                                              22    0.7
+.venv\Lib\site-packages\pip\_internal\utils\glibc.py                                                  87   3.65
+.venv\Lib\site-packages\pip\_internal\utils\hashes.py                                                112   4.86
+.venv\Lib\site-packages\pip\_internal\utils\logging.py                                               295  11.33
+.venv\Lib\site-packages\pip\_internal\utils\misc.py                                                  617  22.98
+.venv\Lib\site-packages\pip\_internal\utils\packaging.py                                              42   2.06
+.venv\Lib\site-packages\pip\_internal\utils\retry.py                                                  32   1.36
+.venv\Lib\site-packages\pip\_internal\utils\setuptools_build.py                                      122   4.33
+.venv\Lib\site-packages\pip\_internal\utils\subprocess.py                                            222   8.78
+.venv\Lib\site-packages\pip\_internal\utils\temp_dir.py                                              242   9.09
+.venv\Lib\site-packages\pip\_internal\utils\unpacking.py                                             299  11.67
+.venv\Lib\site-packages\pip\_internal\utils\urls.py                                                   45   1.56
+.venv\Lib\site-packages\pip\_internal\utils\virtualenv.py                                             79   3.38
+.venv\Lib\site-packages\pip\_internal\utils\wheel.py                                                  99   4.39
+.venv\Lib\site-packages\pip\_internal\vcs\__init__.py                                                 15   0.58
+.venv\Lib\site-packages\pip\_internal\vcs\bazaar.py                                                   97   3.45
+.venv\Lib\site-packages\pip\_internal\vcs\git.py                                                     459  17.75
+.venv\Lib\site-packages\pip\_internal\vcs\mercurial.py                                               147   5.13
+.venv\Lib\site-packages\pip\_internal\vcs\subversion.py                                              277  11.46
+.venv\Lib\site-packages\pip\_internal\vcs\versioncontrol.py                                          580  21.91
+.venv\Lib\site-packages\pip\_internal\wheel_builder.py                                               309  11.52
+.venv\Lib\site-packages\pip\_vendor\__init__.py                                                      106   4.76
+.venv\Lib\site-packages\pip\_vendor\cachecontrol\__init__.py                                          22   0.66
+.venv\Lib\site-packages\pip\_vendor\cachecontrol\_cmd.py                                              50    1.7
+.venv\Lib\site-packages\pip\_vendor\cachecontrol\adapter.py                                          134   6.21
+.venv\Lib\site-packages\pip\_vendor\cachecontrol\cache.py                                             54   1.91
+.venv\Lib\site-packages\pip\_vendor\cachecontrol\caches\__init__.py                                    6    0.3
+.venv\Lib\site-packages\pip\_vendor\cachecontrol\caches\file_cache.py                                146   5.28
+.venv\Lib\site-packages\pip\_vendor\cachecontrol\caches\redis_cache.py                                37   1.35
+.venv\Lib\site-packages\pip\_vendor\cachecontrol\controller.py                                       419  18.14
+.venv\Lib\site-packages\pip\_vendor\cachecontrol\filewrapper.py                                       97   4.19
+.venv\Lib\site-packages\pip\_vendor\cachecontrol\heuristics.py                                       117   4.72
+.venv\Lib\site-packages\pip\_vendor\cachecontrol\serialize.py                                        122   5.04
+.venv\Lib\site-packages\pip\_vendor\cachecontrol\wrapper.py                                           36   1.38
+.venv\Lib\site-packages\pip\_vendor\certifi\__init__.py                                                3   0.09
+.venv\Lib\site-packages\pip\_vendor\certifi\__main__.py                                                9   0.25
+.venv\Lib\site-packages\pip\_vendor\certifi\core.py                                                   93   4.38
+.venv\Lib\site-packages\pip\_vendor\distlib\__init__.py                                               22   0.61
+.venv\Lib\site-packages\pip\_vendor\distlib\compat.py                                                961   40.5
+.venv\Lib\site-packages\pip\_vendor\distlib\database.py                                             1150  49.96
+.venv\Lib\site-packages\pip\_vendor\distlib\index.py                                                 464  20.31
+.venv\Lib\site-packages\pip\_vendor\distlib\locators.py                                             1166  49.83
+.venv\Lib\site-packages\pip\_vendor\distlib\manifest.py                                              316  13.84
+.venv\Lib\site-packages\pip\_vendor\distlib\markers.py                                               133   5.04
+.venv\Lib\site-packages\pip\_vendor\distlib\metadata.py                                              873  37.82
+.venv\Lib\site-packages\pip\_vendor\distlib\resources.py                                             295  10.57
+.venv\Lib\site-packages\pip\_vendor\distlib\scripts.py                                               399  18.17
+.venv\Lib\site-packages\pip\_vendor\distlib\util.py                                                 1690  65.12
+.venv\Lib\site-packages\pip\_vendor\distlib\version.py                                               618  23.17
+.venv\Lib\site-packages\pip\_vendor\distlib\wheel.py                                                 979  42.95
+.venv\Lib\site-packages\pip\_vendor\distro\__init__.py                                                52   0.96
+.venv\Lib\site-packages\pip\_vendor\distro\__main__.py                                                 3   0.06
+.venv\Lib\site-packages\pip\_vendor\distro\distro.py                                                1129  48.27
+.venv\Lib\site-packages\pip\_vendor\idna\__init__.py                                                  43   0.83
+.venv\Lib\site-packages\pip\_vendor\idna\codec.py                                                     92   3.35
+.venv\Lib\site-packages\pip\_vendor\idna\compat.py                                                     9   0.31
+.venv\Lib\site-packages\pip\_vendor\idna\core.py                                                     323  12.37
+.venv\Lib\site-packages\pip\_vendor\idna\idnadata.py                                                4244  76.48
+.venv\Lib\site-packages\pip\_vendor\idna\intranges.py                                                 45   1.84
+.venv\Lib\site-packages\pip\_vendor\idna\package_data.py                                               1   0.02
+.venv\Lib\site-packages\pip\_vendor\idna\uts46data.py                                               8511 201.66
+.venv\Lib\site-packages\pip\_vendor\msgpack\__init__.py                                               38   1.05
+.venv\Lib\site-packages\pip\_vendor\msgpack\exceptions.py                                             30   1.06
+.venv\Lib\site-packages\pip\_vendor\msgpack\ext.py                                                   133    5.5
+.venv\Lib\site-packages\pip\_vendor\msgpack\fallback.py                                              833   32.4
+.venv\Lib\site-packages\pip\_vendor\packaging\__init__.py                                             11   0.48
+.venv\Lib\site-packages\pip\_vendor\packaging\_elffile.py                                             89   3.21
+.venv\Lib\site-packages\pip\_vendor\packaging\_manylinux.py                                          224   9.36
+.venv\Lib\site-packages\pip\_vendor\packaging\_musllinux.py                                           65   2.63
+.venv\Lib\site-packages\pip\_vendor\packaging\_parser.py                                             274     10
+.venv\Lib\site-packages\pip\_vendor\packaging\_structures.py                                          39    1.4
+.venv\Lib\site-packages\pip\_vendor\packaging\_tokenizer.py                                          163   5.15
+.venv\Lib\site-packages\pip\_vendor\packaging\markers.py                                             259  10.42
+.venv\Lib\site-packages\pip\_vendor\packaging\metadata.py                                            701  31.59
+.venv\Lib\site-packages\pip\_vendor\packaging\requirements.py                                         71   2.88
+.venv\Lib\site-packages\pip\_vendor\packaging\specifiers.py                                          832  38.81
+.venv\Lib\site-packages\pip\_vendor\packaging\tags.py                                                522  20.89
+.venv\Lib\site-packages\pip\_vendor\packaging\utils.py                                               136   5.16
+.venv\Lib\site-packages\pip\_vendor\packaging\version.py                                             453  15.83
+.venv\Lib\site-packages\pip\_vendor\pkg_resources\__init__.py                                       3008 121.55
+.venv\Lib\site-packages\pip\_vendor\platformdirs\__init__.py                                         546  21.76
+.venv\Lib\site-packages\pip\_vendor\platformdirs\__main__.py                                          43   1.47
+.venv\Lib\site-packages\pip\_vendor\platformdirs\android.py                                          200    8.8
+.venv\Lib\site-packages\pip\_vendor\platformdirs\api.py                                              232   8.79
+.venv\Lib\site-packages\pip\_vendor\platformdirs\macos.py                                            105   5.45
+.venv\Lib\site-packages\pip\_vendor\platformdirs\unix.py                                             224  10.39
+.venv\Lib\site-packages\pip\_vendor\platformdirs\version.py                                           14    0.4
+.venv\Lib\site-packages\pip\_vendor\platformdirs\windows.py                                          220   9.89
+.venv\Lib\site-packages\pip\_vendor\pygments\__init__.py                                              67   2.91
+.venv\Lib\site-packages\pip\_vendor\pygments\__main__.py                                              13   0.34
+.venv\Lib\site-packages\pip\_vendor\pygments\cmdline.py                                              593   23.1
+.venv\Lib\site-packages\pip\_vendor\pygments\console.py                                               54   1.68
+.venv\Lib\site-packages\pip\_vendor\pygments\filter.py                                                55   1.87
+.venv\Lib\site-packages\pip\_vendor\pygments\filters\__init__.py                                     861  39.45
+.venv\Lib\site-packages\pip\_vendor\pygments\formatter.py                                            102   4.29
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\__init__.py                                  126   5.26
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\_mapping.py                                   22   4.08
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\bbcode.py                                     86   3.24
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\groff.py                                     128   4.99
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\html.py                                      810  34.83
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\img.py                                       575  22.74
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\irc.py                                       130   4.86
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\latex.py                                     447  18.85
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\other.py                                     131   4.92
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\pangomarkup.py                                62   2.17
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\rtf.py                                       278  11.68
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\svg.py                                       153   7.01
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\terminal.py                                  102   4.56
+.venv\Lib\site-packages\pip\_vendor\pygments\formatters\terminal256.py                               276  11.48
+.venv\Lib\site-packages\pip\_vendor\pygments\lexer.py                                                817  34.52
+.venv\Lib\site-packages\pip\_vendor\pygments\lexers\__init__.py                                      297  11.83
+.venv\Lib\site-packages\pip\_vendor\pygments\lexers\_mapping.py                                      588  74.31
+.venv\Lib\site-packages\pip\_vendor\pygments\lexers\python.py                                       1129  52.43
+.venv\Lib\site-packages\pip\_vendor\pygments\modeline.py                                              32   0.98
+.venv\Lib\site-packages\pip\_vendor\pygments\plugin.py                                                49   1.85
+.venv\Lib\site-packages\pip\_vendor\pygments\regexopt.py                                              79      3
+.venv\Lib\site-packages\pip\_vendor\pygments\scanner.py                                               89   3.02
+.venv\Lib\site-packages\pip\_vendor\pygments\sphinxext.py                                            198   7.79
+.venv\Lib\site-packages\pip\_vendor\pygments\style.py                                                174   6.27
+.venv\Lib\site-packages\pip\_vendor\pygments\styles\__init__.py                                       50   1.99
+.venv\Lib\site-packages\pip\_vendor\pygments\styles\_mapping.py                                       53   3.23
+.venv\Lib\site-packages\pip\_vendor\pygments\token.py                                                177   6.08
+.venv\Lib\site-packages\pip\_vendor\pygments\unistring.py                                            100  61.73
+.venv\Lib\site-packages\pip\_vendor\pygments\util.py                                                 268    9.8
+.venv\Lib\site-packages\pip\_vendor\pyproject_hooks\__init__.py                                       21   0.48
+.venv\Lib\site-packages\pip\_vendor\pyproject_hooks\_compat.py                                         6   0.13
+.venv\Lib\site-packages\pip\_vendor\pyproject_hooks\_impl.py                                         262  11.64
+.venv\Lib\site-packages\pip\_vendor\pyproject_hooks\_in_process\__init__.py                           15   0.53
+.venv\Lib\site-packages\pip\_vendor\pyproject_hooks\_in_process\_in_process.py                       280  10.67
+.venv\Lib\site-packages\pip\_vendor\requests\__init__.py                                             147   4.94
+.venv\Lib\site-packages\pip\_vendor\requests\__version__.py                                           13   0.42
+.venv\Lib\site-packages\pip\_vendor\requests\_internal_utils.py                                       40   1.46
+.venv\Lib\site-packages\pip\_vendor\requests\adapters.py                                             609  26.96
+.venv\Lib\site-packages\pip\_vendor\requests\api.py                                                  120    6.3
+.venv\Lib\site-packages\pip\_vendor\requests\auth.py                                                 250   9.95
+.venv\Lib\site-packages\pip\_vendor\requests\certs.py                                                 18   0.56
+.venv\Lib\site-packages\pip\_vendor\requests\compat.py                                                63   1.45
+.venv\Lib\site-packages\pip\_vendor\requests\cookies.py                                              451  18.15
+.venv\Lib\site-packages\pip\_vendor\requests\exceptions.py                                            92   4.17
+.venv\Lib\site-packages\pip\_vendor\requests\help.py                                                 106   3.72
+.venv\Lib\site-packages\pip\_vendor\requests\hooks.py                                                 24   0.72
+.venv\Lib\site-packages\pip\_vendor\requests\models.py                                               856  34.65
+.venv\Lib\site-packages\pip\_vendor\requests\packages.py                                              21   1.03
+.venv\Lib\site-packages\pip\_vendor\requests\sessions.py                                             682  29.78
+.venv\Lib\site-packages\pip\_vendor\requests\status_codes.py                                         116   4.22
+.venv\Lib\site-packages\pip\_vendor\requests\structures.py                                            72   2.84
+.venv\Lib\site-packages\pip\_vendor\requests\utils.py                                                863  32.84
+.venv\Lib\site-packages\pip\_vendor\resolvelib\__init__.py                                            23   0.52
+.venv\Lib\site-packages\pip\_vendor\resolvelib\compat\__init__.py                                      0      0
+.venv\Lib\site-packages\pip\_vendor\resolvelib\compat\collections_abc.py                               5   0.15
+.venv\Lib\site-packages\pip\_vendor\resolvelib\providers.py                                          105   5.73
+.venv\Lib\site-packages\pip\_vendor\resolvelib\reporters.py                                           31   1.56
+.venv\Lib\site-packages\pip\_vendor\resolvelib\resolvers.py                                          450  20.03
+.venv\Lib\site-packages\pip\_vendor\resolvelib\structs.py                                            127   4.85
+.venv\Lib\site-packages\pip\_vendor\rich\__init__.py                                                 145   5.95
+.venv\Lib\site-packages\pip\_vendor\rich\__main__.py                                                 236   8.28
+.venv\Lib\site-packages\pip\_vendor\rich\_cell_widths.py                                             453   9.97
+.venv\Lib\site-packages\pip\_vendor\rich\_emoji_codes.py                                            3610 136.95
+.venv\Lib\site-packages\pip\_vendor\rich\_emoji_replace.py                                            25   1.04
+.venv\Lib\site-packages\pip\_vendor\rich\_export_format.py                                            68   2.08
+.venv\Lib\site-packages\pip\_vendor\rich\_extension.py                                                 7   0.26
+.venv\Lib\site-packages\pip\_vendor\rich\_fileno.py                                                   19   0.78
+.venv\Lib\site-packages\pip\_vendor\rich\_inspect.py                                                 231   9.47
+.venv\Lib\site-packages\pip\_vendor\rich\_log_render.py                                               81   3.15
+.venv\Lib\site-packages\pip\_vendor\rich\_loop.py                                                     36   1.21
+.venv\Lib\site-packages\pip\_vendor\rich\_null_file.py                                                47   1.35
+.venv\Lib\site-packages\pip\_vendor\rich\_palettes.py                                                304    6.9
+.venv\Lib\site-packages\pip\_vendor\rich\_pick.py                                                     13   0.41
+.venv\Lib\site-packages\pip\_vendor\rich\_ratio.py                                                   134   5.34
+.venv\Lib\site-packages\pip\_vendor\rich\_spinners.py                                                481  19.45
+.venv\Lib\site-packages\pip\_vendor\rich\_stack.py                                                    11   0.34
+.venv\Lib\site-packages\pip\_vendor\rich\_timer.py                                                    14   0.41
+.venv\Lib\site-packages\pip\_vendor\rich\_win32_console.py                                           531  22.29
+.venv\Lib\site-packages\pip\_vendor\rich\_windows.py                                                  56   1.88
+.venv\Lib\site-packages\pip\_vendor\rich\_windows_renderer.py                                         52   2.72
+.venv\Lib\site-packages\pip\_vendor\rich\_wrap.py                                                     76   3.32
+.venv\Lib\site-packages\pip\_vendor\rich\abc.py                                                       22   0.87
+.venv\Lib\site-packages\pip\_vendor\rich\align.py                                                    274  10.12
+.venv\Lib\site-packages\pip\_vendor\rich\ansi.py                                                     207   6.74
+.venv\Lib\site-packages\pip\_vendor\rich\bar.py                                                       76   3.19
+.venv\Lib\site-packages\pip\_vendor\rich\box.py                                                      417  10.58
+.venv\Lib\site-packages\pip\_vendor\rich\cells.py                                                    129   4.67
+.venv\Lib\site-packages\pip\_vendor\rich\color.py                                                    547   17.8
+.venv\Lib\site-packages\pip\_vendor\rich\color_triplet.py                                             30   1.03
+.venv\Lib\site-packages\pip\_vendor\rich\columns.py                                                  167   6.96
+.venv\Lib\site-packages\pip\_vendor\rich\console.py                                                 2263  96.85
+.venv\Lib\site-packages\pip\_vendor\rich\constrain.py                                                 29   1.26
+.venv\Lib\site-packages\pip\_vendor\rich\containers.py                                               139   5.37
+.venv\Lib\site-packages\pip\_vendor\rich\control.py                                                  181   6.47
+.venv\Lib\site-packages\pip\_vendor\rich\default_styles.py                                           181   7.89
+.venv\Lib\site-packages\pip\_vendor\rich\diagnose.py                                                  30   0.95
+.venv\Lib\site-packages\pip\_vendor\rich\emoji.py                                                     70   2.44
+.venv\Lib\site-packages\pip\_vendor\rich\errors.py                                                    18   0.63
+.venv\Lib\site-packages\pip\_vendor\rich\file_proxy.py                                                47   1.64
+.venv\Lib\site-packages\pip\_vendor\rich\filesize.py                                                  71   2.45
+.venv\Lib\site-packages\pip\_vendor\rich\highlighter.py                                              188   9.36
+.venv\Lib\site-packages\pip\_vendor\rich\json.py                                                     123   4.91
+.venv\Lib\site-packages\pip\_vendor\rich\jupyter.py                                                   79   3.18
+.venv\Lib\site-packages\pip\_vendor\rich\layout.py                                                   358  13.68
+.venv\Lib\site-packages\pip\_vendor\rich\live.py                                                     327  13.94
+.venv\Lib\site-packages\pip\_vendor\rich\live_render.py                                               95   3.58
+.venv\Lib\site-packages\pip\_vendor\rich\logging.py                                                  257  11.62
+.venv\Lib\site-packages\pip\_vendor\rich\markup.py                                                   204   8.25
+.venv\Lib\site-packages\pip\_vendor\rich\measure.py                                                  126   5.18
+.venv\Lib\site-packages\pip\_vendor\rich\padding.py                                                  121   4.85
+.venv\Lib\site-packages\pip\_vendor\rich\pager.py                                                     23   0.81
+.venv\Lib\site-packages\pip\_vendor\rich\palette.py                                                   83   3.32
+.venv\Lib\site-packages\pip\_vendor\rich\panel.py                                                    281  10.45
+.venv\Lib\site-packages\pip\_vendor\rich\pretty.py                                                   878  35.01
+.venv\Lib\site-packages\pip\_vendor\rich\progress.py                                                1444  58.32
+.venv\Lib\site-packages\pip\_vendor\rich\progress_bar.py                                             194   7.97
+.venv\Lib\site-packages\pip\_vendor\rich\prompt.py                                                   295  11.04
+.venv\Lib\site-packages\pip\_vendor\rich\protocol.py                                                  32   1.36
+.venv\Lib\site-packages\pip\_vendor\rich\region.py                                                     7   0.16
+.venv\Lib\site-packages\pip\_vendor\rich\repr.py                                                     116   4.33
+.venv\Lib\site-packages\pip\_vendor\rich\rule.py                                                     109   4.49
+.venv\Lib\site-packages\pip\_vendor\rich\scope.py                                                     73   2.78
+.venv\Lib\site-packages\pip\_vendor\rich\screen.py                                                    44   1.55
+.venv\Lib\site-packages\pip\_vendor\rich\segment.py                                                  625  23.68
+.venv\Lib\site-packages\pip\_vendor\rich\spinner.py                                                  115   4.24
+.venv\Lib\site-packages\pip\_vendor\rich\status.py                                                   113   4.32
+.venv\Lib\site-packages\pip\_vendor\rich\style.py                                                    698  26.44
+.venv\Lib\site-packages\pip\_vendor\rich\styled.py                                                    31   1.23
+.venv\Lib\site-packages\pip\_vendor\rich\syntax.py                                                   853  34.64
+.venv\Lib\site-packages\pip\_vendor\rich\table.py                                                    882  38.75
+.venv\Lib\site-packages\pip\_vendor\rich\terminal_theme.py                                           143   3.29
+.venv\Lib\site-packages\pip\_vendor\rich\text.py                                                    1164   46.2
+.venv\Lib\site-packages\pip\_vendor\rich\theme.py                                                     91   3.69
+.venv\Lib\site-packages\pip\_vendor\rich\themes.py                                                     3    0.1
+.venv\Lib\site-packages\pip\_vendor\rich\traceback.py                                                672  28.91
+.venv\Lib\site-packages\pip\_vendor\rich\tree.py                                                     216   8.95
+.venv\Lib\site-packages\pip\_vendor\tomli\__init__.py                                                  8   0.39
+.venv\Lib\site-packages\pip\_vendor\tomli\_parser.py                                                 580   22.1
+.venv\Lib\site-packages\pip\_vendor\tomli\_re.py                                                      93   2.87
+.venv\Lib\site-packages\pip\_vendor\tomli\_types.py                                                    8   0.25
+.venv\Lib\site-packages\pip\_vendor\truststore\__init__.py                                            29   1.23
+.venv\Lib\site-packages\pip\_vendor\truststore\_api.py                                               254  10.31
+.venv\Lib\site-packages\pip\_vendor\truststore\_macos.py                                             480  20.02
+.venv\Lib\site-packages\pip\_vendor\truststore\_openssl.py                                            57   2.27
+.venv\Lib\site-packages\pip\_vendor\truststore\_ssl_constants.py                                      24    1.1
+.venv\Lib\site-packages\pip\_vendor\truststore\_windows.py                                           484  17.57
+.venv\Lib\site-packages\pip\_vendor\typing_extensions.py                                            2971 131.35
+.venv\Lib\site-packages\pip\_vendor\urllib3\__init__.py                                               87   3.25
+.venv\Lib\site-packages\pip\_vendor\urllib3\_collections.py                                          288  11.11
+.venv\Lib\site-packages\pip\_vendor\urllib3\_version.py                                                2   0.06
+.venv\Lib\site-packages\pip\_vendor\urllib3\connection.py                                            476  19.84
+.venv\Lib\site-packages\pip\_vendor\urllib3\connectionpool.py                                        958  39.46
+.venv\Lib\site-packages\pip\_vendor\urllib3\contrib\__init__.py                                        0      0
+.venv\Lib\site-packages\pip\_vendor\urllib3\contrib\_appengine_environ.py                             24   0.93
+.venv\Lib\site-packages\pip\_vendor\urllib3\contrib\_securetransport\__init__.py                       0      0
+.venv\Lib\site-packages\pip\_vendor\urllib3\contrib\_securetransport\bindings.py                     423  17.22
+.venv\Lib\site-packages\pip\_vendor\urllib3\contrib\_securetransport\low_level.py                    336   13.6
+.venv\Lib\site-packages\pip\_vendor\urllib3\contrib\appengine.py                                     258  10.78
+.venv\Lib\site-packages\pip\_vendor\urllib3\contrib\ntlmpool.py                                      111   4.42
+.venv\Lib\site-packages\pip\_vendor\urllib3\contrib\pyopenssl.py                                     414  16.68
+.venv\Lib\site-packages\pip\_vendor\urllib3\contrib\securetransport.py                               780  33.64
+.venv\Lib\site-packages\pip\_vendor\urllib3\contrib\socks.py                                         174   6.93
+.venv\Lib\site-packages\pip\_vendor\urllib3\exceptions.py                                            193   8.02
+.venv\Lib\site-packages\pip\_vendor\urllib3\fields.py                                                217   8.38
+.venv\Lib\site-packages\pip\_vendor\urllib3\filepost.py                                               70   2.38
+.venv\Lib\site-packages\pip\_vendor\urllib3\poolmanager.py                                           438  19.52
+.venv\Lib\site-packages\pip\_vendor\urllib3\request.py                                               151   6.53
+.venv\Lib\site-packages\pip\_vendor\urllib3\response.py                                              748  29.92
+.venv\Lib\site-packages\pip\_vendor\urllib3\util\__init__.py                                          47   1.13
+.venv\Lib\site-packages\pip\_vendor\urllib3\util\connection.py                                       118   4.79
+.venv\Lib\site-packages\pip\_vendor\urllib3\util\proxy.py                                             47   1.57
+.venv\Lib\site-packages\pip\_vendor\urllib3\util\queue.py                                             15   0.49
+.venv\Lib\site-packages\pip\_vendor\urllib3\util\request.py                                          109    3.9
+.venv\Lib\site-packages\pip\_vendor\urllib3\util\response.py                                          84   3.43
+.venv\Lib\site-packages\pip\_vendor\urllib3\util\retry.py                                            500  21.53
+.venv\Lib\site-packages\pip\_vendor\urllib3\util\ssl_.py                                             420  17.05
+.venv\Lib\site-packages\pip\_vendor\urllib3\util\ssl_match_hostname.py                               136   5.62
+.venv\Lib\site-packages\pip\_vendor\urllib3\util\ssltransport.py                                     180   6.73
+.venv\Lib\site-packages\pip\_vendor\urllib3\util\timeout.py                                          211   9.93
+.venv\Lib\site-packages\pip\_vendor\urllib3\util\url.py                                              357  13.96
+.venv\Lib\site-packages\pip\_vendor\urllib3\util\wait.py                                             127   5.28
+.venv\Lib\site-packages\proto\__init__.py                                                             67   1.67
+.venv\Lib\site-packages\proto\_file_info.py                                                          164   7.73
+.venv\Lib\site-packages\proto\_package_info.py                                                        42   1.86
+.venv\Lib\site-packages\proto\datetime_helpers.py                                                    185   7.18
+.venv\Lib\site-packages\proto\enums.py                                                               127   5.79
+.venv\Lib\site-packages\proto\fields.py                                                              139   5.25
+.venv\Lib\site-packages\proto\marshal\__init__.py                                                     15   0.62
+.venv\Lib\site-packages\proto\marshal\collections\__init__.py                                         21   0.74
+.venv\Lib\site-packages\proto\marshal\collections\maps.py                                             66   2.81
+.venv\Lib\site-packages\proto\marshal\collections\repeated.py                                        151   6.75
+.venv\Lib\site-packages\proto\marshal\compat.py                                                       54   2.29
+.venv\Lib\site-packages\proto\marshal\marshal.py                                                     241   11.7
+.venv\Lib\site-packages\proto\marshal\rules\__init__.py                                               13   0.56
+.venv\Lib\site-packages\proto\marshal\rules\bytes.py                                                  34   1.56
+.venv\Lib\site-packages\proto\marshal\rules\dates.py                                                  72   3.03
+.venv\Lib\site-packages\proto\marshal\rules\enums.py                                                  51   2.16
+.venv\Lib\site-packages\proto\marshal\rules\field_mask.py                                             29   1.15
+.venv\Lib\site-packages\proto\marshal\rules\message.py                                                47    2.3
+.venv\Lib\site-packages\proto\marshal\rules\stringy_numbers.py                                        51   1.75
+.venv\Lib\site-packages\proto\marshal\rules\struct.py                                                122    5.1
+.venv\Lib\site-packages\proto\marshal\rules\wrappers.py                                               59   2.23
+.venv\Lib\site-packages\proto\message.py                                                             829  37.41
+.venv\Lib\site-packages\proto\modules.py                                                              41   1.55
+.venv\Lib\site-packages\proto\primitives.py                                                           34   0.98
+.venv\Lib\site-packages\proto\utils.py                                                                43   1.59
+.venv\Lib\site-packages\proto\version.py                                                              15   0.58
+.venv\Lib\site-packages\pyasn1\__init__.py                                                             2   0.06
+.venv\Lib\site-packages\pyasn1\codec\__init__.py                                                       1   0.06
+.venv\Lib\site-packages\pyasn1\codec\ber\__init__.py                                                   1   0.06
+.venv\Lib\site-packages\pyasn1\codec\ber\decoder.py                                                 1654  78.88
+.venv\Lib\site-packages\pyasn1\codec\ber\encoder.py                                                  707  29.11
+.venv\Lib\site-packages\pyasn1\codec\ber\eoo.py                                                       20   0.62
+.venv\Lib\site-packages\pyasn1\codec\cer\__init__.py                                                   1   0.06
+.venv\Lib\site-packages\pyasn1\codec\cer\decoder.py                                                  119    4.5
+.venv\Lib\site-packages\pyasn1\codec\cer\encoder.py                                                  245   9.62
+.venv\Lib\site-packages\pyasn1\codec\der\__init__.py                                                   1   0.06
+.venv\Lib\site-packages\pyasn1\codec\der\decoder.py                                                   96   3.36
+.venv\Lib\site-packages\pyasn1\codec\der\encoder.py                                                  104   3.41
+.venv\Lib\site-packages\pyasn1\codec\native\__init__.py                                                1   0.06
+.venv\Lib\site-packages\pyasn1\codec\native\decoder.py                                               198   8.92
+.venv\Lib\site-packages\pyasn1\codec\native\encoder.py                                               224   8.98
+.venv\Lib\site-packages\pyasn1\codec\streaming.py                                                    180   6.23
+.venv\Lib\site-packages\pyasn1\compat\__init__.py                                                      3   0.11
+.venv\Lib\site-packages\pyasn1\compat\integer.py                                                      11   0.39
+.venv\Lib\site-packages\pyasn1\debug.py                                                              103   3.41
+.venv\Lib\site-packages\pyasn1\error.py                                                               81   3.18
+.venv\Lib\site-packages\pyasn1\type\__init__.py                                                        1   0.06
+.venv\Lib\site-packages\pyasn1\type\base.py                                                          523  21.53
+.venv\Lib\site-packages\pyasn1\type\char.py                                                          216   9.22
+.venv\Lib\site-packages\pyasn1\type\constraint.py                                                    570   21.4
+.venv\Lib\site-packages\pyasn1\type\error.py                                                           9   0.25
+.venv\Lib\site-packages\pyasn1\type\namedtype.py                                                     417   15.8
+.venv\Lib\site-packages\pyasn1\type\namedval.py                                                      135   4.78
+.venv\Lib\site-packages\pyasn1\type\opentype.py                                                       80   2.79
+.venv\Lib\site-packages\pyasn1\type\tag.py                                                           260   9.27
+.venv\Lib\site-packages\pyasn1\type\tagmap.py                                                         73   2.93
+.venv\Lib\site-packages\pyasn1\type\univ.py                                                         2558 106.65
+.venv\Lib\site-packages\pyasn1\type\useful.py                                                        142   5.26
+.venv\Lib\site-packages\pyasn1_modules\__init__.py                                                     2   0.06
+.venv\Lib\site-packages\pyasn1_modules\pem.py                                                         49   1.78
+.venv\Lib\site-packages\pyasn1_modules\rfc1155.py                                                     76   2.62
+.venv\Lib\site-packages\pyasn1_modules\rfc1157.py                                                     95   3.47
+.venv\Lib\site-packages\pyasn1_modules\rfc1901.py                                                     20   0.63
+.venv\Lib\site-packages\pyasn1_modules\rfc1902.py                                                     99   3.62
+.venv\Lib\site-packages\pyasn1_modules\rfc1905.py                                                    105   4.72
+.venv\Lib\site-packages\pyasn1_modules\rfc2251.py                                                    460   26.3
+.venv\Lib\site-packages\pyasn1_modules\rfc2314.py                                                     36   1.28
+.venv\Lib\site-packages\pyasn1_modules\rfc2315.py                                                    210   9.44
+.venv\Lib\site-packages\pyasn1_modules\rfc2437.py                                                     58   2.56
+.venv\Lib\site-packages\pyasn1_modules\rfc2459.py                                                    933  48.83
+.venv\Lib\site-packages\pyasn1_modules\rfc2511.py                                                    200  10.11
+.venv\Lib\site-packages\pyasn1_modules\rfc2560.py                                                    174   8.21
+.venv\Lib\site-packages\pyasn1_modules\rfc2631.py                                                     32   1.19
+.venv\Lib\site-packages\pyasn1_modules\rfc2634.py                                                    225    9.2
+.venv\Lib\site-packages\pyasn1_modules\rfc2876.py                                                     36    1.4
+.venv\Lib\site-packages\pyasn1_modules\rfc2985.py                                                    350  14.02
+.venv\Lib\site-packages\pyasn1_modules\rfc2986.py                                                     51   1.85
+.venv\Lib\site-packages\pyasn1_modules\rfc3058.py                                                     31   0.97
+.venv\Lib\site-packages\pyasn1_modules\rfc3114.py                                                     54   1.92
+.venv\Lib\site-packages\pyasn1_modules\rfc3125.py                                                    353  16.32
+.venv\Lib\site-packages\pyasn1_modules\rfc3161.py                                                    104   4.16
+.venv\Lib\site-packages\pyasn1_modules\rfc3274.py                                                     42   1.63
+.venv\Lib\site-packages\pyasn1_modules\rfc3279.py                                                    185   6.65
+.venv\Lib\site-packages\pyasn1_modules\rfc3280.py                                                    954  45.53
+.venv\Lib\site-packages\pyasn1_modules\rfc3281.py                                                    223   9.63
+.venv\Lib\site-packages\pyasn1_modules\rfc3370.py                                                     81   2.75
+.venv\Lib\site-packages\pyasn1_modules\rfc3412.py                                                     44   1.91
+.venv\Lib\site-packages\pyasn1_modules\rfc3414.py                                                     26   1.14
+.venv\Lib\site-packages\pyasn1_modules\rfc3447.py                                                     38   1.57
+.venv\Lib\site-packages\pyasn1_modules\rfc3537.py                                                     26   0.78
+.venv\Lib\site-packages\pyasn1_modules\rfc3560.py                                                     45   1.78
+.venv\Lib\site-packages\pyasn1_modules\rfc3565.py                                                     37    1.4
+.venv\Lib\site-packages\pyasn1_modules\rfc3657.py                                                     44   1.71
+.venv\Lib\site-packages\pyasn1_modules\rfc3709.py                                                    154   6.32
+.venv\Lib\site-packages\pyasn1_modules\rfc3739.py                                                    130      5
+.venv\Lib\site-packages\pyasn1_modules\rfc3770.py                                                     47    1.7
+.venv\Lib\site-packages\pyasn1_modules\rfc3779.py                                                     94   3.18
+.venv\Lib\site-packages\pyasn1_modules\rfc3820.py                                                     42   1.44
+.venv\Lib\site-packages\pyasn1_modules\rfc3852.py                                                    448  19.63
+.venv\Lib\site-packages\pyasn1_modules\rfc4010.py                                                     37    1.2
+.venv\Lib\site-packages\pyasn1_modules\rfc4043.py                                                     31   1.04
+.venv\Lib\site-packages\pyasn1_modules\rfc4055.py                                                    192  10.15
+.venv\Lib\site-packages\pyasn1_modules\rfc4073.py                                                     42    1.6
+.venv\Lib\site-packages\pyasn1_modules\rfc4108.py                                                    238  10.35
+.venv\Lib\site-packages\pyasn1_modules\rfc4210.py                                                    704   27.8
+.venv\Lib\site-packages\pyasn1_modules\rfc4211.py                                                    268  11.83
+.venv\Lib\site-packages\pyasn1_modules\rfc4334.py                                                     46   1.55
+.venv\Lib\site-packages\pyasn1_modules\rfc4357.py                                                    304  14.68
+.venv\Lib\site-packages\pyasn1_modules\rfc4387.py                                                     17   0.43
+.venv\Lib\site-packages\pyasn1_modules\rfc4476.py                                                     58   1.91
+.venv\Lib\site-packages\pyasn1_modules\rfc4490.py                                                     69   3.32
+.venv\Lib\site-packages\pyasn1_modules\rfc4491.py                                                     27   1.03
+.venv\Lib\site-packages\pyasn1_modules\rfc4683.py                                                     50    1.8
+.venv\Lib\site-packages\pyasn1_modules\rfc4985.py                                                     33   0.94
+.venv\Lib\site-packages\pyasn1_modules\rfc5035.py                                                    111   4.42
+.venv\Lib\site-packages\pyasn1_modules\rfc5083.py                                                     40   1.84
+.venv\Lib\site-packages\pyasn1_modules\rfc5084.py                                                     66   2.79
+.venv\Lib\site-packages\pyasn1_modules\rfc5126.py                                                    357  15.41
+.venv\Lib\site-packages\pyasn1_modules\rfc5208.py                                                     40    1.4
+.venv\Lib\site-packages\pyasn1_modules\rfc5275.py                                                    271  11.33
+.venv\Lib\site-packages\pyasn1_modules\rfc5280.py                                                   1052  50.04
+.venv\Lib\site-packages\pyasn1_modules\rfc5480.py                                                    103   4.72
+.venv\Lib\site-packages\pyasn1_modules\rfc5636.py                                                     65   2.27
+.venv\Lib\site-packages\pyasn1_modules\rfc5639.py                                                     29      1
+.venv\Lib\site-packages\pyasn1_modules\rfc5649.py                                                     21   0.81
+.venv\Lib\site-packages\pyasn1_modules\rfc5652.py                                                    488  20.95
+.venv\Lib\site-packages\pyasn1_modules\rfc5697.py                                                     45   1.66
+.venv\Lib\site-packages\pyasn1_modules\rfc5751.py                                                     81   3.12
+.venv\Lib\site-packages\pyasn1_modules\rfc5752.py                                                     37    1.4
+.venv\Lib\site-packages\pyasn1_modules\rfc5753.py                                                     99   4.43
+.venv\Lib\site-packages\pyasn1_modules\rfc5755.py                                                    287   11.8
+.venv\Lib\site-packages\pyasn1_modules\rfc5913.py                                                     31   1.13
+.venv\Lib\site-packages\pyasn1_modules\rfc5914.py                                                     85   3.63
+.venv\Lib\site-packages\pyasn1_modules\rfc5915.py                                                     27   1.03
+.venv\Lib\site-packages\pyasn1_modules\rfc5916.py                                                     25   0.78
+.venv\Lib\site-packages\pyasn1_modules\rfc5917.py                                                     40   1.48
+.venv\Lib\site-packages\pyasn1_modules\rfc5924.py                                                     16   0.42
+.venv\Lib\site-packages\pyasn1_modules\rfc5934.py                                                    542  23.24
+.venv\Lib\site-packages\pyasn1_modules\rfc5940.py                                                     43   1.58
+.venv\Lib\site-packages\pyasn1_modules\rfc5958.py                                                     65   2.59
+.venv\Lib\site-packages\pyasn1_modules\rfc5990.py                                                    151   5.38
+.venv\Lib\site-packages\pyasn1_modules\rfc6010.py                                                     59   2.29
+.venv\Lib\site-packages\pyasn1_modules\rfc6019.py                                                     30   1.06
+.venv\Lib\site-packages\pyasn1_modules\rfc6031.py                                                    316  11.85
+.venv\Lib\site-packages\pyasn1_modules\rfc6032.py                                                     48    1.9
+.venv\Lib\site-packages\pyasn1_modules\rfc6120.py                                                     29    0.8
+.venv\Lib\site-packages\pyasn1_modules\rfc6170.py                                                     15    0.4
+.venv\Lib\site-packages\pyasn1_modules\rfc6187.py                                                     18   0.48
+.venv\Lib\site-packages\pyasn1_modules\rfc6210.py                                                     29   1.03
+.venv\Lib\site-packages\pyasn1_modules\rfc6211.py                                                     52    2.2
+.venv\Lib\site-packages\pyasn1_modules\rfc6402.py                                                    421  16.75
+.venv\Lib\site-packages\pyasn1_modules\rfc6482.py                                                     55   2.04
+.venv\Lib\site-packages\pyasn1_modules\rfc6486.py                                                     53   1.87
+.venv\Lib\site-packages\pyasn1_modules\rfc6487.py                                                     18   0.46
+.venv\Lib\site-packages\pyasn1_modules\rfc6664.py                                                    105   4.17
+.venv\Lib\site-packages\pyasn1_modules\rfc6955.py                                                     67   2.75
+.venv\Lib\site-packages\pyasn1_modules\rfc6960.py                                                    170   7.73
+.venv\Lib\site-packages\pyasn1_modules\rfc7030.py                                                     44   1.41
+.venv\Lib\site-packages\pyasn1_modules\rfc7191.py                                                    191    6.9
+.venv\Lib\site-packages\pyasn1_modules\rfc7229.py                                                     24   0.73
+.venv\Lib\site-packages\pyasn1_modules\rfc7292.py                                                    229   8.28
+.venv\Lib\site-packages\pyasn1_modules\rfc7296.py                                                     24   0.86
+.venv\Lib\site-packages\pyasn1_modules\rfc7508.py                                                     63   2.13
+.venv\Lib\site-packages\pyasn1_modules\rfc7585.py                                                     33   1.05
+.venv\Lib\site-packages\pyasn1_modules\rfc7633.py                                                     26   0.82
+.venv\Lib\site-packages\pyasn1_modules\rfc7773.py                                                     37   1.28
+.venv\Lib\site-packages\pyasn1_modules\rfc7894.py                                                     64    2.7
+.venv\Lib\site-packages\pyasn1_modules\rfc7906.py                                                    457  18.48
+.venv\Lib\site-packages\pyasn1_modules\rfc7914.py                                                     38   1.46
+.venv\Lib\site-packages\pyasn1_modules\rfc8017.py                                                    115   4.08
+.venv\Lib\site-packages\pyasn1_modules\rfc8018.py                                                    168   6.02
+.venv\Lib\site-packages\pyasn1_modules\rfc8103.py                                                     27   0.99
+.venv\Lib\site-packages\pyasn1_modules\rfc8209.py                                                     16   0.38
+.venv\Lib\site-packages\pyasn1_modules\rfc8226.py                                                    105   4.19
+.venv\Lib\site-packages\pyasn1_modules\rfc8358.py                                                     35   1.11
+.venv\Lib\site-packages\pyasn1_modules\rfc8360.py                                                     30   1.05
+.venv\Lib\site-packages\pyasn1_modules\rfc8398.py                                                     35   1.16
+.venv\Lib\site-packages\pyasn1_modules\rfc8410.py                                                     28   0.95
+.venv\Lib\site-packages\pyasn1_modules\rfc8418.py                                                     24   1.08
+.venv\Lib\site-packages\pyasn1_modules\rfc8419.py                                                     43   1.66
+.venv\Lib\site-packages\pyasn1_modules\rfc8479.py                                                     32   1.12
+.venv\Lib\site-packages\pyasn1_modules\rfc8494.py                                                     62   2.31
+.venv\Lib\site-packages\pyasn1_modules\rfc8520.py                                                     42   1.46
+.venv\Lib\site-packages\pyasn1_modules\rfc8619.py                                                     29   1.11
+.venv\Lib\site-packages\pyasn1_modules\rfc8649.py                                                     29   0.96
+.venv\Lib\site-packages\pyasn1_modules\rfc8692.py                                                     50   2.05
+.venv\Lib\site-packages\pyasn1_modules\rfc8696.py                                                     83    3.4
+.venv\Lib\site-packages\pyasn1_modules\rfc8702.py                                                     66   2.67
+.venv\Lib\site-packages\pyasn1_modules\rfc8708.py                                                     26   0.96
+.venv\Lib\site-packages\pyasn1_modules\rfc8769.py                                                     16   0.43
+.venv\Lib\site-packages\pycparser\__init__.py                                                         78   2.76
+.venv\Lib\site-packages\pycparser\_ast_gen.py                                                        286  11.03
+.venv\Lib\site-packages\pycparser\ast_transforms.py                                                  150   5.76
+.venv\Lib\site-packages\pycparser\c_ast.py                                                          1008  32.18
+.venv\Lib\site-packages\pycparser\c_generator.py                                                     503  20.18
+.venv\Lib\site-packages\pycparser\c_lexer.py                                                         629  24.57
+.venv\Lib\site-packages\pycparser\c_parser.py                                                       2097  87.69
+.venv\Lib\site-packages\pyparsing\__init__.py                                                        363  13.12
+.venv\Lib\site-packages\pyparsing\actions.py                                                         192   7.91
+.venv\Lib\site-packages\pyparsing\ai\__init__.py                                                       0      0
+.venv\Lib\site-packages\pyparsing\ai\show_best_practices\__init__.py                                   0      0
+.venv\Lib\site-packages\pyparsing\ai\show_best_practices\__main__.py                                   2   0.05
+.venv\Lib\site-packages\pyparsing\common.py                                                          459   16.8
+.venv\Lib\site-packages\pyparsing\core.py                                                           5685 245.93
+.venv\Lib\site-packages\pyparsing\diagram\__init__.py                                                653   26.3
+.venv\Lib\site-packages\pyparsing\exceptions.py                                                      278  10.72
+.venv\Lib\site-packages\pyparsing\helpers.py                                                         998  40.81
+.venv\Lib\site-packages\pyparsing\results.py                                                         748  26.96
+.venv\Lib\site-packages\pyparsing\testing.py                                                         343  15.09
+.venv\Lib\site-packages\pyparsing\tools\__init__.py                                                    0      0
+.venv\Lib\site-packages\pyparsing\tools\cvt_pyparsing_pep8_names.py                                  118   6.24
+.venv\Lib\site-packages\pyparsing\unicode.py                                                         307  10.36
+.venv\Lib\site-packages\pyparsing\util.py                                                            410  15.62
+.venv\Lib\site-packages\pyparsing\warnings.py                                                          6   0.35
+.venv\Lib\site-packages\requests\__init__.py                                                         184   5.78
+.venv\Lib\site-packages\requests\__version__.py                                                       13   0.42
+.venv\Lib\site-packages\requests\_internal_utils.py                                                   40   1.51
+.venv\Lib\site-packages\requests\_types.py                                                           145    5.7
+.venv\Lib\site-packages\requests\adapters.py                                                         634  27.41
+.venv\Lib\site-packages\requests\api.py                                                              139   6.98
+.venv\Lib\site-packages\requests\auth.py                                                             283  11.95
+.venv\Lib\site-packages\requests\certs.py                                                             13   0.42
+.venv\Lib\site-packages\requests\compat.py                                                            92   2.41
+.venv\Lib\site-packages\requests\cookies.py                                                          503  21.04
+.venv\Lib\site-packages\requests\exceptions.py                                                        98   4.46
+.venv\Lib\site-packages\requests\help.py                                                             111   4.11
+.venv\Lib\site-packages\requests\hooks.py                                                             35   1.11
+.venv\Lib\site-packages\requests\models.py                                                           984   40.8
+.venv\Lib\site-packages\requests\packages.py                                                          19   0.88
+.venv\Lib\site-packages\requests\sessions.py                                                         758  33.45
+.venv\Lib\site-packages\requests\status_codes.py                                                     116   4.25
+.venv\Lib\site-packages\requests\structures.py                                                        96   4.04
+.venv\Lib\site-packages\requests\utils.py                                                            915  35.47
+.venv\Lib\site-packages\requests_oauthlib\__init__.py                                                 15   0.54
+.venv\Lib\site-packages\requests_oauthlib\compliance_fixes\__init__.py                                 9   0.37
+.venv\Lib\site-packages\requests_oauthlib\compliance_fixes\douban.py                                  11    0.4
+.venv\Lib\site-packages\requests_oauthlib\compliance_fixes\ebay.py                                    16   0.81
+.venv\Lib\site-packages\requests_oauthlib\compliance_fixes\facebook.py                                22   0.97
+.venv\Lib\site-packages\requests_oauthlib\compliance_fixes\fitbit.py                                  19   0.83
+.venv\Lib\site-packages\requests_oauthlib\compliance_fixes\instagram.py                               18   0.85
+.venv\Lib\site-packages\requests_oauthlib\compliance_fixes\mailchimp.py                               17   0.66
+.venv\Lib\site-packages\requests_oauthlib\compliance_fixes\plentymarkets.py                           21   0.72
+.venv\Lib\site-packages\requests_oauthlib\compliance_fixes\slack.py                                   28   1.35
+.venv\Lib\site-packages\requests_oauthlib\compliance_fixes\weibo.py                                   10   0.38
+.venv\Lib\site-packages\requests_oauthlib\oauth1_auth.py                                              94   3.52
+.venv\Lib\site-packages\requests_oauthlib\oauth1_session.py                                          342  16.54
+.venv\Lib\site-packages\requests_oauthlib\oauth2_auth.py                                              30   1.47
+.venv\Lib\site-packages\requests_oauthlib\oauth2_session.py                                          522  23.37
+.venv\Lib\site-packages\scripts\readme-gen\readme_gen.py                                              49   1.71
+.venv\Lib\site-packages\sniffio\__init__.py                                                           14   0.33
+.venv\Lib\site-packages\sniffio\_impl.py                                                              73   2.78
+.venv\Lib\site-packages\sniffio\_tests\__init__.py                                                     0      0
+.venv\Lib\site-packages\sniffio\_tests\test_sniffio.py                                                60   2.01
+.venv\Lib\site-packages\sniffio\_version.py                                                            2   0.09
+.venv\Lib\site-packages\strenum\__init__.py                                                          230   8.33
+.venv\Lib\site-packages\strenum\_name_mangler.py                                                      95   3.32
+.venv\Lib\site-packages\strenum\_version.py                                                           16   0.49
+.venv\Lib\site-packages\strenum\mixins.py                                                             48   1.99
+.venv\Lib\site-packages\telegram\__init__.py                                                         647  20.36
+.venv\Lib\site-packages\telegram\__main__.py                                                          44   1.78
+.venv\Lib\site-packages\telegram\_birthdate.py                                                        73   2.91
+.venv\Lib\site-packages\telegram\_bot.py                                                           10742 503.73
+.venv\Lib\site-packages\telegram\_botcommand.py                                                       66   3.18
+.venv\Lib\site-packages\telegram\_botcommandscope.py                                                 199  10.21
+.venv\Lib\site-packages\telegram\_botdescription.py                                                   53   2.42
+.venv\Lib\site-packages\telegram\_botname.py                                                          41   1.75
+.venv\Lib\site-packages\telegram\_business.py                                                        571  26.45
+.venv\Lib\site-packages\telegram\_callbackquery.py                                                   804  35.07
+.venv\Lib\site-packages\telegram\_chat.py                                                           3570 149.81
+.venv\Lib\site-packages\telegram\_chatadministratorrights.py                                         249  12.97
+.venv\Lib\site-packages\telegram\_chatbackground.py                                                  414  19.01
+.venv\Lib\site-packages\telegram\_chatboost.py                                                       333  15.65
+.venv\Lib\site-packages\telegram\_chatfullinfo.py                                                    574  31.46
+.venv\Lib\site-packages\telegram\_chatinvitelink.py                                                  171    8.2
+.venv\Lib\site-packages\telegram\_chatjoinrequest.py                                                 175   8.55
+.venv\Lib\site-packages\telegram\_chatlocation.py                                                     71   3.22
+.venv\Lib\site-packages\telegram\_chatmember.py                                                      602  28.99
+.venv\Lib\site-packages\telegram\_chatmemberupdated.py                                               175   8.41
+.venv\Lib\site-packages\telegram\_chatowner.py                                                        82   3.54
+.venv\Lib\site-packages\telegram\_chatpermissions.py                                                 219  11.15
+.venv\Lib\site-packages\telegram\_checklists.py                                                      327  17.02
+.venv\Lib\site-packages\telegram\_choseninlineresult.py                                               87   4.18
+.venv\Lib\site-packages\telegram\_copytextbutton.py                                                   42   2.03
+.venv\Lib\site-packages\telegram\_dice.py                                                            127   6.78
+.venv\Lib\site-packages\telegram\_directmessagepricechanged.py                                        59   2.85
+.venv\Lib\site-packages\telegram\_directmessagestopic.py                                              66    3.3
+.venv\Lib\site-packages\telegram\_files\__init__.py                                                    0      0
+.venv\Lib\site-packages\telegram\_files\_basemedium.py                                                83   3.43
+.venv\Lib\site-packages\telegram\_files\_basethumbedmedium.py                                         81   3.73
+.venv\Lib\site-packages\telegram\_files\_inputstorycontent.py                                        134   6.98
+.venv\Lib\site-packages\telegram\_files\animation.py                                                 103   4.77
+.venv\Lib\site-packages\telegram\_files\audio.py                                                     103   4.97
+.venv\Lib\site-packages\telegram\_files\chatphoto.py                                                 151   6.91
+.venv\Lib\site-packages\telegram\_files\contact.py                                                    59   2.61
+.venv\Lib\site-packages\telegram\_files\document.py                                                   75   3.47
+.venv\Lib\site-packages\telegram\_files\file.py                                                      313  15.44
+.venv\Lib\site-packages\telegram\_files\inputfile.py                                                 114   5.79
+.venv\Lib\site-packages\telegram\_files\inputmedia.py                                                744  36.28
+.venv\Lib\site-packages\telegram\_files\inputprofilephoto.py                                         106   4.86
+.venv\Lib\site-packages\telegram\_files\inputsticker.py                                              104   5.53
+.venv\Lib\site-packages\telegram\_files\location.py                                                  108   5.19
+.venv\Lib\site-packages\telegram\_files\photosize.py                                                  65   2.73
+.venv\Lib\site-packages\telegram\_files\sticker.py                                                   315  15.46
+.venv\Lib\site-packages\telegram\_files\venue.py                                                      95   4.34
+.venv\Lib\site-packages\telegram\_files\video.py                                                     153   7.05
+.venv\Lib\site-packages\telegram\_files\videonote.py                                                  90      4
+.venv\Lib\site-packages\telegram\_files\videoquality.py                                               72   3.06
+.venv\Lib\site-packages\telegram\_files\voice.py                                                      80   3.53
+.venv\Lib\site-packages\telegram\_forcereply.py                                                       85    4.4
+.venv\Lib\site-packages\telegram\_forumtopic.py                                                      181   7.89
+.venv\Lib\site-packages\telegram\_games\__init__.py                                                    0      0
+.venv\Lib\site-packages\telegram\_games\callbackgame.py                                               27   1.25
+.venv\Lib\site-packages\telegram\_games\game.py                                                      157   7.99
+.venv\Lib\site-packages\telegram\_games\gamehighscore.py                                              55   2.46
+.venv\Lib\site-packages\telegram\_gifts.py                                                           422  20.32
+.venv\Lib\site-packages\telegram\_giveaway.py                                                        315  16.54
+.venv\Lib\site-packages\telegram\_inline\__init__.py                                                   0      0
+.venv\Lib\site-packages\telegram\_inline\inlinekeyboardbutton.py                                     325  18.75
+.venv\Lib\site-packages\telegram\_inline\inlinekeyboardmarkup.py                                     123   5.42
+.venv\Lib\site-packages\telegram\_inline\inlinequery.py                                              185   8.93
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresult.py                                         61   2.76
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultarticle.py                                 108   4.96
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultaudio.py                                   127   6.06
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultcachedaudio.py                             101      5
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultcacheddocument.py                          111   5.51
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultcachedgif.py                               114   5.67
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultcachedmpeg4gif.py                          114   5.76
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultcachedphoto.py                             119   5.92
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultcachedsticker.py                            69   3.55
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultcachedvideo.py                             117   5.83
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultcachedvoice.py                             107   5.21
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultcontact.py                                 112   5.35
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultdocument.py                                142   6.94
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultgame.py                                     56   2.63
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultgif.py                                     161      8
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultlocation.py                                191   9.72
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultmpeg4gif.py                                163   8.11
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultphoto.py                                   140   6.88
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultsbutton.py                                  96   5.27
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultvenue.py                                   141   6.93
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultvideo.py                                   169    8.4
+.venv\Lib\site-packages\telegram\_inline\inlinequeryresultvoice.py                                   123   5.96
+.venv\Lib\site-packages\telegram\_inline\inputcontactmessagecontent.py                                57   2.64
+.venv\Lib\site-packages\telegram\_inline\inputinvoicemessagecontent.py                               239  13.62
+.venv\Lib\site-packages\telegram\_inline\inputlocationmessagecontent.py                              141   7.08
+.venv\Lib\site-packages\telegram\_inline\inputmessagecontent.py                                       32    1.5
+.venv\Lib\site-packages\telegram\_inline\inputtextmessagecontent.py                                   94   4.69
+.venv\Lib\site-packages\telegram\_inline\inputvenuemessagecontent.py                                  96   4.39
+.venv\Lib\site-packages\telegram\_inline\preparedinlinemessage.py                                     63   2.86
+.venv\Lib\site-packages\telegram\_inputchecklist.py                                                  162   7.45
+.venv\Lib\site-packages\telegram\_keyboardbutton.py                                                  217  12.25
+.venv\Lib\site-packages\telegram\_keyboardbuttonpolltype.py                                           52   2.45
+.venv\Lib\site-packages\telegram\_keyboardbuttonrequest.py                                           228  12.37
+.venv\Lib\site-packages\telegram\_linkpreviewoptions.py                                               88   4.36
+.venv\Lib\site-packages\telegram\_loginurl.py                                                         91   4.97
+.venv\Lib\site-packages\telegram\_menubutton.py                                                      143    7.2
+.venv\Lib\site-packages\telegram\_message.py                                                        5032 241.24
+.venv\Lib\site-packages\telegram\_messageautodeletetimerchanged.py                                    58   2.55
+.venv\Lib\site-packages\telegram\_messageentity.py                                                   396  20.57
+.venv\Lib\site-packages\telegram\_messageid.py                                                        42   2.23
+.venv\Lib\site-packages\telegram\_messageorigin.py                                                   230   9.83
+.venv\Lib\site-packages\telegram\_messagereactionupdated.py                                          170   7.76
+.venv\Lib\site-packages\telegram\_ownedgift.py                                                       377   19.8
+.venv\Lib\site-packages\telegram\_paidmedia.py                                                       256  11.31
+.venv\Lib\site-packages\telegram\_paidmessagepricechanged.py                                          44   2.06
+.venv\Lib\site-packages\telegram\_passport\__init__.py                                                 0      0
+.venv\Lib\site-packages\telegram\_passport\credentials.py                                            444  22.15
+.venv\Lib\site-packages\telegram\_passport\data.py                                                   163   6.16
+.venv\Lib\site-packages\telegram\_passport\encryptedpassportelement.py                               242  12.74
+.venv\Lib\site-packages\telegram\_passport\passportdata.py                                           101   5.06
+.venv\Lib\site-packages\telegram\_passport\passportelementerrors.py                                  342  17.28
+.venv\Lib\site-packages\telegram\_passport\passportfile.py                                           173   7.54
+.venv\Lib\site-packages\telegram\_payment\__init__.py                                                  0      0
+.venv\Lib\site-packages\telegram\_payment\invoice.py                                                 114      5
+.venv\Lib\site-packages\telegram\_payment\labeledprice.py                                             51   2.62
+.venv\Lib\site-packages\telegram\_payment\orderinfo.py                                                67   3.05
+.venv\Lib\site-packages\telegram\_payment\precheckoutquery.py                                        129   5.88
+.venv\Lib\site-packages\telegram\_payment\refundedpayment.py                                          79   3.98
+.venv\Lib\site-packages\telegram\_payment\shippingaddress.py                                          76   2.88
+.venv\Lib\site-packages\telegram\_payment\shippingoption.py                                           60   2.45
+.venv\Lib\site-packages\telegram\_payment\shippingquery.py                                           101   4.42
+.venv\Lib\site-packages\telegram\_payment\stars\__init__.py                                            0      0
+.venv\Lib\site-packages\telegram\_payment\stars\affiliateinfo.py                                     102      5
+.venv\Lib\site-packages\telegram\_payment\stars\revenuewithdrawalstate.py                            136   6.24
+.venv\Lib\site-packages\telegram\_payment\stars\staramount.py                                         53   2.58
+.venv\Lib\site-packages\telegram\_payment\stars\startransactions.py                                  135   7.03
+.venv\Lib\site-packages\telegram\_payment\stars\transactionpartner.py                                411  20.67
+.venv\Lib\site-packages\telegram\_payment\successfulpayment.py                                       134   6.88
+.venv\Lib\site-packages\telegram\_poll.py                                                            525  26.52
+.venv\Lib\site-packages\telegram\_proximityalerttriggered.py                                          63   2.81
+.venv\Lib\site-packages\telegram\_reaction.py                                                        176   7.09
+.venv\Lib\site-packages\telegram\_reply.py                                                           438  22.64
+.venv\Lib\site-packages\telegram\_replykeyboardmarkup.py                                             298   16.1
+.venv\Lib\site-packages\telegram\_replykeyboardremove.py                                              59   3.23
+.venv\Lib\site-packages\telegram\_sentwebappmessage.py                                                44   2.11
+.venv\Lib\site-packages\telegram\_shared.py                                                          231  11.33
+.venv\Lib\site-packages\telegram\_story.py                                                           100   3.92
+.venv\Lib\site-packages\telegram\_storyarea.py                                                       339  15.44
+.venv\Lib\site-packages\telegram\_suggestedpost.py                                                   456  22.75
+.venv\Lib\site-packages\telegram\_switchinlinequerychosenchat.py                                      86   3.98
+.venv\Lib\site-packages\telegram\_telegramobject.py                                                  598  29.92
+.venv\Lib\site-packages\telegram\_uniquegift.py                                                      523  25.26
+.venv\Lib\site-packages\telegram\_update.py                                                          651  34.98
+.venv\Lib\site-packages\telegram\_user.py                                                           2382 102.52
+.venv\Lib\site-packages\telegram\_userprofileaudios.py                                                59   2.55
+.venv\Lib\site-packages\telegram\_userprofilephotos.py                                                63    2.8
+.venv\Lib\site-packages\telegram\_userrating.py                                                       63   3.12
+.venv\Lib\site-packages\telegram\_utils\__init__.py                                                    0      0
+.venv\Lib\site-packages\telegram\_utils\argumentparsing.py                                           130   5.17
+.venv\Lib\site-packages\telegram\_utils\datetime.py                                                  241  11.53
+.venv\Lib\site-packages\telegram\_utils\defaultvalue.py                                              111   4.19
+.venv\Lib\site-packages\telegram\_utils\entities.py                                                   60   2.94
+.venv\Lib\site-packages\telegram\_utils\enum.py                                                       70   2.94
+.venv\Lib\site-packages\telegram\_utils\files.py                                                     128   5.84
+.venv\Lib\site-packages\telegram\_utils\logging.py                                                    42   1.89
+.venv\Lib\site-packages\telegram\_utils\markup.py                                                     44   2.05
+.venv\Lib\site-packages\telegram\_utils\repr.py                                                       38   1.79
+.venv\Lib\site-packages\telegram\_utils\strings.py                                                    43   1.76
+.venv\Lib\site-packages\telegram\_utils\types.py                                                      84   4.15
+.venv\Lib\site-packages\telegram\_utils\usernames.py                                                  86   3.48
+.venv\Lib\site-packages\telegram\_utils\warnings.py                                                   46   2.09
+.venv\Lib\site-packages\telegram\_utils\warnings_transition.py                                       100   4.01
+.venv\Lib\site-packages\telegram\_version.py                                                          47   1.77
+.venv\Lib\site-packages\telegram\_videochat.py                                                       154   6.48
+.venv\Lib\site-packages\telegram\_webappdata.py                                                       49   2.36
+.venv\Lib\site-packages\telegram\_webappinfo.py                                                       45   2.04
+.venv\Lib\site-packages\telegram\_webhookinfo.py                                                     151   7.48
+.venv\Lib\site-packages\telegram\_writeaccessallowed.py                                               69   3.45
+.venv\Lib\site-packages\telegram\constants.py                                                       3257 145.19
+.venv\Lib\site-packages\telegram\error.py                                                            196    8.1
+.venv\Lib\site-packages\telegram\ext\__init__.py                                                     102   3.96
+.venv\Lib\site-packages\telegram\ext\_aioratelimiter.py                                              251   12.3
+.venv\Lib\site-packages\telegram\ext\_application.py                                                1625  82.92
+.venv\Lib\site-packages\telegram\ext\_applicationbuilder.py                                         1098  55.68
+.venv\Lib\site-packages\telegram\ext\_basepersistence.py                                             351   17.9
+.venv\Lib\site-packages\telegram\ext\_baseratelimiter.py                                             115   6.32
+.venv\Lib\site-packages\telegram\ext\_baseupdateprocessor.py                                         158   6.44
+.venv\Lib\site-packages\telegram\ext\_callbackcontext.py                                             356  17.34
+.venv\Lib\site-packages\telegram\ext\_callbackdatacache.py                                           371  17.85
+.venv\Lib\site-packages\telegram\ext\_contexttypes.py                                                189   7.57
+.venv\Lib\site-packages\telegram\ext\_defaults.py                                                    304  13.57
+.venv\Lib\site-packages\telegram\ext\_dictpersistence.py                                             409  18.58
+.venv\Lib\site-packages\telegram\ext\_extbot.py                                                     5429 223.19
+.venv\Lib\site-packages\telegram\ext\_handlers\__init__.py                                             0      0
+.venv\Lib\site-packages\telegram\ext\_handlers\basehandler.py                                        141   7.16
+.venv\Lib\site-packages\telegram\ext\_handlers\businessconnectionhandler.py                           78   3.74
+.venv\Lib\site-packages\telegram\ext\_handlers\businessmessagesdeletedhandler.py                      78   3.78
+.venv\Lib\site-packages\telegram\ext\_handlers\callbackqueryhandler.py                               169   8.99
+.venv\Lib\site-packages\telegram\ext\_handlers\chatboosthandler.py                                   106    5.4
+.venv\Lib\site-packages\telegram\ext\_handlers\chatjoinrequesthandler.py                              87   4.35
+.venv\Lib\site-packages\telegram\ext\_handlers\chatmemberhandler.py                                  105   5.15
+.venv\Lib\site-packages\telegram\ext\_handlers\choseninlineresulthandler.py                          100   4.78
+.venv\Lib\site-packages\telegram\ext\_handlers\commandhandler.py                                     186   9.76
+.venv\Lib\site-packages\telegram\ext\_handlers\conversationhandler.py                                818  41.42
+.venv\Lib\site-packages\telegram\ext\_handlers\inlinequeryhandler.py                                 115   5.65
+.venv\Lib\site-packages\telegram\ext\_handlers\messagehandler.py                                      91   4.58
+.venv\Lib\site-packages\telegram\ext\_handlers\messagereactionhandler.py                             152   7.96
+.venv\Lib\site-packages\telegram\ext\_handlers\paidmediapurchasedhandler.py                           76   3.69
+.venv\Lib\site-packages\telegram\ext\_handlers\pollanswerhandler.py                                   54   2.72
+.venv\Lib\site-packages\telegram\ext\_handlers\pollhandler.py                                         54   2.69
+.venv\Lib\site-packages\telegram\ext\_handlers\precheckoutqueryhandler.py                             80   3.92
+.venv\Lib\site-packages\telegram\ext\_handlers\prefixhandler.py                                      145   7.69
+.venv\Lib\site-packages\telegram\ext\_handlers\shippingqueryhandler.py                                53    2.7
+.venv\Lib\site-packages\telegram\ext\_handlers\stringcommandhandler.py                                88   4.36
+.venv\Lib\site-packages\telegram\ext\_handlers\stringregexhandler.py                                  91   4.44
+.venv\Lib\site-packages\telegram\ext\_handlers\typehandler.py                                         80   4.01
+.venv\Lib\site-packages\telegram\ext\_jobqueue.py                                                    823  40.88
+.venv\Lib\site-packages\telegram\ext\_picklepersistence.py                                           484  22.34
+.venv\Lib\site-packages\telegram\ext\_updater.py                                                     652  31.04
+.venv\Lib\site-packages\telegram\ext\_utils\__init__.py                                               17   0.78
+.venv\Lib\site-packages\telegram\ext\_utils\_update_parsing.py                                        42   1.86
+.venv\Lib\site-packages\telegram\ext\_utils\asyncio.py                                                46   1.89
+.venv\Lib\site-packages\telegram\ext\_utils\networkloop.py                                           168   7.65
+.venv\Lib\site-packages\telegram\ext\_utils\stack.py                                                  62    2.5
+.venv\Lib\site-packages\telegram\ext\_utils\trackingdict.py                                          103   4.46
+.venv\Lib\site-packages\telegram\ext\_utils\types.py                                                  82   2.97
+.venv\Lib\site-packages\telegram\ext\_utils\webhookhandler.py                                        191    7.8
+.venv\Lib\site-packages\telegram\ext\filters.py                                                     2294 103.42
+.venv\Lib\site-packages\telegram\helpers.py                                                          165   7.24
+.venv\Lib\site-packages\telegram\request\__init__.py                                                  22   1.06
+.venv\Lib\site-packages\telegram\request\_baserequest.py                                             382  19.14
+.venv\Lib\site-packages\telegram\request\_httpxrequest.py                                            259  12.98
+.venv\Lib\site-packages\telegram\request\_requestdata.py                                             118   5.47
+.venv\Lib\site-packages\telegram\request\_requestparameter.py                                        180   8.88
+.venv\Lib\site-packages\telegram\warnings.py                                                          63   2.68
+.venv\Lib\site-packages\tzdata\__init__.py                                                             5   0.25
+.venv\Lib\site-packages\tzdata\zoneinfo\__init__.py                                                    0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Africa\__init__.py                                             0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\America\__init__.py                                            0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\America\Argentina\__init__.py                                  0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\America\Indiana\__init__.py                                    0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\America\Kentucky\__init__.py                                   0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\America\North_Dakota\__init__.py                               0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Antarctica\__init__.py                                         0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Arctic\__init__.py                                             0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Asia\__init__.py                                               0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Atlantic\__init__.py                                           0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Australia\__init__.py                                          0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Brazil\__init__.py                                             0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Canada\__init__.py                                             0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Chile\__init__.py                                              0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Etc\__init__.py                                                0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Europe\__init__.py                                             0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Indian\__init__.py                                             0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Mexico\__init__.py                                             0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\Pacific\__init__.py                                            0      0
+.venv\Lib\site-packages\tzdata\zoneinfo\US\__init__.py                                                 0      0
+.venv\Lib\site-packages\tzlocal\__init__.py                                                           12   0.35
+.venv\Lib\site-packages\tzlocal\unix.py                                                              194   8.84
+.venv\Lib\site-packages\tzlocal\utils.py                                                              83   3.15
+.venv\Lib\site-packages\tzlocal\win32.py                                                             106    4.5
+.venv\Lib\site-packages\tzlocal\windows_tz.py                                                        734  34.34
+.venv\Lib\site-packages\uritemplate\__init__.py                                                       25   0.86
+.venv\Lib\site-packages\uritemplate\api.py                                                            57   2.25
+.venv\Lib\site-packages\uritemplate\orderedset.py                                                     75   3.29
+.venv\Lib\site-packages\uritemplate\template.py                                                      122   4.66
+.venv\Lib\site-packages\uritemplate\variable.py                                                      467  17.86
+.venv\Lib\site-packages\urllib3\__init__.py                                                          173   6.82
+.venv\Lib\site-packages\urllib3\_base_connection.py                                                  138   5.45
+.venv\Lib\site-packages\urllib3\_collections.py                                                      401  17.11
+.venv\Lib\site-packages\urllib3\_request_methods.py                                                  221    9.7
+.venv\Lib\site-packages\urllib3\_version.py                                                           20   0.51
+.venv\Lib\site-packages\urllib3\connection.py                                                        951  41.78
+.venv\Lib\site-packages\urllib3\connectionpool.py                                                   1000  43.13
+.venv\Lib\site-packages\urllib3\contrib\__init__.py                                                    0      0
+.venv\Lib\site-packages\urllib3\contrib\emscripten\__init__.py                                        13   0.82
+.venv\Lib\site-packages\urllib3\contrib\emscripten\connection.py                                     231   8.75
+.venv\Lib\site-packages\urllib3\contrib\emscripten\emscripten_fetch_worker.js                        104   3.59
+.venv\Lib\site-packages\urllib3\contrib\emscripten\fetch.py                                          605  22.97
+.venv\Lib\site-packages\urllib3\contrib\emscripten\request.py                                         16   0.55
+.venv\Lib\site-packages\urllib3\contrib\emscripten\response.py                                       241   9.49
+.venv\Lib\site-packages\urllib3\contrib\pyopenssl.py                                                 459  19.27
+.venv\Lib\site-packages\urllib3\contrib\socks.py                                                     183   7.46
+.venv\Lib\site-packages\urllib3\exceptions.py                                                        216   9.71
+.venv\Lib\site-packages\urllib3\fields.py                                                            280  10.55
+.venv\Lib\site-packages\urllib3\filepost.py                                                           65   2.33
+.venv\Lib\site-packages\urllib3\http2\__init__.py                                                     39    1.7
+.venv\Lib\site-packages\urllib3\http2\connection.py                                                  296  12.28
+.venv\Lib\site-packages\urllib3\http2\probe.py                                                        71   2.94
+.venv\Lib\site-packages\urllib3\poolmanager.py                                                       534  23.33
+.venv\Lib\site-packages\urllib3\response.py                                                         1279  51.97
+.venv\Lib\site-packages\urllib3\util\__init__.py                                                      40   0.98
+.venv\Lib\site-packages\urllib3\util\connection.py                                                   108   4.34
+.venv\Lib\site-packages\urllib3\util\proxy.py                                                         34   1.12
+.venv\Lib\site-packages\urllib3\util\request.py                                                      213   8.17
+.venv\Lib\site-packages\urllib3\util\response.py                                                      77   3.29
+.venv\Lib\site-packages\urllib3\util\retry.py                                                        438  19.12
+.venv\Lib\site-packages\urllib3\util\ssl_.py                                                         397  17.33
+.venv\Lib\site-packages\urllib3\util\ssl_match_hostname.py                                           128   5.35
+.venv\Lib\site-packages\urllib3\util\ssltransport.py                                                 221   8.64
+.venv\Lib\site-packages\urllib3\util\timeout.py                                                      211   10.1
+.venv\Lib\site-packages\urllib3\util\url.py                                                          384  14.85
+.venv\Lib\site-packages\urllib3\util\util.py                                                          35   1.12
+.venv\Lib\site-packages\urllib3\util\wait.py                                                         106   4.32
+append_handlers.py                                                                                    39   1.68
+append_handlers2.py                                                                                   34   1.42
+append_method.py                                                                                      25   0.91
+apply_fixes.py                                                                                        39   1.75
+config.py                                                                                             82   3.92
+fix_dai.py                                                                                            31   1.02
+fix_names.py                                                                                          50   1.76
+generate_template.py                                                                                 115   5.15
+google_drive.py                                                                                       42   2.03
+google_sheets.py                                                                                    1388  67.73
+handlers\approve_handler.py                                                                           58   3.28
+handlers\checkin_handler.py                                                                          476  21.72
+handlers\endshift_handler.py                                                                         215  10.08
+handlers\management_handler.py                                                                       562  27.05
+handlers\overtime_handler.py                                                                         141   6.64
+handlers\report_handler.py                                                                           127   5.62
+handlers\reward_handler.py                                                                           671  32.17
+handlers\salary_handler.py                                                                           265  12.23
+handlers\welcome_handler.py                                                                            3    0.2
+main.py                                                                                              146   6.68
+rename_sheets.py                                                                                      29   1.01
+research_sheet.py                                                                                     19   0.69
+restore_names.py                                                                                      27   0.92
+scripts\auto_tester.py                                                                               300  16.41
+scripts\backup_sheets.py                                                                              32   1.13
+scripts\check_folder_metadata.py                                                                      36   1.49
+scripts\test_all_logic.py                                                                            265  15.18
+scripts\test_append_bang1.py                                                                          49    2.3
+scripts\test_comprehensive.py                                                                        653   38.1
+setup_formulas.py                                                                                     41    1.6
+test_advanced_audit.py                                                                               190   7.02
+test_export.py                                                                                        15   0.47
+test_project_issues.py                                                                               318  12.03
+test_salary_read.py                                                                                   28    1.1
+tests\__init__.py                                                                                      0      0
+tests\test_core.py                                                                                    61   2.62
+tests\test_endshift.py                                                                                44   1.95
+tests\test_reward_commands.py                                                                         53   2.61
+tests\test_sheets_logic.py                                                                           164   7.94
+update_formulas.py                                                                                    92   4.21
+update_salary_formulas.py                                                                             58   2.38
+utils\admin.py                                                                                        17   0.67
+utils\auto_delete.py                                                                                  49    2.7
+utils\decorators.py                                                                                   36   1.67
+utils\time_utils.py                                                                                    8   0.36
+utils\validators.py                                                                                  183    7.7
+
+
+
+
+====================================================================================================
+5. PROJECT FILE COUNTS
+====================================================================================================
+
+Count Name         
+----- ----         
+ 1647 .pyc         
+ 1647 .py          
+  784              
+  493 .json        
+   96 .pyi         
+   63 .proto       
+   63 .txt         
+   31 .typed       
+   15 .exe         
+    6 .pyd         
+    6 .md          
+    4 .tab         
+    4 .h           
+    2 .gitignore   
+    2 .pem         
+    2 .cfg         
+    2 .log         
+    2 .bat         
+    1 .lesser      
+    1 .APACHE2     
+    1 .MIT         
+    1 .fish        
+    1 .ps1         
+    1 .zi          
+    1 .js          
+    1 .dual        
+    1 .xlsx        
+    1 .toml        
+    1 .env         
+    1 .example     
+    1 .yml         
+    1 .BSD         
+    1 .rst         
+    1 .dockerignore
+    1 .APACHE      
+
+
+
+
+====================================================================================================
+6. GIT INFORMATION
+====================================================================================================
+git status:
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	_LEARN_PROJECT_SCAN.txt
+
+nothing added to commit but untracked files present (use "git add" to track)
+
+
+git branch:
+master
+
+
+recent commits:
+3f48696 Allow employees to submit reward request for admin approval
+c83c960 Restore Th╞░ß╗ƒng Doanh Thu in main keyboard and commit other fixes
+def3ef9 Remove admin checkout notifications
+1688c71 Update auto-checkout notification to normal format
+b39e6d7 Auto-checkout after 30 mins instead of notifying admin
+59422cc Add 5 minutes grace period for check-in
+f38847d Update checkin default time and mute on-time admin alerts
+4920d93 Update alert_unclosed_sessions and add admin buttons
+f616f8f Fix midnight auto checkout for Ca Chinh
+2f4bb15 Fix: avoid overwriting manual T8-2026 sheet by using B├ío C├ío prefix
+6a76c08 Fix: get_all_salary_rates now correctly reads from Mapping sheet in sh_salary
+dee6074 Fix: add Ca Gay to midnight auto cleanup
+17d6556 Fix: restore missing handle_checkout_employee_selected
+0bfd660 Feature: skip photo check-in
+6154951 Fix: add get_open_checkin_sessions to GoogleSheetsService
+
+
+git remote:
+origin	https://github.com/Namnoname101/bot.git (fetch)
+origin	https://github.com/Namnoname101/bot.git (push)
+
+
+====================================================================================================
+7. INSTALLED DEVELOPMENT TOOLS
+====================================================================================================
+
+[dotnet]
+9.0.315
+
+
+[node]
+v24.11.1
+
+
+[npm]
+11.17.0
+
+
+[pnpm] NOT FOUND
+
+[yarn] NOT FOUND
+
+[python]
+Python 3.13.2
+
+
+[py]
+Python 3.13.2
+
+
+[git]
+git version 2.48.1.windows.1
+
+
+[docker] NOT FOUND
+
+====================================================================================================
+8. POSSIBLE ENTRY POINTS
+====================================================================================================
+
+FullName                                                                   
+--------                                                                   
+E:\Du An\Python\Sober\Bot\main.py                                          
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\dotenv\main.py           
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\pip\_internal\main.py    
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\pip\_internal\cli\main.py
+
+
+
+
+====================================================================================================
+9. POSSIBLE ARCHITECTURE FOLDERS
+====================================================================================================
+
+FullName                                                                                    
+--------                                                                                    
+E:\Du An\Python\Sober\Bot\handlers                                                          
+E:\Du An\Python\Sober\Bot\utils                                                             
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\apiclient                                 
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\googleapiclient                           
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\googleapis_common_protos-1.75.0.dist-info 
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\google_api_core-2.30.3.dist-info          
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\google_api_python_client-2.118.0.dist-info
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\tzdata                                    
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\tzdata-2026.2.dist-info                   
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\google\api                                
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\google\api_core                           
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\google\gapic                              
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\google\api_core\gapic_v1                  
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\google\gapic\metadata                     
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\google\protobuf\testdata                  
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\oauthlib\oauth2\rfc6749\clients           
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\oauthlib\oauth2\rfc8628\clients           
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\pip\_internal\commands                    
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\pip\_internal\metadata                    
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\pip\_internal\models                      
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\pip\_internal\utils                       
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\telegram\_utils                           
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\telegram\ext\_handlers                    
+E:\Du An\Python\Sober\Bot\.venv\Lib\site-packages\telegram\ext\_utils                       
+
+
+
+
+====================================================================================================
+SCAN FINISHED
+====================================================================================================
+Output file: E:\Du An\Python\Sober\Bot\_LEARN_PROJECT_SCAN.txt

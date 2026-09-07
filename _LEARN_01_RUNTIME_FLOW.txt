@@ -1,0 +1,852 @@
+
+==============================================================================================================
+LESSON 01 - HOW THIS PROJECT ACTUALLY RUNS
+==============================================================================================================
+Generated : 2026-08-28 13:23:35
+Root      : E:\Du An\Python\Sober\Bot
+
+GOAL:
+Trace the project from startup -> handler registration -> business logic -> data layer.
+
+==============================================================================================================
+1. REAL PROJECT TREE - EXCLUDING VENV / GIT / CACHE
+==============================================================================================================
+
+File                                KB
+----                                --
+.github\workflows\fly-deploy.yml  1.29
+append_handlers.py                1.68
+append_handlers2.py               1.42
+append_method.py                  0.91
+apply_fixes.py                    1.75
+config.py                         3.92
+Dockerfile                        0.24
+fix_dai.py                        1.02
+fix_names.py                      1.76
+fly.toml                          0.28
+FULL_AUDIT_REPORT_28_05_2026.md   8.91
+generate_template.py              5.15
+google_drive.py                   2.03
+google_sheets.py                 67.73
+handlers\approve_handler.py       3.28
+handlers\checkin_handler.py      21.72
+handlers\endshift_handler.py     10.08
+handlers\management_handler.py   27.05
+handlers\overtime_handler.py      6.64
+handlers\report_handler.py        5.62
+handlers\reward_handler.py       32.17
+handlers\salary_handler.py       12.23
+handlers\welcome_handler.py        0.2
+main.py                           6.68
+Procfile                          0.02
+qa_audit_report.md                11.6
+rename_sheets.py                  1.01
+report_out.txt                    0.95
+requirements.txt                  0.13
+research_sheet.py                 0.69
+restore_names.py                  0.92
+runtime.txt                       0.01
+scripts\auto_tester.py           16.41
+scripts\backup_sheets.py          1.13
+scripts\check_folder_metadata.py  1.49
+scripts\test_all_logic.py        15.18
+scripts\test_append_bang1.py       2.3
+scripts\test_comprehensive.py     38.1
+setup_formulas.py                  1.6
+sheet_research.txt               19.65
+sheet_research2.txt               2.43
+sheet_research3.txt               4.29
+temp_logs.txt                    42.67
+temp_logs_2.txt                  28.76
+temp_logs_3.txt                  29.08
+temp_logs_4.txt                  29.08
+temp_logs_5.txt                  36.31
+temp_logs_crash.txt              30.01
+temp_logs_start2.txt              28.6
+temp_logs_startup.txt            28.09
+temp_logs2.txt                   33.23
+temp_logs3.txt                   33.73
+temp_logs4.txt                   33.94
+test_advanced_audit.py            7.02
+test_export.py                    0.47
+test_project_issues.py           12.03
+test_salary_read.py                1.1
+tests\__init__.py                    0
+tests\test_core.py                2.62
+tests\test_endshift.py            1.95
+tests\test_reward_commands.py     2.61
+tests\test_sheets_logic.py        7.94
+update_formulas.py                4.21
+update_salary_formulas.py         2.38
+utils\admin.py                    0.67
+utils\auto_delete.py               2.7
+utils\decorators.py               1.67
+utils\time_utils.py               0.36
+utils\validators.py                7.7
+
+
+
+
+==============================================================================================================
+2. PYTHON DEPENDENCIES - requirements.txt
+==============================================================================================================
+   1: python-telegram-bot[job-queue]==22.7
+   2: gspread==6.0.0
+   3: google-api-python-client==2.118.0
+   4: google-auth-httplib2==0.2.0
+   5: python-dotenv==1.0.1
+
+==============================================================================================================
+3. ENTRY POINT - FULL main.py WITH LINE NUMBERS
+==============================================================================================================
+   1: import asyncio
+   2: import logging
+   3: from zoneinfo import ZoneInfo
+   4: from telegram import Update
+   5: from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, CallbackQueryHandler, ContextTypes
+   6: 
+   7: from config import Config
+   8: from google_sheets import GoogleSheetsService
+   9: 
+  10: from handlers.report_handler import handle_photo_report
+  11: from handlers.reward_handler import (
+  12:     announce_command, button_click_handler, cancel_command, check_all_rewards,
+  13:     check_reward, help_command, inline_button_handler, quick_report_command,
+  14:     start_command, use_reward,
+  15: )
+  16: from handlers.checkin_handler import send_checkout_reminder, alert_unclosed_sessions, midnight_auto_cleanup
+  17: from handlers.endshift_handler import handle_endshift_photo
+  18: 
+  19: logger = logging.getLogger(__name__)
+  20: 
+  21: 
+  22: async def photo_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  23:     """Phân lo?i ?nh: check-in/check-out ho?c báo cáo doanh thu.
+  24:     
+  25:     Ki?m tra tr?ng thái riêng c?a ngu?i g?i d? xác d?nh m?c dích ?nh.
+  26:     """
+  27:     if not update.effective_chat or update.effective_chat.id not in [Config.GROUP_CHAT_ID, Config.ADMIN_CHAT_ID]:
+  28:         return
+  29:     
+  30:     # ?nh k?t ca
+  31:     if context.user_data.get('awaiting_endshift_photo'):
+  32:         await handle_endshift_photo(update, context)
+  33:         return
+  34:     
+  35:     # M?c d?nh: x? lý nhu ?nh báo cáo doanh thu
+  36:     await handle_photo_report(update, context)
+  37: 
+  38: async def post_init(application):
+  39:     """Thi?t l?p Menu Commands m?c d?nh cho Bot và g?i tin hu?ng d?n ban d?u"""
+  40:     # Xóa toàn b? menu l?nh (d?u "/") d? ngu?i dùng t?p trung vào các nút b?m (Reply Keyboard)
+  41:     await application.bot.delete_my_commands()
+  42: 
+  43:     # Kh?i t?o các Job Queue
+  44:     import datetime
+  45:     tz = ZoneInfo(Config.TIMEZONE)
+  46: 
+  47:     try:
+  48:         application.bot_data['admin_ids'] = await asyncio.to_thread(
+  49:             application.bot_data['sheets'].get_admin_list
+  50:         )
+  51:     except Exception:
+  52:         logger.exception("Không t?i du?c danh sách admin ph?; ch? dùng admin g?c.")
+  53:         application.bot_data['admin_ids'] = set()
+  54: 
+  55:     # 1. Quét d?n lúc 23:55 (T? d?ng ch?t ca cho nh?ng ngu?i quên)
+  56:     application.job_queue.run_daily(
+  57:         midnight_auto_cleanup,
+  58:         time=datetime.time(hour=23, minute=55, tzinfo=tz),
+  59:         name='midnight_auto_cleanup'
+  60:     )
+  61: 
+  62:     # 2. Nh?c Check Out lúc k?t ca
+  63:     checkout_shifts = [
+  64:         ('Sáng', datetime.time(hour=12, minute=0, tzinfo=tz)),
+  65:         ('Chi?u', datetime.time(hour=18, minute=0, tzinfo=tz)),
+  66:         ('T?i', datetime.time(hour=22, minute=30, tzinfo=tz)),
+  67:     ]
+  68: 
+  69:     for shift_ca, shift_time in checkout_shifts:
+  70:         application.job_queue.run_daily(
+  71:             send_checkout_reminder,
+  72:             time=shift_time,
+  73:             data={'shift_ca': shift_ca},
+  74:             name=f'remind_checkout_{shift_ca}'
+  75:         )
+  76:         # T? d?ng x? lý các phiên quên check out sau 30 phút
+  77:         alert_minutes = (shift_time.hour * 60 + shift_time.minute + 30) % (24 * 60)
+  78:         alert_time = datetime.time(
+  79:             hour=alert_minutes // 60,
+  80:             minute=alert_minutes % 60,
+  81:             tzinfo=tz,
+  82:         )
+  83:         application.job_queue.run_daily(
+  84:             alert_unclosed_sessions,
+  85:             time=alert_time,
+  86:             data={'shift_ca': shift_ca},
+  87:             name=f'alert_unclosed_{shift_ca}'
+  88:         )
+  89: 
+  90:     # 3. T?o/C?p nh?t B?ng Luong hàng ngày lúc 00:05
+  91:     async def scheduled_salary_sheet_maintenance(context):
+  92:         """T? d?ng ki?m tra và t?o/c?p nh?t b?ng luong hàng tháng lúc 00:05"""
+  93:         try:
+  94:             logger.info("Ch?y tác v? b?o trì B?ng Luong (00:05)...")
+  95:             sheets = context.bot_data['sheets']
+  96:             # G?i hàm ki?m tra và t?o sheet tháng m?i/c?p nh?t n?u c?n
+  97:             await asyncio.to_thread(sheets.ensure_salary_worksheet)
+  98:             logger.info("Hoàn t?t b?o trì B?ng Luong.")
+  99:         except Exception as e:
+ 100:             logger.error(f"L?i b?o trì B?ng Luong: {e}")
+ 101: 
+ 102:     application.job_queue.run_daily(
+ 103:         scheduled_salary_sheet_maintenance,
+ 104:         time=datetime.time(hour=0, minute=5, tzinfo=tz),
+ 105:         name='salary-sheet-maintenance',
+ 106:     )
+ 107: 
+ 108: async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+ 109:     """Ghi d?y d? exception d? m?t update l?i không bi?n m?t im l?ng."""
+ 110:     error = context.error
+ 111:     logger.error(
+ 112:         "L?i khi x? lý Telegram update",
+ 113:         exc_info=(type(error), error, error.__traceback__) if error else None,
+ 114:     )
+ 115: 
+ 116: 
+ 117: def main():
+ 118:     logger.info("Ðang kh?i d?ng Bot...")
+ 119: 
+ 120:     # 1. Kh?i t?o các Service k?t n?i Google
+ 121:     try:
+ 122:         sheets_service = GoogleSheetsService()
+ 123:     except Exception as e:
+ 124:         logger.error(f"Không th? kh?i t?o Service. Bot s? d?ng l?i. L?i: {e}")
+ 125:         return
+ 126: 
+ 127:     # 2. Kh?i t?o Application c?a Telegram
+ 128:     app = (
+ 129:         ApplicationBuilder()
+ 130:         .token(Config.BOT_TOKEN)
+ 131:         .connect_timeout(15)
+ 132:         .read_timeout(30)
+ 133:         .write_timeout(30)
+ 134:         .pool_timeout(15)
+ 135:         .post_init(post_init)
+ 136:         .build()
+ 137:     )
+ 138: 
+ 139:     # Truy?n service vào bot_data d? các handlers có th? g?i du?c mà không c?n kh?i t?o l?i
+ 140:     app.bot_data['sheets'] = sheets_service
+ 141:     app.bot_data['processed_reports'] = set()
+ 142: 
+ 143:     # 3. Ðang ký các Handlers
+ 144:     # Nh?n ?nh (check-in/check-out ho?c báo cáo)
+ 145:     app.add_handler(MessageHandler(filters.PHOTO, photo_dispatcher))
+ 146:     # Các l?nh liên quan d?n thu?ng
+ 147:     app.add_handler(CommandHandler("dadung", use_reward))
+ 148:     app.add_handler(CommandHandler("thuong", check_reward))
+ 149:     app.add_handler(CommandHandler("bangthuong", check_all_rewards))
+ 150:     app.add_handler(CommandHandler("baodoanhthu", quick_report_command))
+ 151:     app.add_handler(CommandHandler("help", help_command))
+ 152:     app.add_handler(CommandHandler("announce", announce_command))
+ 153:     app.add_handler(CommandHandler("cancel", cancel_command))
+ 154:     
+ 155:     # Kh?i d?ng bàn phím ?o & B?t s? ki?n b?m nút
+ 156:     app.add_handler(CommandHandler("start", start_command))
+ 157:     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, button_click_handler))
+ 158:     
+ 159:     # B?t s? ki?n b?m nút Inline Keyboard (Tra c?u thu?ng / Báo dùng thu?ng)
+ 160:     app.add_handler(CallbackQueryHandler(inline_button_handler))
+ 161:     app.add_error_handler(error_handler)
+ 162: 
+ 163:     # 4. Ch?y bot
+ 164:     logger.info("? Bot dã s?n sàng và dang ch?y! Nh?n Ctrl + C d? d?ng.")
+ 165:     app.run_polling(allowed_updates=Update.ALL_TYPES)
+ 166: 
+ 167: if __name__ == '__main__':
+ 168:     main()
+
+==============================================================================================================
+4. main.py STRUCTURAL OUTLINE
+==============================================================================================================
+   1: import asyncio
+   2: import logging
+   3: from zoneinfo import ZoneInfo
+   4: from telegram import Update
+   5: from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, CallbackQueryHandler, ContextTypes
+   7: from config import Config
+   8: from google_sheets import GoogleSheetsService
+  10: from handlers.report_handler import handle_photo_report
+  11: from handlers.reward_handler import (
+  16: from handlers.checkin_handler import send_checkout_reminder, alert_unclosed_sessions, midnight_auto_cleanup
+  17: from handlers.endshift_handler import handle_endshift_photo
+  22: async def photo_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  38: async def post_init(application):
+  44:     import datetime
+  91:     async def scheduled_salary_sheet_maintenance(context):
+ 108: async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+ 117: def main():
+ 129:         ApplicationBuilder()
+ 145:     app.add_handler(MessageHandler(filters.PHOTO, photo_dispatcher))
+ 147:     app.add_handler(CommandHandler("dadung", use_reward))
+ 148:     app.add_handler(CommandHandler("thuong", check_reward))
+ 149:     app.add_handler(CommandHandler("bangthuong", check_all_rewards))
+ 150:     app.add_handler(CommandHandler("baodoanhthu", quick_report_command))
+ 151:     app.add_handler(CommandHandler("help", help_command))
+ 152:     app.add_handler(CommandHandler("announce", announce_command))
+ 153:     app.add_handler(CommandHandler("cancel", cancel_command))
+ 156:     app.add_handler(CommandHandler("start", start_command))
+ 157:     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, button_click_handler))
+ 160:     app.add_handler(CallbackQueryHandler(inline_button_handler))
+ 165:     app.run_polling(allowed_updates=Update.ALL_TYPES)
+
+==============================================================================================================
+5. HANDLERS - FILE SIZE AND LINE COUNT
+==============================================================================================================
+
+File                  Lines    KB
+----                  -----    --
+approve_handler.py       58  3.28
+checkin_handler.py      476 21.72
+endshift_handler.py     215 10.08
+management_handler.py   562 27.05
+overtime_handler.py     141  6.64
+report_handler.py       127  5.62
+reward_handler.py       671 32.17
+salary_handler.py       265 12.23
+welcome_handler.py        3   0.2
+
+
+
+
+==============================================================================================================
+6. HANDLER OUTLINES - FUNCTIONS / CLASSES / IMPORTS / REGISTRATION
+==============================================================================================================
+
+----------------------------------------------------------------------------------------------------
+FILE: approve_handler.py
+----------------------------------------------------------------------------------------------------
+   1: import asyncio
+   2: import logging
+   3: from telegram import Update
+   4: from telegram.ext import ContextTypes
+   5: from utils.decorators import admin_only
+   6: from utils.validators import deduplicate_employees
+  11: async def handle_approval(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+----------------------------------------------------------------------------------------------------
+FILE: checkin_handler.py
+----------------------------------------------------------------------------------------------------
+   1: import asyncio
+   2: import logging
+   3: from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+   4: from telegram.ext import ContextTypes
+   5: from utils.auto_delete import delete_tracked_messages, track_message, get_main_keyboard, get_admin_keyboard, GUIDE_MESSAGE
+   6: from utils.admin import is_admin, is_super_admin
+   7: from config import Config
+  12: def _job_shift_ca(context) -> str:
+  19: def _open_sessions_text(sessions: list) -> str:
+  29: async def send_checkout_reminder(context):
+  54: async def alert_unclosed_sessions(context):
+ 104: async def midnight_auto_cleanup(context):
+ 147: def _build_employee_picker(nicknames: dict, callback_prefix: str):
+ 162: def _build_checkout_picker(sessions: list):
+ 181: async def handle_checkin_type_selected(query, context: ContextTypes.DEFAULT_TYPE):
+ 210: async def handle_checkin_ca_selected(query, context: ContextTypes.DEFAULT_TYPE):
+ 227: async def _show_checkin_employee_picker(query, context: ContextTypes.DEFAULT_TYPE):
+ 249: async def handle_checkin_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 263: async def handle_checkout_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 285: async def handle_checkin_employee_selected(query, context: ContextTypes.DEFAULT_TYPE):
+ 392: async def handle_checkout_employee_selected(query, context: ContextTypes.DEFAULT_TYPE):
+ 458: async def handle_mark_reported_late(query, context: ContextTypes.DEFAULT_TYPE):
+ 484: async def handle_mark_unreported_late(query, context: ContextTypes.DEFAULT_TYPE):
+ 509: async def _cancel_flow(query, context: ContextTypes.DEFAULT_TYPE):
+
+----------------------------------------------------------------------------------------------------
+FILE: endshift_handler.py
+----------------------------------------------------------------------------------------------------
+   1: import asyncio
+   2: import logging
+   3: from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, KeyboardButton, ReplyKeyboardMarkup
+   4: from telegram.ext import ContextTypes
+   5: from utils.auto_delete import delete_tracked_messages, track_message, get_main_keyboard, get_admin_keyboard
+   6: from utils.admin import is_admin, is_super_admin
+   7: from config import Config
+   8: from utils.time_utils import local_now
+  15: def _get_endshift_keyboard():
+  26: async def handle_endshift_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  46: async def handle_endshift_ca_selected(query, context: ContextTypes.DEFAULT_TYPE):
+  66: async def handle_endshift_role_selected(query, context: ContextTypes.DEFAULT_TYPE):
+  97: async def handle_endshift_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 125: async def _delete_album(group_id: str, chat_id: int, context: ContextTypes.DEFAULT_TYPE, bot):
+ 150: async def handle_endshift_send(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 238: async def handle_endshift_cancel(query, context: ContextTypes.DEFAULT_TYPE):
+ 254: def _cancel_endshift_tasks(context: ContextTypes.DEFAULT_TYPE):
+
+----------------------------------------------------------------------------------------------------
+FILE: management_handler.py
+----------------------------------------------------------------------------------------------------
+   1: import asyncio
+   2: import logging
+   3: from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+   4: from telegram.ext import ContextTypes
+   6: from config import Config
+   7: from utils.auto_delete import track_message, delete_tracked_messages, get_admin_keyboard
+   8: from utils.admin import is_admin, is_super_admin
+   9: from utils.validators import _parse_amount_str, validate_nickname
+  10: from utils.time_utils import local_now
+  19: def _is_admin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+  23: def _fmt_revenue(raw) -> str:
+  37: async def handle_manage_nv_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  62: async def handle_checkin_history_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 103: async def handle_late_stats_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 152: async def handle_edit_report_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 193: async def handle_add_employee_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+ 245: async def _show_edit_list(query, context: ContextTypes.DEFAULT_TYPE):
+ 269: async def _start_edit_name(query, context: ContextTypes.DEFAULT_TYPE, nickname: str):
+ 280: async def handle_edit_employee_name_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+ 348: async def handle_edit_revenue_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+ 405: async def handle_mgmt_callback(query, context: ContextTypes.DEFAULT_TYPE):
+ 462: async def _start_add_employee(query, context: ContextTypes.DEFAULT_TYPE):
+ 471: async def _show_remove_list(query, context: ContextTypes.DEFAULT_TYPE):
+ 495: async def _confirm_remove(query, context: ContextTypes.DEFAULT_TYPE, nickname: str):
+ 508: async def _do_remove(query, context: ContextTypes.DEFAULT_TYPE, nickname: str):
+ 524: async def _show_reward_history_list(query, context: ContextTypes.DEFAULT_TYPE):
+ 548: async def _show_reward_history(query, context: ContextTypes.DEFAULT_TYPE, nickname: str):
+ 580: async def _start_edit_report(query, context: ContextTypes.DEFAULT_TYPE, idx_str: str):
+ 605: async def _show_salary_list(query, context: ContextTypes.DEFAULT_TYPE):
+ 607:     import asyncio
+ 630: async def _start_edit_salary_rate(query, context: ContextTypes.DEFAULT_TYPE, nickname: str):
+ 634:     import asyncio
+ 646: async def handle_edit_salary_rate_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+ 662:     import asyncio
+
+----------------------------------------------------------------------------------------------------
+FILE: overtime_handler.py
+----------------------------------------------------------------------------------------------------
+   1: import asyncio
+   2: import logging
+   3: from datetime import datetime
+   5: from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+   6: from telegram.ext import ContextTypes
+   8: from config import Config
+   9: from utils.admin import is_admin, is_super_admin
+  10: from utils.auto_delete import get_admin_keyboard, track_message
+  11: from utils.time_utils import local_now
+  16: def _salary_window(now: datetime) -> tuple[datetime, datetime]:
+  32: async def handle_overtime_summary_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  61: async def handle_add_overtime_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  77: async def handle_overtime_employee_selected(query, context: ContextTypes.DEFAULT_TYPE):
+  93: async def handle_overtime_hours_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+ 116: async def handle_grant_admin_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 127: async def handle_grant_admin_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+
+----------------------------------------------------------------------------------------------------
+FILE: report_handler.py
+----------------------------------------------------------------------------------------------------
+   1: import asyncio
+   2: import logging
+   3: from telegram import Update
+   4: from telegram.ext import ContextTypes
+   6: from config import Config
+   7: from utils.decorators import group_only
+   8: from utils.validators import parse_report_text, check_reward_eligibility, deduplicate_employees, normalize_name
+   9: from utils.auto_delete import delete_tracked_messages, track_message
+  10: from utils.time_utils import local_now
+  15: async def handle_photo_report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+----------------------------------------------------------------------------------------------------
+FILE: reward_handler.py
+----------------------------------------------------------------------------------------------------
+   1: import asyncio
+   2: import logging
+   3: from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
+   4: from telegram.ext import ContextTypes
+   5: from utils.time_utils import local_now
+   6: from utils.decorators import group_only, admin_only
+   7: from utils.validators import (
+  13: from utils.auto_delete import GUIDE_MESSAGE, get_main_keyboard, get_admin_keyboard, delete_tracked_messages, track_message
+  14: from config import Config
+  15: from handlers.checkin_handler import (
+  21: from handlers.overtime_handler import (
+  26: from handlers.management_handler import (
+  33: from handlers.endshift_handler import (
+  38: from handlers.salary_handler import handle_salary_button, process_salary_input, handle_salary_modifier_request
+  39: from utils.admin import is_admin, is_super_admin
+  44: async def use_reward(update: Update, context: ContextTypes.DEFAULT_TYPE):
+  77: async def check_reward(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 102: async def check_all_rewards(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 122: async def quick_report_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 186: def _nickname_keyboard(balances: dict, callback_prefix: str) -> InlineKeyboardMarkup:
+ 198: async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 209: async def announce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 226: async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 239: async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 250: def build_multi_select_keyboard(selection: dict):
+ 251:     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+ 268: async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 422:         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+ 448:         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+ 493: async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 514:         from handlers.salary_handler import salary_inline_handler
+ 531:         from handlers.checkin_handler import handle_checkin_type_selected
+ 617:             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+----------------------------------------------------------------------------------------------------
+FILE: salary_handler.py
+----------------------------------------------------------------------------------------------------
+   1: import asyncio
+   2: import logging
+   4: from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+   5: from telegram.ext import ContextTypes
+   7: from utils.admin import is_admin
+   8: from utils.auto_delete import track_message
+   9: from utils.time_utils import local_now
+  14: def _selected_salary_month(context: ContextTypes.DEFAULT_TYPE) -> tuple[int, int]:
+  21: def _set_salary_month(context: ContextTypes.DEFAULT_TYPE, month: int, year: int):
+  25: def _salary_period_label(month: int, year: int) -> str:
+  33: def _current_salary_month() -> tuple[int, int]:
+  42: def _salary_report_keyboard() -> InlineKeyboardMarkup:
+  51: def _salary_month_keyboard(options: list) -> InlineKeyboardMarkup:
+  71: async def _load_month_options(sheets) -> list:
+  79: async def _show_selected_report(query, context: ContextTypes.DEFAULT_TYPE):
+  93: async def handle_salary_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 119: async def handle_salary_modifier_request(
+ 173: async def salary_inline_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 252: async def process_salary_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+
+----------------------------------------------------------------------------------------------------
+FILE: welcome_handler.py
+----------------------------------------------------------------------------------------------------
+
+==============================================================================================================
+7. DATA LAYER OUTLINE - google_sheets.py
+==============================================================================================================
+   1: import gspread
+   2: import logging
+   3: import re
+   4: import threading
+   5: import time
+   6: from datetime import date, datetime, timedelta
+   7: from gspread.utils import rowcol_to_a1
+   8: from config import Config
+   9: from utils.validators import normalize_name
+  10: from utils.time_utils import local_now
+  18: class GoogleSheetsService:
+  20:     def _column_letter(index: int) -> str:
+  23:     def __init__(self, max_retries=3):
+  95:     def save_report(
+ 106:     def _save_report_unlocked(
+ 227:     def get_balance(self, nickname: str) -> int:
+ 257:     def get_all_salary_rates(self) -> dict:
+ 311:     def update_salary_rate(self, nickname: str, new_rate: str) -> bool:
+ 356:     def get_all_balances(self) -> dict:
+ 396:     def get_all_nicknames(self) -> list:
+ 406:     def update_balance(self, nickname: str, amount_change: int) -> bool:
+ 410:     def _update_balance_unlocked(self, nickname: str, amount_change: int) -> bool:
+ 488:     def batch_update_balances(self, nicknames: list, amount_change: int) -> bool:
+ 492:     def _batch_update_balances_unlocked(self, nicknames: list, amount_change: int) -> bool:
+ 556:     def consume_reward(self, nickname: str) -> dict:
+ 571:     def add_overtime(self, nickname: str, hours: float) -> bool:
+ 599:     def get_overtime_summary(self, start_date: datetime, end_date: datetime) -> dict:
+ 628:     def _get_admin_worksheet(self, create: bool = False):
+ 638:     def get_admin_list(self) -> set:
+ 655:     def add_admin(self, telegram_id: int, granted_by: str) -> bool:
+ 676:     def _get_shift_info(self, now: datetime) -> dict:
+ 685:     def get_checked_in_employees(self) -> dict:
+ 707:     def get_open_checkin_sessions(
+ 765:     def checkin(self, nickname: str, shift_type: str = "", ca: str = None) -> dict:
+ 944:     def checkout(self, nickname: str, shift_type: str = None, force_time: str = None) -> dict:
+1026:     def mark_reported_late(self, nickname: str, date_str: str) -> bool:
+1054:     def mark_unreported_late(self, nickname: str, date_str: str) -> bool:
+1079:     def get_checkin_history_today(self) -> list:
+1100:     def get_late_statistics(self, month_year: str = None) -> list:
+1129:     def add_employee(self, nickname: str) -> dict:
+1164:     def rename_employee(self, old_nickname: str, new_nickname: str) -> dict:
+1211:     def remove_employee(self, nickname: str) -> bool:
+1227:     def get_reward_history(self, nickname: str = None, limit: int = 20) -> list:
+1253:     def get_recent_revenue_reports(self, limit: int = 8) -> list:
+1294:     def update_report_revenue(self, session, new_revenue: int) -> bool:
+1328:     def _current_salary_month(now: datetime = None) -> tuple[int, int]:
+1337:     def _salary_period(month: int, year: int) -> tuple[date, date]:
+1342:     def _number(raw, default=0.0) -> float:
+1348:     def _get_salary_worksheet(self, month: int, year: int, create: bool = True):
+1369:     def ensure_salary_worksheet(self, month: int = None, year: int = None):
+1375:     def get_salary_month_options(self) -> list:
+1399:     def get_salary_report(self, month: int, year: int) -> str:
+1470:     def update_salary_modifier(self, nickname: str, is_bonus: bool, amount: int, month: int, year: int) -> bool:
+
+==============================================================================================================
+8. GOOGLE DRIVE LAYER OUTLINE
+==============================================================================================================
+   1: import logging
+   2: from io import BytesIO
+   3: from google.oauth2 import service_account
+   4: from googleapiclient.discovery import build
+   5: from googleapiclient.http import MediaIoBaseUpload
+   6: from googleapiclient.errors import HttpError
+   7: import json
+   8: from datetime import datetime, timedelta
+  10:     from google.cloud import storage as gcs_storage
+  13: from config import Config
+  17: class GoogleDriveService:
+  18:     def __init__(self):
+
+==============================================================================================================
+9. CONFIG STRUCTURE - VARIABLE NAMES ONLY, VALUES HIDDEN
+==============================================================================================================
+   1: import os
+   2: import json
+   3: import logging
+   4: from logging.handlers import TimedRotatingFileHandler
+   5: from dotenv import load_dotenv
+  11: root_logger = <VALUE HIDDEN>
+  14: formatter = <VALUE HIDDEN>
+  17: stream_handler = <VALUE HIDDEN>
+  23: file_handler = <VALUE HIDDEN>
+  25: when = <VALUE HIDDEN>
+  26: interval = <VALUE HIDDEN>
+  27: backupCount = <VALUE HIDDEN>
+  28: encoding = <VALUE HIDDEN>
+  35: logger = <VALUE HIDDEN>
+  42: class Config:
+  43: BOT_TOKEN = <VALUE HIDDEN>
+  48: GROUP_CHAT_ID = <VALUE HIDDEN>
+  49: ADMIN_CHAT_ID = <VALUE HIDDEN>
+  60: GOOGLE_CREDENTIALS_FILE = <VALUE HIDDEN>
+  62: GOOGLE_CREDENTIALS_JSON = <VALUE HIDDEN>
+  63: SPREADSHEET_ID = <VALUE HIDDEN>
+  66: SALARY_SPREADSHEET_ID = <VALUE HIDDEN>
+  69: DRIVE_FOLDER_ID = <VALUE HIDDEN>
+  71: DEFAULT_HOURLY_RATE_K = <VALUE HIDDEN>
+  72: TIMEZONE = <VALUE HIDDEN>
+  75:     def get_google_credentials_info(cls) -> dict:
+  83:     def validate(cls):
+  85: missing_keys = <VALUE HIDDEN>
+  91: error_msg = <VALUE HIDDEN>
+
+==============================================================================================================
+10. UTILS OUTLINE
+==============================================================================================================
+
+----------------------------------------------------------------------------------------------------
+FILE: utils\admin.py
+----------------------------------------------------------------------------------------------------
+   1: from config import Config
+   2: import logging
+   6: def is_admin(user_id, context=None) -> bool:
+  18: def is_super_admin(user_id) -> bool:
+
+----------------------------------------------------------------------------------------------------
+FILE: utils\auto_delete.py
+----------------------------------------------------------------------------------------------------
+   1: import asyncio
+   2: import logging
+   3: from telegram import KeyboardButton, ReplyKeyboardMarkup
+  18: def get_main_keyboard():
+  28: def get_admin_keyboard(is_super_admin=False):
+  41: async def _bg_delete(bot, chat_id, msg_ids):
+  49: async def delete_tracked_messages(context, chat_id: int, exclude: set | None = None):
+  53: def track_message(context, msg_id: int):
+
+----------------------------------------------------------------------------------------------------
+FILE: utils\decorators.py
+----------------------------------------------------------------------------------------------------
+   1: import functools
+   2: import logging
+   3: from telegram import Update
+   4: from telegram.ext import ContextTypes
+   5: from config import Config
+   9: def group_only(func):
+  12:     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+  22: def admin_only(func):
+  25:     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+  29:         from utils.admin import is_admin
+
+----------------------------------------------------------------------------------------------------
+FILE: utils\time_utils.py
+----------------------------------------------------------------------------------------------------
+   3: from datetime import datetime
+   4: from zoneinfo import ZoneInfo
+   6: from config import Config
+  12: def local_now() -> datetime:
+
+----------------------------------------------------------------------------------------------------
+FILE: utils\validators.py
+----------------------------------------------------------------------------------------------------
+   1: import re
+   2: from typing import Tuple, List
+   5: def _parse_amount_str(raw: str):
+  40: def _clean_number_str(s: str, allow_decimal: bool = True) -> str:
+  74: def parse_report_text(text: str) -> Tuple[List[str], int, str, str]:
+ 150: def check_reward_eligibility(num_employees: int, revenue: int) -> int:
+ 162: def deduplicate_employees(employees: List[str]) -> List[str]:
+ 177: def normalize_name(s: str) -> str:
+ 183:     import unicodedata
+ 194: def validate_nickname(nickname: str) -> Tuple[bool, str]:
+
+==============================================================================================================
+11. TESTS - WHAT BEHAVIOUR IS BEING TESTED?
+==============================================================================================================
+
+----------------------------------------------------------------------------------------------------
+FILE: tests\__init__.py
+----------------------------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------
+FILE: tests\test_core.py
+----------------------------------------------------------------------------------------------------
+  18:     def test_amount_formats(self):
+  30:     def test_report_requires_positive_revenue(self):
+  36:     def test_report_and_reward_boundaries(self):
+  46:     def test_deduplicate_uses_normalized_name(self):
+  50:     def test_nickname_callback_limits(self):
+  57:     def test_permissions_use_user_id(self):
+  67:     def test_business_time_uses_configured_timezone(self):
+
+----------------------------------------------------------------------------------------------------
+FILE: tests\test_endshift.py
+----------------------------------------------------------------------------------------------------
+  31:     async def test_one_photo_uses_send_photo_and_clears_state(self):
+  39:     async def test_send_failure_keeps_files_for_retry(self):
+
+----------------------------------------------------------------------------------------------------
+FILE: tests\test_reward_commands.py
+----------------------------------------------------------------------------------------------------
+  23:     async def test_check_reward_by_normalized_nickname(self):
+  33:     async def test_use_reward_requires_confirmation(self):
+  45:     async def test_quick_report_saves_and_rewards_once(self):
+  58:     async def test_quick_report_duplicate_does_not_reward_again(self):
+
+----------------------------------------------------------------------------------------------------
+FILE: tests\test_sheets_logic.py
+----------------------------------------------------------------------------------------------------
+  52:     def test_shift_boundaries(self):
+  58:     def test_checkin_persists_actual_time(self):
+  71:     def test_early_checkin_records_scheduled_start_and_keeps_audit_time(self):
+  89:     def test_checkin_more_than_thirty_minutes_early_is_rejected(self):
+ 101:     def test_early_broken_shift_starts_pay_at_1930(self):
+ 114:     def test_checkout_before_recorded_shift_start_is_rejected(self):
+ 128:     def test_early_arrival_is_not_included_in_paid_hours(self):
+ 141:     def test_open_sessions_filter_date_and_ca(self):
+ 154:     def test_salary_period_after_day_17_targets_next_month(self):
+ 163:     def test_salary_rates_use_mapping_then_fallback(self):
+ 179:     def test_column_letter_supports_more_than_z(self):
+ 183:     def test_unreported_late_is_not_counted_as_pre_reported(self):
+
+==============================================================================================================
+12. DEPLOYMENT FILES
+==============================================================================================================
+
+--- Procfile ---
+worker: python main.py
+
+--- runtime.txt ---
+python-3.11.0
+
+--- Dockerfile ---
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN useradd --create-home --uid 10001 sober \
+    && chown -R sober:sober /app
+
+USER sober
+
+CMD ["python", "main.py"]
+
+--- fly.toml ---
+# Bot dùng long polling nên không m? HTTP service công khai.
+app = 'sober-bot'
+primary_region = 'nrt'
+
+[env]
+  TZ = "Asia/Ho_Chi_Minh"
+
+[build]
+
+[processes]
+  app = "python main.py"
+
+[deploy]
+  strategy = "immediate"
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+==============================================================================================================
+13. PYTHON SYNTAX CHECK - PROJECT CODE ONLY
+==============================================================================================================
+[OK]   append_handlers.py
+[OK]   append_handlers2.py
+[OK]   append_method.py
+[OK]   apply_fixes.py
+[OK]   config.py
+[OK]   fix_dai.py
+[OK]   fix_names.py
+[OK]   generate_template.py
+[OK]   google_drive.py
+[OK]   google_sheets.py
+[OK]   main.py
+[OK]   rename_sheets.py
+[OK]   research_sheet.py
+[OK]   restore_names.py
+[OK]   setup_formulas.py
+[OK]   test_advanced_audit.py
+[OK]   test_export.py
+[OK]   test_project_issues.py
+[OK]   test_salary_read.py
+[OK]   update_formulas.py
+[OK]   update_salary_formulas.py
+[OK]   handlers\approve_handler.py
+[OK]   handlers\checkin_handler.py
+[OK]   handlers\endshift_handler.py
+[OK]   handlers\management_handler.py
+[OK]   handlers\overtime_handler.py
+[OK]   handlers\report_handler.py
+[OK]   handlers\reward_handler.py
+[OK]   handlers\salary_handler.py
+[OK]   handlers\welcome_handler.py
+[OK]   scripts\auto_tester.py
+[OK]   scripts\backup_sheets.py
+[OK]   scripts\check_folder_metadata.py
+[OK]   scripts\test_all_logic.py
+[OK]   scripts\test_append_bang1.py
+[OK]   scripts\test_comprehensive.py
+[OK]   tests\test_core.py
+[OK]   tests\test_endshift.py
+[OK]   tests\test_reward_commands.py
+[OK]   tests\test_sheets_logic.py
+[OK]   tests\__init__.py
+[OK]   utils\admin.py
+[OK]   utils\auto_delete.py
+[OK]   utils\decorators.py
+[OK]   utils\time_utils.py
+[OK]   utils\validators.py
+
+==============================================================================================================
+14. CURRENT GIT STATE
+==============================================================================================================
+?? _LEARN_01_RUNTIME_FLOW.txt
+?? _LEARN_PROJECT_SCAN.txt
+
+
+Current branch:
+master
+
+
+==============================================================================================================
+END OF LESSON 01 SCAN
+==============================================================================================================
+
+Output: E:\Du An\Python\Sober\Bot\_LEARN_01_RUNTIME_FLOW.txt

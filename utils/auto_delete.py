@@ -31,7 +31,7 @@ def get_admin_keyboard(is_super_admin=False):
         [KeyboardButton("✏️ Sửa Doanh Thu"), KeyboardButton("📋 Lịch Sử Check-In")],
         [KeyboardButton("⚠️ Thống Kê Đi Muộn"), KeyboardButton("📊 Thống Kê Giờ LT")],
         [KeyboardButton("💰 Tính Lương (QL)"), KeyboardButton("➕ Giờ LT (QL)")],
-        [KeyboardButton("⚡ Thưởng Doanh Thu")],
+        [KeyboardButton("⚡ Thưởng Doanh Thu"), KeyboardButton("🥤 Báo Dùng Thưởng")],
         [KeyboardButton("💸 Ứng Lương (QL)"), KeyboardButton("🎁 Thưởng Tiền (QL)")],
     ]
     if is_super_admin:
