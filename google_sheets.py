@@ -39,40 +39,9 @@ class GoogleSheetsService:
                 
                 # Khởi tạo các trang tính (Worksheets)
                 self.ws_history = self.sh.worksheet("LichSuThuong")
-                self.ws_balance = self.sh.worksheet("SoDuThuong")
                 self.ws_overtime = self.sh.worksheet("GioLamThem")
                 self.ws_checkin = self.sh.worksheet("Checkin")
                 logger.info("✅ Kết nối Google Sheets thành công.")
-                
-                # Detect header columns for balance sheet so we can read/write the "remaining" balance reliably
-                try:
-                    self.balance_headers = self.ws_balance.row_values(1) or []
-                except Exception:
-                    self.balance_headers = []
-
-                # Default indices (1-based): assume Nickname in col 1 and balance in col 2
-                self.col_nickname_index = 1
-                self.col_dathuong_index = 2
-                self.col_dadung_index = 3
-                self.col_balance_index = 4
-
-
-                for idx, h in enumerate(self.balance_headers):
-                    hn = normalize_name(h)
-                    if 'nick' in hn or 'ten' in hn:
-                        self.col_nickname_index = idx + 1
-                    elif 'dathuong' in hn:
-                        self.col_dathuong_index = idx + 1
-                    elif 'dadung' in hn:
-                        self.col_dadung_index = idx + 1
-                    elif 'conlai' in hn or 'sodu' in hn or 'solyconlai' in hn or 'remaining' in hn:
-                        self.col_balance_index = idx + 1
-
-                # Ensure indices are sensible
-                if self.col_nickname_index < 1:
-                    self.col_nickname_index = 1
-                if self.col_balance_index < 1:
-                    self.col_balance_index = 4
                 
                 # Kết nối thành công, thoát khỏi vòng lặp retry
                 return
@@ -224,73 +193,47 @@ class GoogleSheetsService:
             logger.error(f"Lỗi khi lưu báo cáo: {e}")
             return False
 
+    def _get_mapping_worksheet(self):
+        return self.sh_salary.worksheet("Mapping")
+
+    def _get_mapping_indices(self, headers):
+        headers_norm = [normalize_name(h) for h in headers]
+        nick_col = next((i for i, h in enumerate(headers_norm) if 'nickname' in h or h in {'nick', 'nicknamebot'}), 1)
+        bal_col = next((i for i, h in enumerate(headers_norm) if 'sodu' in h or 'thuong' in h), 3)
+        rate_col = next((i for i, h in enumerate(headers_norm) if ('luong' in h and 'ten' not in h) or 'rate' in h), 2)
+        return nick_col, rate_col, bal_col
+
     def get_balance(self, nickname: str) -> int:
-        """Lấy số dư của một nhân viên"""
+        """Lấy số dư từ sheet Mapping"""
         try:
-            # Lấy toàn bộ cột nickname và balance bằng 2 API calls
-            col_nicks = self.ws_balance.col_values(self.col_nickname_index)
-            col_bals = self.ws_balance.col_values(self.col_balance_index)
-            target = normalize_name(nickname)
+            ws_map = self._get_mapping_worksheet()
+            records = ws_map.get_all_values()
+            if not records: return 0
+            nick_col, _, bal_col = self._get_mapping_indices(records[0])
             
-            # skip header row
-            for i, v in enumerate(col_nicks[1:], start=2):
-                if normalize_name(str(v)) == target:
-                    # Lấy giá trị từ cột balance ở dòng i này
-                    if i - 1 < len(col_bals):
-                        cell_val = col_bals[i - 1]
-                    else:
-                        cell_val = None
-                    
-                    if cell_val is None or str(cell_val).strip() == '':
-                        return 0
-                    try:
-                        return int(str(cell_val).strip())
-                    except ValueError:
-                        # try to clean non-digit characters
-                        cleaned = re.sub(r'[^0-9\-]', '', str(cell_val))
-                        return int(cleaned) if cleaned else 0
+            target = normalize_name(nickname)
+            for row in records[1:]:
+                if len(row) > nick_col and normalize_name(row[nick_col]) == target:
+                    if len(row) > bal_col:
+                        try:
+                            return int(row[bal_col].strip().replace(',', ''))
+                        except:
+                            return 0
             return 0
         except Exception as e:
-            logger.error(f"Lỗi khi lấy số dư của {nickname}: {e}")
+            logger.error(f"Error get_balance: {e}")
             return 0
 
     def get_all_salary_rates(self) -> dict:
-        """Lấy mức lương/giờ từ Mapping, fallback SoDuThuong/default."""
+        """Lấy mức lương/giờ từ Mapping"""
+        rates = {}
+        default_rate = Config.DEFAULT_HOURLY_RATE_K
         try:
-            default_rate = Config.DEFAULT_HOURLY_RATE_K
-            balance_rows = self.ws_balance.get_all_values()
-            rates = {}
-            for row in balance_rows[1:]:
-                if len(row) < self.col_nickname_index:
-                    continue
-                nick = row[self.col_nickname_index - 1].strip()
-                if not nick:
-                    continue
-                rate = default_rate
-                if len(row) >= 5 and row[4].strip():
-                    try:
-                        rate = float(row[4].strip().replace(',', '.'))
-                    except ValueError:
-                        pass
-                rates[nick] = rate
-
-            try:
-                ws_mapping = self.sh_salary.worksheet("Mapping")
-            except Exception:
-                return rates
-
-            records = ws_mapping.get_all_values()
-            if not records:
-                return rates
-            headers = [normalize_name(h) for h in records[0]]
-            nick_col = next(
-                (i for i, h in enumerate(headers) if 'nickname' in h or h in {'nick', 'nicknamebot'}),
-                1 if len(headers) > 1 else 0,
-            )
-            rate_col = next(
-                (i for i, h in enumerate(headers) if ('luong' in h and 'ten' not in h) or 'rate' in h),
-                2,
-            )
+            ws_map = self._get_mapping_worksheet()
+            records = ws_map.get_all_values()
+            if not records: return rates
+            nick_col, rate_col, _ = self._get_mapping_indices(records[0])
+            
             for row in records[1:]:
                 if len(row) <= nick_col or not row[nick_col].strip():
                     continue
@@ -301,12 +244,11 @@ class GoogleSheetsService:
                         rate = float(row[rate_col].strip().replace(',', '.'))
                     except ValueError:
                         pass
-                existing = next((key for key in rates if normalize_name(key) == normalize_name(nick)), None)
-                rates[existing or nick] = rate
+                rates[nick] = rate
             return rates
         except Exception as e:
-            logger.error(f"Lỗi khi lấy danh sách mức lương từ Mapping: {e}")
-            return {}
+            logger.error(f"Error get_all_salary_rates: {e}")
+            return rates
 
     def update_salary_rate(self, nickname: str, new_rate: str) -> bool:
         """Cập nhật nguồn chuẩn Mapping và mirror sang SoDuThuong để tương thích."""
@@ -354,53 +296,42 @@ class GoogleSheetsService:
 
 
     def get_all_balances(self) -> dict:
-        """Lấy số dư của tất cả nhân viên (dành cho quản lý)"""
+        """Lấy tất cả số dư từ Mapping"""
+        balances = {}
         try:
-            # Try to use header-aware mapping first
-            headers = self.balance_headers
-            if headers and len(headers) >= max(self.col_nickname_index, self.col_balance_index):
-                nick_label = headers[self.col_nickname_index - 1]
-                bal_label = headers[self.col_balance_index - 1]
-                records = self.ws_balance.get_all_records()
-                result = {}
-                for row in records:
-                    nick = str(row.get(nick_label, '')).strip()
-                    if not nick:
-                        continue
-                    try:
-                        bal = int(row.get(bal_label, 0) or 0)
-                    except Exception:
-                        bal = 0
-                    result[nick] = bal
-                return result
-
-            # Fallback: read both columns at once (2 API calls thay vì N+1)
-            col_nicks = self.ws_balance.col_values(self.col_nickname_index)[1:]
-            col_bals = self.ws_balance.col_values(self.col_balance_index)[1:]
-            result = {}
-            for nick, bal in zip(col_nicks, col_bals):
-                nick_str = str(nick).strip()
-                if not nick_str:
-                    continue
-                try:
-                    bal_val = int(str(bal).strip()) if bal and str(bal).strip() != '' else 0
-                except Exception:
-                    cleaned = re.sub(r'[^0-9\-]', '', str(bal or ''))
-                    bal_val = int(cleaned) if cleaned else 0
-                result[nick_str] = bal_val
-            return result
-        except Exception as e:
-            logger.error(f"Lỗi khi lấy danh sách số dư: {e}")
-            return {}
+            ws_map = self._get_mapping_worksheet()
+            records = ws_map.get_all_values()
+            if not records: return balances
+            nick_col, rate_col, bal_col = self._get_mapping_indices(records[0])
+            
+            for row in records[1:]:
+                if len(row) > nick_col and row[nick_col].strip():
+                    nick = normalize_name(row[nick_col])
+                    val = 0
+                    if len(row) > bal_col:
+                        try:
+                            val = int(row[bal_col].strip().replace(',', ''))
+                        except:
+                            pass
+                    balances[nick] = val
+            return balances
+        except Exception:
+            return balances
 
     def get_all_nicknames(self) -> list:
-        """Lấy danh sách tất cả nickname hợp lệ từ Sheet SoDuThuong (chuẩn hóa Unicode)"""
+        """Lấy danh sách nickname hợp lệ từ Sheet Mapping"""
         try:
-            # Prefer reading column directly for speed
-            col_vals = self.ws_balance.col_values(self.col_nickname_index)
-            return [normalize_name(str(v)) for v in col_vals[1:] if str(v).strip()]
-        except Exception as e:
-            logger.error(f"Lỗi khi lấy danh sách nickname: {e}")
+            ws = self._get_mapping_worksheet()
+            records = ws.get_all_values()
+            if not records: return []
+            nick_col, _, _ = self._get_mapping_indices(records[0])
+            
+            nicks = []
+            for row in records[1:]:
+                if len(row) > nick_col and row[nick_col].strip():
+                    nicks.append(normalize_name(row[nick_col]))
+            return nicks
+        except Exception:
             return []
 
     def update_balance(self, nickname: str, amount_change: int) -> bool:
@@ -408,81 +339,34 @@ class GoogleSheetsService:
             return self._update_balance_unlocked(nickname, amount_change)
 
     def _update_balance_unlocked(self, nickname: str, amount_change: int) -> bool:
-        """Cập nhật số dư. amount_change có thể là số dương (cộng) hoặc âm (trừ)."""
+        """Cập nhật số dư trong Mapping."""
         try:
-            nickname_clean = nickname.strip()
-            nickname_normalized = normalize_name(nickname_clean)
-
-            # Read nickname column ONCE
-            col_nicks = self.ws_balance.col_values(self.col_nickname_index)
+            ws_map = self._get_mapping_worksheet()
+            records = ws_map.get_all_values()
+            if not records: return False
+            nick_col, rate_col, bal_col = self._get_mapping_indices(records[0])
             
-            found_row = None
-            for i, v in enumerate(col_nicks[1:], start=2):
-                if normalize_name(str(v)) == nickname_normalized:
-                    found_row = i
-                    break
-
-            if found_row:
-                # Cập nhật SoLyDaThuong (nếu cộng) hoặc SoLyDaDung (nếu trừ)
-                target_col = self.col_dathuong_index if amount_change > 0 else self.col_dadung_index
-                val_to_add = abs(amount_change)
-
-                try:
-                    col_data = self.ws_balance.col_values(target_col)
-                    current_val = int(str(col_data[found_row - 1]).strip()) if found_row - 1 < len(col_data) and str(col_data[found_row - 1]).strip() != '' else 0
-                except Exception:
+            target = normalize_name(nickname)
+            for i, row in enumerate(records[1:], start=2):
+                if len(row) > nick_col and normalize_name(row[nick_col]) == target:
                     current_val = 0
-
-                new_val = current_val + val_to_add
-                self.ws_balance.update_cell(found_row, target_col, new_val)
-                logger.info(f"Cập nhật số dư {nickname}: {new_val}")
-                return True
-
-            # If not found, insert a new row at position 2
-            if amount_change > 0:
-                # Lấy số cột thực tế từ header
-                try:
-                    headers = self.ws_balance.row_values(1)
-                    num_cols = len(headers)
-                except Exception:
-                    num_cols = max(len(self.balance_headers), self.col_balance_index)
-                
-                # Tạo row với đủ số cột
-                row = [''] * num_cols
-                row[self.col_nickname_index - 1] = nickname_clean
-                row[self.col_dathuong_index - 1] = amount_change
-                row[self.col_dadung_index - 1] = 0
-                # Sử dụng formula động với INDIRECT và ROW() để tính toán cho hàng hiện tại
-                if self.col_balance_index - 1 < num_cols:
-                    row[self.col_balance_index - 1] = f"=INDIRECT(\"B\"&ROW())-INDIRECT(\"C\"&ROW())"
-                
-                self.ws_balance.insert_row(row, index=2, value_input_option='USER_ENTERED')
-                logger.info(f"Đã thêm nhân viên mới {nickname} với số dư {amount_change}")
-                return True
-
-            logger.warning(f"Không tìm thấy nhân viên {nickname} để trừ thưởng.")
-            return False
-        except gspread.exceptions.CellNotFound:
-            if amount_change > 0:
-                # Lấy số cột thực tế từ header
-                try:
-                    headers = self.ws_balance.row_values(1)
-                    num_cols = len(headers)
-                except Exception:
-                    num_cols = max(len(self.balance_headers), self.col_balance_index)
-                
-                row = [''] * num_cols
-                row[self.col_nickname_index - 1] = nickname_clean
-                row[self.col_dathuong_index - 1] = amount_change
-                row[self.col_dadung_index - 1] = 0
-                if self.col_balance_index - 1 < num_cols:
-                    row[self.col_balance_index - 1] = f"=INDIRECT(\"B\"&ROW())-INDIRECT(\"C\"&ROW())"
-                
-                self.ws_balance.insert_row(row, index=2, value_input_option='USER_ENTERED')
-                return True
-            return False
+                    if len(row) > bal_col:
+                        try:
+                            current_val = int(row[bal_col].strip().replace(',', ''))
+                        except:
+                            pass
+                    new_val = current_val + amount_change
+                    ws_map.update_cell(i, bal_col + 1, new_val)
+                    return True
+            
+            # Nếu chưa có, thêm mới
+            new_row = [''] * (max(nick_col, bal_col) + 1)
+            new_row[nick_col] = nickname
+            new_row[bal_col] = amount_change
+            ws_map.append_row(new_row, value_input_option='USER_ENTERED')
+            return True
         except Exception as e:
-            logger.error(f"Lỗi khi cập nhật số dư cho {nickname}: {e}")
+            logger.error(f"Error update_balance: {e}")
             return False
 
     def batch_update_balances(self, nicknames: list, amount_change: int) -> bool:
@@ -490,83 +374,61 @@ class GoogleSheetsService:
             return self._batch_update_balances_unlocked(nicknames, amount_change)
 
     def _batch_update_balances_unlocked(self, nicknames: list, amount_change: int) -> bool:
-        """Cập nhật số dư cho nhiều nhân viên cùng lúc để tối ưu API Google Sheets."""
         if not nicknames or amount_change == 0:
             return True
         try:
-            col_nicks = self.ws_balance.col_values(self.col_nickname_index)
-            col_nicks_normalized = [normalize_name(str(v)) for v in col_nicks]
-
-            target_col = self.col_dathuong_index if amount_change > 0 else self.col_dadung_index
-            target_col_letter = self._column_letter(target_col)
-
-            try:
-                col_data = self.ws_balance.col_values(target_col)
-            except Exception:
-                col_data = []
-
+            ws_map = self._get_mapping_worksheet()
+            records = ws_map.get_all_values()
+            if not records: return False
+            nick_col, rate_col, bal_col = self._get_mapping_indices(records[0])
+            
             updates = []
-            inserts = []
-
-            for nick in nicknames:
-                nick_clean = nick.strip()
-                nick_norm = normalize_name(nick_clean)
-
-                try:
-                    # skip header (index 0)
-                    row_idx = col_nicks_normalized.index(nick_norm, 1) if len(col_nicks_normalized) > 1 else -1
-                    if row_idx == -1:
-                        raise ValueError
-
-                    found_row = row_idx + 1
-
-                    current_val = 0
-                    if row_idx < len(col_data):
-                        val_str = str(col_data[row_idx]).strip()
-                        if val_str:
+            targets = {normalize_name(n): n for n in nicknames}
+            found_targets = set()
+            
+            for i, row in enumerate(records[1:], start=2):
+                if len(row) > nick_col:
+                    nick_norm = normalize_name(row[nick_col])
+                    if nick_norm in targets:
+                        found_targets.add(nick_norm)
+                        current_val = 0
+                        if len(row) > bal_col:
                             try:
-                                current_val = int(val_str)
-                            except ValueError:
+                                current_val = int(row[bal_col].strip().replace(',', ''))
+                            except:
                                 pass
-
-                    new_val = current_val + abs(amount_change)
-                    updates.append({
-                        'range': f"{target_col_letter}{found_row}",
-                        'values': [[new_val]]
-                    })
-                except ValueError:
-                    # Not found, prepare insert
-                    if amount_change > 0:
-                        inserts.append(nick_clean)
-
+                        updates.append({
+                            'range': f"{self._column_letter(bal_col + 1)}{i}",
+                            'values': [[current_val + amount_change]]
+                        })
+            
             if updates:
-                self.ws_balance.batch_update(updates, value_input_option='USER_ENTERED')
-
-            if inserts:
-                for nick_clean in inserts:
-                    # Fallback to insert_row cho NV mới
-                    self._update_balance_unlocked(nick_clean, amount_change)
-
-            logger.info(f"Đã batch update số dư cho {len(nicknames)} nhân viên.")
+                ws_map.batch_update(updates, value_input_option='USER_ENTERED')
+            
+            # Insert missing ones
+            for nick_norm, original_nick in targets.items():
+                if nick_norm not in found_targets:
+                    self._update_balance_unlocked(original_nick, amount_change)
+            
             return True
         except Exception as e:
-            logger.error(f"Lỗi batch update balances: {e}")
+            logger.error(f"Error batch_update_balances: {e}")
             return False
 
     def consume_reward(self, nickname: str) -> dict:
-        """Đọc và trừ một ly trong cùng critical section để tránh trừ quá số dư."""
+        """Giảm 1 ly."""
         with self._write_lock:
-            balance = self.get_balance(nickname)
-            if balance <= 0:
-                return {'success': False, 'error': 'insufficient_balance', 'balance': balance}
-            success = self._update_balance_unlocked(nickname, -1)
-            return {
-                'success': success,
-                'error': '' if success else 'update_failed',
-                'balance': balance - 1 if success else balance,
-            }
-
-    # ==================== GIỜ LÀM THÊM ====================
+            try:
+                current_balance = self.get_balance(nickname)
+                if current_balance <= 0:
+                    return {'success': False, 'error': 'not_enough'}
+                success = self._update_balance_unlocked(nickname, -1)
+                if success:
+                    return {'success': True, 'new_balance': current_balance - 1}
+                return {'success': False, 'error': 'update_failed'}
+            except Exception as e:
+                logger.error(f"Lỗi consume_reward {nickname}: {e}")
+                return {'success': False, 'error': str(e)}
 
     def add_overtime(self, nickname: str, hours: float) -> bool:
         """Admin thêm giờ làm thêm cho nhân viên vào sheet GioLamThem.
@@ -1127,39 +989,14 @@ class GoogleSheetsService:
             return []
 
     def add_employee(self, nickname: str) -> dict:
-        """Thêm nhân viên mới vào sheet SoDuThuong."""
-        try:
-            nickname = nickname.strip()
-            if not nickname:
-                return {'success': False, 'error': 'empty_name'}
-
-            col_nicks = self.ws_balance.col_values(self.col_nickname_index)
-            target = normalize_name(nickname)
-            for v in col_nicks[1:]:
-                if normalize_name(str(v)) == target:
-                    return {'success': False, 'error': 'already_exists'}
-
-            # Lấy số cột thực tế từ header
+        """Thêm nhân viên mới vào sheet Mapping."""
+        with self._write_lock:
             try:
-                headers = self.ws_balance.row_values(1)
-                num_cols = len(headers)
-            except Exception:
-                num_cols = max(len(self.balance_headers), self.col_balance_index)
-            
-            # Tạo row với đủ số cột
-            row = [''] * num_cols
-            row[self.col_nickname_index - 1] = nickname
-            row[self.col_dathuong_index - 1] = 0
-            row[self.col_dadung_index - 1] = 0
-            if self.col_balance_index - 1 < num_cols:
-                row[self.col_balance_index - 1] = f"=INDIRECT(\"B\"&ROW())-INDIRECT(\"C\"&ROW())"
-            
-            self.ws_balance.insert_row(row, index=2, value_input_option='USER_ENTERED')
-            logger.info(f"Đã thêm nhân viên: {nickname}")
-            return {'success': True}
-        except Exception as e:
-            logger.error(f"Lỗi thêm nhân viên {nickname}: {e}")
-            return {'success': False, 'error': str(e)}
+                ws = self._get_mapping_worksheet()
+                ws.append_row([nickname, nickname, Config.DEFAULT_HOURLY_RATE_K, 0], value_input_option='USER_ENTERED')
+                return {'success': True}
+            except Exception as e:
+                return {'success': False, 'error': str(e)}
 
     def rename_employee(self, old_nickname: str, new_nickname: str) -> dict:
         """Đổi nickname nhất quán trên các sheet nghiệp vụ và Mapping."""
@@ -1209,20 +1046,21 @@ class GoogleSheetsService:
                 return {'success': False, 'error': str(e)}
 
     def remove_employee(self, nickname: str) -> bool:
-        """Xóa nhân viên khỏi sheet SoDuThuong."""
-        try:
-            col_nicks = self.ws_balance.col_values(self.col_nickname_index)
-            target = normalize_name(nickname)
-            for i, v in enumerate(col_nicks[1:], start=2):
-                if normalize_name(str(v)) == target:
-                    self.ws_balance.delete_rows(i)
-                    logger.info(f"Đã xóa nhân viên: {nickname}")
-                    return True
-            logger.warning(f"Không tìm thấy nhân viên {nickname} để xóa")
-            return False
-        except Exception as e:
-            logger.error(f"Lỗi xóa nhân viên {nickname}: {e}")
-            return False
+        """Xóa nhân viên khỏi sheet Mapping."""
+        with self._write_lock:
+            try:
+                ws = self._get_mapping_worksheet()
+                records = ws.get_all_values()
+                if not records: return False
+                nick_col, _, _ = self._get_mapping_indices(records[0])
+                target = normalize_name(nickname)
+                for i, row in enumerate(records[1:], start=2):
+                    if len(row) > nick_col and normalize_name(row[nick_col]) == target:
+                        ws.delete_rows(i)
+                        return True
+                return False
+            except Exception:
+                return False
 
     def get_reward_history(self, nickname: str = None, limit: int = 20) -> list:
         """Lấy lịch sử báo cáo từ LichSuThuong, lọc theo nickname nếu có."""
