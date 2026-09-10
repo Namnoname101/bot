@@ -421,10 +421,10 @@ class GoogleSheetsService:
             try:
                 current_balance = self.get_balance(nickname)
                 if current_balance <= 0:
-                    return {'success': False, 'error': 'not_enough'}
+                    return {'success': False, 'error': 'insufficient_balance'}
                 success = self._update_balance_unlocked(nickname, -1)
                 if success:
-                    return {'success': True, 'new_balance': current_balance - 1}
+                    return {'success': True, 'balance': current_balance - 1}
                 return {'success': False, 'error': 'update_failed'}
             except Exception as e:
                 logger.error(f"Lỗi consume_reward {nickname}: {e}")
