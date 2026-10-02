@@ -1472,6 +1472,7 @@ const App = {
 
   renderReportEmpGrid() {
     const grid = document.getElementById("rpt-emp-grid");
+    if (!grid) return;
     grid.innerHTML = this.state.employees
       .map((e) => {
         const sel = !!this.state.reportSelectedEmps[e.nickname];

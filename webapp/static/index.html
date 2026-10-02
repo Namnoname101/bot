@@ -351,7 +351,6 @@
     <section id="tab-rewards" class="tab-panel hidden">
       <div class="subtab-bar">
         <button class="subtab-btn active" data-sub="rew-balance" onclick="App.switchSubtab('rewards', 'rew-balance')">🎁 Ly Thưởng</button>
-        <button class="subtab-btn" data-sub="rew-revenue" onclick="App.switchSubtab('rewards', 'rew-revenue')">💰 Doanh Thu & Chi</button>
         <button class="subtab-btn" data-sub="rew-endshift" onclick="App.switchSubtab('rewards', 'rew-endshift')">📸 Kết Ca</button>
       </div>
 
@@ -374,50 +373,6 @@
           <button class="btn btn-primary btn-block mt-12" onclick="App.submitRewardRequest()">
             🎁 Gửi Yêu Cầu Cộng +1 Ly
           </button>
-        </div>
-      </div>
-
-      <!-- Subtab 3.2: Revenue Report & Counter Petty Cash Expenses -->
-      <div id="sub-rew-revenue" class="subtab-panel hidden">
-        <div class="card">
-          <div class="card-header">
-            <h2>💰 Báo Cáo Doanh Thu Ca</h2>
-          </div>
-
-          <label class="field-label">1. Ca làm việc</label>
-          <div class="segmented" id="rpt-ca-select">
-            <button type="button" class="seg-btn" data-val="Sáng" onclick="App.setReportCa('Sáng')">🌅 Sáng</button>
-            <button type="button" class="seg-btn" data-val="Chiều" onclick="App.setReportCa('Chiều')">☀️ Chiều</button>
-            <button type="button" class="seg-btn" data-val="Tối" onclick="App.setReportCa('Tối')">🌙 Tối</button>
-          </div>
-
-          <label class="field-label">2. Nhân viên trong ca (chọn nhiều)</label>
-          <div id="rpt-emp-grid" class="chip-grid"></div>
-
-          <label class="field-label">3. Doanh thu (VD: 1500k, 1.5M, 1500000)</label>
-          <input type="text" id="rpt-revenue-input" class="input" placeholder="Nhập doanh thu ca..." oninput="App.updateRevenuePreview()" />
-          <div id="rpt-reward-preview" class="preview-banner mt-8">Chỉ tiêu thưởng: 2 NV ≥ 1.2M | ≥3 NV ≥ 1.5M (+1 ly/người)</div>
-
-          <label class="field-label">4. Ảnh báo cáo / bill (tùy chọn)</label>
-          <input type="file" id="rpt-photo-input" accept="image/*" class="file-input" />
-
-          <button id="btn-submit-report" class="btn btn-primary btn-block mt-12" onclick="App.submitRevenueReport()">
-            📤 Lưu Báo Cáo Doanh Thu
-          </button>
-        </div>
-
-        <!-- Petty Cash / Counter Expenses -->
-        <div class="card">
-          <div class="card-header">
-            <h2>🧾 Ghi Nhận Chi Vặt Tại Quầy</h2>
-          </div>
-          <p class="helper-text">Ghi lại các khoản chi tiền mặt phát sinh trong ca (mua đá viên, túi rác, trả ship...) để đối chiếu khi chốt két:</p>
-          <div class="row-gap mb-8">
-            <input type="text" id="exp-amount-input" class="input" placeholder="Số tiền (VD: 35k, 50000)" />
-            <input type="text" id="exp-reason-input" class="input" placeholder="Nội dung (VD: Mua 2 bao đá)" />
-          </div>
-          <button class="btn btn-secondary btn-block" onclick="App.submitPettyExpense()">💸 Ghi Chi Vặt Trong Ca</button>
-          <div id="petty-expenses-list" class="mt-12"></div>
         </div>
       </div>
 
@@ -742,6 +697,6 @@
     </button>
   </nav>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=20261003_2"></script>
 </body>
 </html>
