@@ -21,7 +21,7 @@ from utils.validators import (
     normalize_name,
     validate_nickname,
 )
-from webapp.auth import resolve_request_user
+from webapp.auth import create_auth_token, resolve_request_user, verify_auth_token
 from webapp.store import WebAppStore
 
 logger = logging.getLogger(__name__)
@@ -118,9 +118,12 @@ async def _safe_send_admin(bot, text: str, reply_markup=None, parse_mode: str | 
         logger.warning("Không gửi được thông báo Mini App cho admin: %s", e)
 
 
+PUBLIC_API_PATHS = {"/api/health", "/api/auth/login", "/api/auth/public-users"}
+
+
 @web.middleware
 async def auth_middleware(request: web.Request, handler):
-    if not request.path.startswith("/api/") or request.path == "/api/health":
+    if not request.path.startswith("/api/") or request.path in PUBLIC_API_PATHS:
         return await handler(request)
 
     bot_data = request.app.get(BOT_DATA_KEY) or {}
@@ -173,6 +176,106 @@ async def handle_health(request: web.Request) -> web.Response:
     })
 
 
+async def handle_auth_login(request: web.Request) -> web.Response:
+    """Xử lý đăng nhập bằng Username và Mật khẩu (mặc định 123456789)."""
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"success": False, "message": "Dữ liệu JSON không hợp lệ."}, status=400)
+
+    username = str(data.get("username") or "").strip()
+    password = str(data.get("password") or "").strip()
+    role = str(data.get("role") or "Pha Chế").strip()
+    if role not in ("Pha Chế", "Phục Vụ", "Quản Lý"):
+        role = "Pha Chế"
+
+    if not username:
+        return web.json_response({"success": False, "message": "Vui lòng nhập Tên đăng nhập."}, status=400)
+    if not password:
+        return web.json_response({"success": False, "message": "Vui lòng nhập Mật khẩu (mặc định: 123456789)."}, status=400)
+
+    sheets = request.app[SHEETS_KEY]
+    store: WebAppStore = request.app[STORE_KEY]
+    bot_data = request.app.get(BOT_DATA_KEY) or {}
+
+    employees = await asyncio.to_thread(_get_employees_list, sheets)
+    ok, user_info, err_msg = store.verify_login(
+        username=username,
+        password=password,
+        employees=employees,
+        bot_data=bot_data,
+        preferred_role=role,
+    )
+    if not ok:
+        return web.json_response({"success": False, "message": err_msg}, status=401)
+
+    token = create_auth_token(user_info)
+    return web.json_response({
+        "success": True,
+        "token": token,
+        "user": user_info,
+        "role": user_info.get("role") or role,
+        "message": f"Chào mừng {user_info.get('full_name')} vào hệ thống!",
+    })
+
+
+async def handle_auth_public_users(request: web.Request) -> web.Response:
+    """Trả về danh sách tài khoản cho màn hình đăng nhập (admin + danh sách nhân viên mới nhất)."""
+    sheets = request.app[SHEETS_KEY]
+    employees = await asyncio.to_thread(_get_employees_list, sheets)
+    names = ["admin"]
+    emp_list = []
+    for e in (employees or []):
+        nick = str(e.get("nickname") or e.get("full_name") or "").strip()
+        full = str(e.get("full_name") or nick).strip()
+        if nick:
+            if nick not in names:
+                names.append(nick)
+            emp_list.append({
+                "nickname": nick,
+                "full_name": full,
+            })
+    return web.json_response({
+        "success": True,
+        "users": names,
+        "employees": emp_list,
+    })
+
+
+async def handle_auth_change_password(request: web.Request) -> web.Response:
+    """Đổi mật khẩu tài khoản người dùng hoặc admin."""
+    user = request.get(USER_KEY) or {}
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"success": False, "message": "Dữ liệu JSON không hợp lệ."}, status=400)
+
+    old_pwd = str(data.get("old_password") or "").strip()
+    new_pwd = str(data.get("new_password") or "").strip()
+    if not old_pwd or not new_pwd:
+        return web.json_response({"success": False, "message": "Vui lòng nhập đầy đủ mật khẩu cũ và mới."}, status=400)
+    if len(new_pwd) < 4:
+        return web.json_response({"success": False, "message": "Mật khẩu mới phải có ít nhất 4 ký tự."}, status=400)
+
+    username = user.get("username") or user.get("nickname") or ""
+    sheets = request.app[SHEETS_KEY]
+    store: WebAppStore = request.app[STORE_KEY]
+    bot_data = request.app.get(BOT_DATA_KEY) or {}
+
+    employees = await asyncio.to_thread(_get_employees_list, sheets)
+    ok, _, _ = store.verify_login(
+        username=username,
+        password=old_pwd,
+        employees=employees,
+        bot_data=bot_data,
+    )
+    if not ok:
+        return web.json_response({"success": False, "message": "Mật khẩu hiện tại không chính xác."}, status=400)
+
+    store.set_account_password(username, new_pwd)
+    return web.json_response({"success": True, "message": "✅ Đã đổi mật khẩu thành công!"})
+
+
 async def handle_bootstrap(request: web.Request) -> web.Response:
     sheets = request.app[SHEETS_KEY]
     bot_data = request.app[BOT_DATA_KEY]
@@ -190,6 +293,16 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
     group_items = [{"name": g, "icon": _get_group_icon(g)} for g in (groups or [])]
     pending_rewards = len((bot_data.get("reward_requests") or {})) if user.get("is_admin") else 0
 
+    # Phân quyền: Của ai người đó xem! Ẩn số dư thưởng của người khác nếu không phải Quản lý
+    user_norm = normalize_name(user.get("nickname") or user.get("username") or user.get("first_name") or "")
+    is_user_admin = bool(user.get("is_admin"))
+    filtered_employees = []
+    for emp in (employees or []):
+        emp_dict = dict(emp)
+        if not is_user_admin and normalize_name(emp_dict.get("nickname") or emp_dict.get("full_name") or "") != user_norm:
+            emp_dict["balance"] = None
+        filtered_employees.append(emp_dict)
+
     return web.json_response({
         "success": True,
         "user": user,
@@ -198,7 +311,7 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
             "time": now.strftime("%H:%M"),
             "inferred_ca": _infer_ca(now),
         },
-        "employees": employees,
+        "employees": filtered_employees,
         "open_sessions": open_sessions,
         "materials": materials,
         "material_groups": group_items,
@@ -213,7 +326,27 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
 
 # ── 1. Check-in / Check-out ──────────────────────────────────────────────────
 
+def _is_kiosk_authorized(request: web.Request) -> bool:
+    """Kiểm tra xem yêu cầu có đến từ thiết bị cố định tại quán (hoặc Quản lý) hay không."""
+    user = request.get(USER_KEY) or {}
+    if user.get("is_admin"):
+        return True
+    kiosk_key = (
+        request.headers.get("X-Shop-Device-Key")
+        or request.query.get("kiosk_key")
+        or ""
+    ).strip()
+    return bool(kiosk_key and kiosk_key == Config.get_shop_kiosk_key())
+
+
 async def handle_api_checkin(request: web.Request) -> web.Response:
+    if not _is_kiosk_authorized(request):
+        return web.json_response({
+            "success": False,
+            "error": "kiosk_required",
+            "message": "🔒 Chức năng Chấm công chỉ được phép thực hiện trên máy điện thoại cố định tại quán."
+        }, status=403)
+
     sheets = request.app[SHEETS_KEY]
     bot = request.app.get(BOT_KEY)
     data = await request.json()
@@ -285,6 +418,13 @@ async def handle_api_checkin(request: web.Request) -> web.Response:
 
 
 async def handle_api_checkout(request: web.Request) -> web.Response:
+    if not _is_kiosk_authorized(request):
+        return web.json_response({
+            "success": False,
+            "error": "kiosk_required",
+            "message": "🔒 Chức năng Check-out chỉ được phép thực hiện trên máy điện thoại cố định tại quán."
+        }, status=403)
+
     sheets = request.app[SHEETS_KEY]
     bot = request.app.get(BOT_KEY)
     user = request[USER_KEY]
@@ -583,10 +723,21 @@ async def handle_api_material_delete(request: web.Request) -> web.Response:
 async def handle_api_reward_use(request: web.Request) -> web.Response:
     sheets = request.app[SHEETS_KEY]
     bot = request.app.get(BOT_KEY)
+    user = request[USER_KEY]
     data = await request.json()
     nickname = str(data.get("nickname") or "").strip()
     if not nickname:
         return web.json_response({"success": False, "message": "Vui lòng chọn nhân viên."}, status=400)
+
+    # Ràng buộc: Của ai người đó dùng!
+    if not user.get("is_admin"):
+        user_norm = normalize_name(user.get("nickname") or user.get("username") or user.get("first_name") or "")
+        target_norm = normalize_name(nickname)
+        if not user_norm or user_norm != target_norm:
+            return web.json_response({
+                "success": False,
+                "message": "⛔ Bạn chỉ có thể sử dụng ly thưởng của chính mình."
+            }, status=403)
 
     result = await asyncio.to_thread(sheets.consume_reward, nickname)
     if not result.get("success"):
@@ -600,7 +751,16 @@ async def handle_api_reward_use(request: web.Request) -> web.Response:
         f"🥤 {nickname} đã dùng 1 ly thưởng. Còn lại: {new_bal} ly.",
         parse_mode=None,
     )
-    employees = await asyncio.to_thread(_get_employees_list, sheets)
+    raw_employees = await asyncio.to_thread(_get_employees_list, sheets)
+    user_norm = normalize_name(user.get("nickname") or user.get("username") or user.get("first_name") or "")
+    is_user_admin = bool(user.get("is_admin"))
+    employees = []
+    for emp in (raw_employees or []):
+        emp_dict = dict(emp)
+        if not is_user_admin and normalize_name(emp_dict.get("nickname") or emp_dict.get("full_name") or "") != user_norm:
+            emp_dict["balance"] = None
+        employees.append(emp_dict)
+
     return web.json_response({
         "success": True,
         "message": f"✅ Đã trừ 1 ly thưởng của {nickname}. Còn lại: {new_bal} ly.",
@@ -1383,13 +1543,20 @@ async def handle_api_leave_request(request: web.Request) -> web.Response:
     item = store.add_leave_request(nickname, role, req_type, date_str, ca, reason, extra)
 
     extra_line = f"\n📌 Chi tiết: {extra}" if extra else ""
+    leave_kb = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Duyệt Đơn", callback_data=f"leave_appr_{item['id']}"),
+            InlineKeyboardButton("❌ Từ Chối", callback_data=f"leave_rejc_{item['id']}"),
+        ]
+    ])
     await _safe_send_admin(
         bot,
-        f"📩 **ĐƠN MỚI TỪ NHÂN VIÊN**\n"
-        f"👤 **{nickname}** ({role})\n"
-        f"🏷 Loại: **{type_label}**\n"
+        f"📩 *ĐƠN MỚI TỪ NHÂN VIÊN*\n"
+        f"👤 *{nickname}* ({role})\n"
+        f"🏷 Loại: *{type_label}*\n"
         f"📅 Ngày: {date_str} — Ca {ca}{extra_line}\n"
         f"💬 Lý do: {reason}",
+        reply_markup=leave_kb,
     )
 
     return web.json_response({
@@ -1494,13 +1661,14 @@ async def handle_api_expenses_add(request: web.Request) -> web.Response:
         return web.json_response({"success": False, "message": "Vui lòng nhập nội dung khoản chi."}, status=400)
 
     item = store.add_petty_expense(nickname, role, ca, amount, reason)
-    await _safe_send_group(
-        bot,
-        f"🧾 **CHI VẶT TẠI QUẦY (Ca {ca})**\n"
+    exp_text = (
+        f"🧾 *CHI TIỀN LẺ TẠI QUẦY (Ca {ca})*\n"
         f"👤 {nickname} ({role})\n"
-        f"💸 Số tiền: **{amount:,}đ**\n"
-        f"📝 Nội dung: {reason}",
+        f"💸 Số tiền: *{amount:,}đ*\n"
+        f"📝 Nội dung: {reason}"
     )
+    await _safe_send_group(bot, exp_text)
+    await _safe_send_admin(bot, exp_text)
 
     return web.json_response({
         "success": True,
@@ -1548,6 +1716,39 @@ async def handle_api_admin_recipe_delete(request: web.Request) -> web.Response:
     })
 
 
+async def handle_manifest(request: web.Request) -> web.Response:
+    manifest_file = STATIC_DIR / "manifest.json"
+    if manifest_file.exists():
+        return web.FileResponse(manifest_file, headers={"Content-Type": "application/manifest+json"})
+    return web.Response(text="{}", content_type="application/json")
+
+
+async def handle_api_kiosk_status(request: web.Request) -> web.Response:
+    return web.json_response({
+        "success": True,
+        "is_kiosk": _is_kiosk_authorized(request),
+    })
+
+
+async def handle_api_admin_kiosk_activate(request: web.Request) -> web.Response:
+    if resp := _require_admin(request):
+        return resp
+    return web.json_response({
+        "success": True,
+        "kiosk_key": Config.get_shop_kiosk_key(),
+        "message": "✅ Đã kích hoạt máy này làm Máy Điểm Danh Cố Định của quán!",
+    })
+
+
+async def handle_api_admin_kiosk_deactivate(request: web.Request) -> web.Response:
+    if resp := _require_admin(request):
+        return resp
+    return web.json_response({
+        "success": True,
+        "message": "✅ Đã hủy kích hoạt máy điểm danh trên thiết bị này.",
+    })
+
+
 def create_webapp(sheets, bot=None, bot_data: dict | None = None, store: WebAppStore | None = None) -> web.Application:
     """Khởi tạo aiohttp Application cho Sober Telegram Mini App."""
     app = web.Application(
@@ -1557,11 +1758,21 @@ def create_webapp(sheets, bot=None, bot_data: dict | None = None, store: WebAppS
     app[SHEETS_KEY] = sheets
     app[BOT_KEY] = bot
     app[BOT_DATA_KEY] = bot_data if bot_data is not None else {}
-    app[STORE_KEY] = store if store is not None else WebAppStore()
+    if store is None:
+        store = WebAppStore(sheets_service=sheets)
+    else:
+        store.init_from_sheets(sheets)
+    app[STORE_KEY] = store
+    if bot_data is not None:
+        bot_data["store"] = store
 
     app.router.add_get("/", handle_index)
+    app.router.add_get("/manifest.json", handle_manifest)
     app.router.add_get("/api/health", handle_health)
     app.router.add_get("/api/bootstrap", handle_bootstrap)
+    app.router.add_get("/api/kiosk/status", handle_api_kiosk_status)
+    app.router.add_post("/api/admin/kiosk/activate", handle_api_admin_kiosk_activate)
+    app.router.add_post("/api/admin/kiosk/deactivate", handle_api_admin_kiosk_deactivate)
 
     # Attendance & Personal
     app.router.add_post("/api/checkin", handle_api_checkin)
@@ -1605,6 +1816,11 @@ def create_webapp(sheets, bot=None, bot_data: dict | None = None, store: WebAppS
     app.router.add_post("/api/admin/report/update-revenue", handle_api_admin_update_revenue)
     app.router.add_post("/api/admin/announce", handle_api_admin_announce)
     app.router.add_post("/api/admin/grant-admin", handle_api_admin_grant)
+
+    # Auth routes (Username / Password)
+    app.router.add_post("/api/auth/login", handle_auth_login)
+    app.router.add_get("/api/auth/public-users", handle_auth_public_users)
+    app.router.add_post("/api/auth/change-password", handle_auth_change_password)
 
     if STATIC_DIR.exists():
         app.router.add_static("/static", STATIC_DIR, show_index=False)

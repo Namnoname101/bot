@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Sober — Mini App Tổng Hợp</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/static/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Sober" />
+  <meta name="theme-color" content="#0f172a" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
@@ -14,55 +20,88 @@
       <div class="login-header">
         <div class="login-logo">☕</div>
         <h2 class="login-title">SOBER COFFEE & TEA</h2>
-        <p class="login-sub">Đăng Nhập Điểm Danh & Vận Hành Ca Làm</p>
+        <p class="login-sub">Đăng Nhập Vận Hành Quán</p>
       </div>
 
-      <!-- Login Role Switcher -->
-      <div class="segmented mb-16" id="login-role-tabs">
-        <button type="button" class="seg-btn active" data-role="employee" onclick="App.switchLoginTab('employee')">
-          👤 Nhân Viên
-        </button>
-        <button type="button" class="seg-btn" data-role="admin" onclick="App.switchLoginTab('admin')">
-          👑 Quản Lý
-        </button>
-      </div>
-
-      <!-- Employee Login Form -->
-      <div id="form-login-employee" class="login-form-panel">
-        <label class="field-label">1. Chọn tên nhân viên của bạn</label>
-        <select id="login-emp-select" class="input mb-12">
-          <option value="">-- Đang tải danh sách nhân sự... --</option>
-        </select>
-
-        <label class="field-label">2. Chọn vị trí làm việc ca này</label>
-        <div class="role-cards-grid mb-16">
-          <div class="role-select-card active" id="card-role-barista" onclick="App.setLoginRole('Pha Chế')">
-            <div class="role-card-icon">🍹</div>
-            <div class="role-card-title">Pha Chế</div>
-            <div class="role-card-desc">Barista • Kho NVL • Công thức</div>
+      <form id="form-login" onsubmit="event.preventDefault(); App.submitLogin();">
+        <!-- Account Selection (Chọn trực tiếp hoặc gõ tay) -->
+        <div class="form-group mb-12">
+          <div class="field-label-row">
+            <label class="field-label" for="login-user-select">👤 Chọn tài khoản của bạn</label>
+            <button type="button" class="btn-link-sm" id="btn-toggle-manual-input" onclick="App.toggleManualUsername()">Gõ tay ✏️</button>
           </div>
-          <div class="role-select-card" id="card-role-server" onclick="App.setLoginRole('Phục Vụ')">
-            <div class="role-card-icon">🍽</div>
-            <div class="role-card-title">Phục Vụ</div>
-            <div class="role-card-desc">Order • Bàn ghế • Báo cáo DT</div>
+
+          <!-- Dropdown Select: Chọn trực tiếp tên mình, không cần nhập -->
+          <div id="login-select-wrap">
+            <select id="login-user-select" class="input" onchange="App.onLoginUserSelectChange()">
+              <option value="">-- Đang nạp danh sách nhân sự... --</option>
+            </select>
+          </div>
+
+          <!-- Manual input wrap (khi cần tự gõ) -->
+          <div id="login-manual-wrap" class="hidden mt-8">
+            <input 
+              type="text" 
+              id="login-username" 
+              class="input" 
+              placeholder="Nhập tên nhân viên hoặc 'admin'..." 
+              autocomplete="username" 
+              list="login-emp-datalist"
+              oninput="App.onLoginUsernameChange()"
+            />
+            <datalist id="login-emp-datalist"></datalist>
+          </div>
+
+          <!-- Quick clickable username tags -->
+          <div class="login-quick-chips" id="login-quick-chips">
+            <span class="chip-label">Chạm nhanh tên bạn:</span>
+            <div class="chip-list" id="login-chips-container"></div>
           </div>
         </div>
 
-        <button type="button" class="btn btn-primary btn-block btn-lg" onclick="App.submitEmployeeLogin()">
-          🚀 Vào Ca Làm Việc
-        </button>
-      </div>
+        <!-- Password input -->
+        <div class="form-group mb-12">
+          <label class="field-label" for="login-password">🔑 Mật khẩu (Password)</label>
+          <div class="password-wrap">
+            <input 
+              type="password" 
+              id="login-password" 
+              class="input" 
+              value="123456789" 
+              placeholder="Mật khẩu mặc định: 123456789" 
+              autocomplete="current-password" 
+              required 
+            />
+            <button type="button" class="btn-toggle-eye" id="btn-toggle-pwd" onclick="App.togglePasswordVisibility()" title="Ẩn/Hiện mật khẩu">👁️</button>
+          </div>
+          <div class="login-pwd-hint">
+            <span>ℹ️ Mật khẩu mặc định: <strong class="text-amber">123456789</strong></span>
+          </div>
+        </div>
 
-      <!-- Admin Login Form -->
-      <div id="form-login-admin" class="login-form-panel hidden">
-        <label class="field-label">Mã PIN hoặc Telegram ID Quản lý</label>
-        <input type="password" id="login-admin-key-input" class="input mb-12" placeholder="Nhập mã bảo mật Quản lý..." autocomplete="current-password" onkeydown="if(event.key==='Enter') App.submitAdminLogin()" />
-        <p class="helper-text mb-16">Dành riêng cho Quản lý & Chủ quán để duyệt lương, quản lý nhân sự, kho và báo cáo doanh thu.</p>
+        <!-- Shift role selector -->
+        <div class="form-group mb-16" id="login-role-group">
+          <label class="field-label">Vị trí làm việc ca này</label>
+          <div class="role-cards-grid">
+            <div class="role-select-card active" id="card-role-barista" onclick="App.setLoginRole('Pha Chế')">
+              <div class="role-card-icon">🍹</div>
+              <div class="role-card-title">Pha Chế</div>
+              <div class="role-card-desc">Barista • Kho NVL • Công thức</div>
+            </div>
+            <div class="role-select-card" id="card-role-server" onclick="App.setLoginRole('Phục Vụ')">
+              <div class="role-card-icon">🍽</div>
+              <div class="role-card-title">Phục Vụ</div>
+              <div class="role-card-desc">Order • Bàn ghế • Báo cáo DT</div>
+            </div>
+          </div>
+        </div>
 
-        <button type="button" class="btn btn-primary btn-block btn-lg" onclick="App.submitAdminLogin()">
-          🛡 Đăng Nhập Quản Lý
+        <div id="login-error-alert" class="login-error-alert hidden"></div>
+
+        <button type="submit" id="btn-login-submit" class="btn btn-primary btn-block btn-lg">
+          🚀 Đăng Nhập
         </button>
-      </div>
+      </form>
 
       <div id="login-tg-auto" class="login-tg-hint hidden">
         <span>⚡ Tài khoản Telegram:</span>
@@ -82,6 +121,7 @@
     </div>
     <div class="header-actions">
       <span id="role-badge" class="badge badge-emp">👤 Khách</span>
+      <button id="btn-change-pwd" class="icon-btn" title="Đổi mật khẩu" onclick="App.showChangePasswordModal()">🔑</button>
       <button id="btn-logout" class="icon-btn" title="Đăng xuất / Đổi vai trò" onclick="App.logout()">🚪</button>
       <button id="btn-refresh" class="icon-btn" title="Làm mới dữ liệu" onclick="App.refreshAll()">🔄</button>
     </div>
@@ -118,12 +158,12 @@
     <!-- ==================== TAB 1: CHẤM CÔNG & LỊCH CA ==================== -->
     <section id="tab-attendance" class="tab-panel hidden">
       <div class="subtab-bar">
-        <button class="subtab-btn active" data-sub="att-main" onclick="App.switchSubtab('attendance', 'att-main')">📥 Chấm Công</button>
+        <button class="subtab-btn active" data-sub="att-main" onclick="App.switchSubtab('attendance', 'att-main')">👥 Ca Trực</button>
         <button class="subtab-btn" data-sub="att-personal" onclick="App.switchSubtab('attendance', 'att-personal')">👤 Cá Nhân</button>
         <button class="subtab-btn" data-sub="att-schedule" onclick="App.switchSubtab('attendance', 'att-schedule')">📅 Lịch & Xin Phép</button>
       </div>
 
-      <!-- Subtab 1.1: Main Check-in / Check-out -->
+      <!-- Subtab 1.1: Live Shift & Active Sessions -->
       <div id="sub-att-main" class="subtab-panel">
         <!-- Live Shift Status Banner -->
         <div class="hero-card">
@@ -147,45 +187,26 @@
           </div>
         </div>
 
-        <!-- Active Sessions (One-Tap Check Out) -->
+        <!-- Attendance Info Banner -->
+        <div id="kiosk-notice-banner" class="kiosk-banner">
+          <span class="kiosk-banner-icon">📱</span>
+          <div class="kiosk-banner-text">
+            <strong>Điểm danh chấm công:</strong> Thực hiện trực tiếp trên máy điện thoại cố định tại quán.
+          </div>
+        </div>
+        <div id="kiosk-active-badge" class="kiosk-badge-bar hidden">
+          <span>🟢 Điện thoại cố định của quán (Sẵn sàng điểm danh)</span>
+        </div>
+
+        <!-- Active Sessions -->
         <div class="card">
           <div class="card-header">
-            <h2>🟡 Đang Trong Ca (Bấm để Check Out)</h2>
+            <h2>👥 Nhân Sự Đang Trong Ca</h2>
             <span class="badge" id="open-sessions-badge">0 phiên</span>
           </div>
           <div id="open-sessions-list" class="session-list">
             <p class="empty-text">Chưa có nhân viên nào đang trong ca.</p>
           </div>
-        </div>
-
-        <!-- Check In Form -->
-        <div class="card">
-          <div class="card-header">
-            <h2>📥 Check In Vào Ca</h2>
-          </div>
-
-          <label class="field-label">1. Chọn loại ca</label>
-          <div class="segmented" id="ci-shift-type">
-            <button type="button" class="seg-btn active" data-val="Ca Chính" onclick="App.setCheckinType('Ca Chính')">🌞 Ca Chính</button>
-            <button type="button" class="seg-btn" data-val="Ca Gãy" onclick="App.setCheckinType('Ca Gãy')">🌗 Ca Gãy (19:30)</button>
-          </div>
-
-          <div id="ci-ca-wrapper">
-            <label class="field-label">2. Chọn khung ca</label>
-            <div class="segmented" id="ci-ca-select">
-              <button type="button" class="seg-btn" data-val="Sáng" onclick="App.setCheckinCa('Sáng')">🌅 Sáng (6:30)</button>
-              <button type="button" class="seg-btn" data-val="Chiều" onclick="App.setCheckinCa('Chiều')">☀️ Chiều (12:00)</button>
-              <button type="button" class="seg-btn" data-val="Tối" onclick="App.setCheckinCa('Tối')">🌙 Tối (18:00)</button>
-            </div>
-          </div>
-
-          <label class="field-label">3. Chọn tên của bạn</label>
-          <input type="text" id="ci-emp-search" class="input" placeholder="🔍 Tìm nhanh tên nhân viên..." oninput="App.renderCheckinEmployees()" />
-          <div id="ci-emp-grid" class="chip-grid"></div>
-
-          <button id="btn-submit-checkin" class="btn btn-primary btn-block mt-12" onclick="App.submitCheckin()">
-            📥 Xác Nhận Check In
-          </button>
         </div>
       </div>
 
@@ -495,6 +516,25 @@
             <h2>📅 Tổng Hợp Đăng Ký Lịch Ca Tuần</h2>
           </div>
           <div id="adm-schedules-list"></div>
+        </div>
+
+        <!-- Kiosk Device Manager Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2>📱 Máy Điểm Danh Cố Định Tại Quán</h2>
+            <span class="badge" id="kiosk-status-badge">⚪ Chưa kích hoạt</span>
+          </div>
+          <p class="helper-text mb-8" id="kiosk-status-desc">
+            Nhân viên chỉ được phép Check-in / Check-out trên máy điện thoại cố định đặt tại quầy của quán để chống gian lận.
+          </p>
+          <div class="row-gap" id="kiosk-action-row">
+            <button type="button" class="btn btn-primary" id="btn-kiosk-activate" onclick="App.activateShopDevice()">
+              🔑 Kích Hoạt Thiết Bị Này Là Máy Quán
+            </button>
+            <button type="button" class="btn btn-danger hidden" id="btn-kiosk-deactivate" onclick="App.deactivateShopDevice()">
+              ❌ Hủy Máy Quán
+            </button>
+          </div>
         </div>
 
         <!-- Pending Reward Requests -->

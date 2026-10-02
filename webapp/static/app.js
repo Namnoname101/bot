@@ -78,6 +78,10 @@ const App = {
 
   async api(path, options = {}) {
     const headers = Object.assign({}, options.headers || {});
+    const authToken = localStorage.getItem("sober_auth_token") || "";
+    if (authToken) {
+      headers["X-Auth-Token"] = authToken;
+    }
     const initData = (tg && tg.initData) || new URLSearchParams(window.location.search).get("initData") || "";
     if (initData) {
       headers["X-Telegram-Init-Data"] = initData;
@@ -89,6 +93,10 @@ const App = {
     const empName = this.state.myNickname || localStorage.getItem("sober_my_nickname") || "";
     if (empName) {
       headers["X-Employee-Name"] = encodeURIComponent(empName);
+    }
+    const kioskKey = localStorage.getItem("sober_shop_kiosk_key") || "";
+    if (kioskKey) {
+      headers["X-Shop-Device-Key"] = kioskKey;
     }
     if (options.body && !(options.body instanceof FormData) && typeof options.body === "object") {
       headers["Content-Type"] = "application/json";
@@ -224,21 +232,11 @@ const App = {
   _selectedLoginRole: "Pha Chế",
   _isExplicitLoggedOut: false,
 
-  switchLoginTab(type) {
-    haptic("light");
-    document.querySelectorAll("#login-role-tabs .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.role === type);
-    });
-    const empForm = document.getElementById("form-login-employee");
-    const adminForm = document.getElementById("form-login-admin");
-    if (type === "employee") {
-      empForm?.classList.remove("hidden");
-      adminForm?.classList.add("hidden");
-    } else {
-      empForm?.classList.add("hidden");
-      adminForm?.classList.remove("hidden");
-    }
-  },
+  // ==================== LOGIN & AUTH FLOW (Username & Password) ====================
+
+  _selectedLoginRole: "Pha Chế",
+  _isExplicitLoggedOut: false,
+  _isManualUsername: false,
 
   setLoginRole(role) {
     haptic("light");
@@ -251,17 +249,200 @@ const App = {
     }
   },
 
-  populateLoginEmployeeSelect() {
-    const selectEl = document.getElementById("login-emp-select");
-    if (!selectEl) return;
-    const curNick = this.state.myNickname || "";
-    const opts = [
-      '<option value="">-- Chọn tên nhân viên của bạn --</option>',
-      ...this.state.employees.map(
-        (e) => `<option value="${esc(e.nickname)}" ${e.nickname === curNick ? "selected" : ""}>${esc(e.nickname)}</option>`
-      ),
-    ].join("");
-    selectEl.innerHTML = opts;
+  togglePasswordVisibility() {
+    haptic("light");
+    const pwdInput = document.getElementById("login-password");
+    const btn = document.getElementById("btn-toggle-pwd");
+    if (!pwdInput) return;
+    if (pwdInput.type === "password") {
+      pwdInput.type = "text";
+      if (btn) btn.textContent = "🙈";
+    } else {
+      pwdInput.type = "password";
+      if (btn) btn.textContent = "👁️";
+    }
+  },
+
+  toggleManualUsername(forceManual = null) {
+    haptic("light");
+    if (forceManual !== null) {
+      this._isManualUsername = forceManual;
+    } else {
+      this._isManualUsername = !this._isManualUsername;
+    }
+    const selectWrap = document.getElementById("login-select-wrap");
+    const manualWrap = document.getElementById("login-manual-wrap");
+    const toggleBtn = document.getElementById("btn-toggle-manual-input");
+    const selectEl = document.getElementById("login-user-select");
+    const userEl = document.getElementById("login-username");
+
+    if (this._isManualUsername) {
+      selectWrap?.classList.add("hidden");
+      manualWrap?.classList.remove("hidden");
+      if (toggleBtn) toggleBtn.textContent = "Chọn danh sách 📋";
+      if (userEl) userEl.focus();
+    } else {
+      selectWrap?.classList.remove("hidden");
+      manualWrap?.classList.add("hidden");
+      if (toggleBtn) toggleBtn.textContent = "Gõ tay ✏️";
+      if (selectEl && userEl && userEl.value) {
+        selectEl.value = userEl.value;
+      }
+    }
+    this.onLoginUsernameChange();
+  },
+
+  onLoginUserSelectChange() {
+    haptic("light");
+    const selectEl = document.getElementById("login-user-select");
+    const userEl = document.getElementById("login-username");
+    const val = (selectEl ? selectEl.value : "").trim();
+
+    if (val === "__manual__") {
+      this.toggleManualUsername(true);
+      if (userEl) {
+        userEl.value = "";
+        userEl.focus();
+      }
+      return;
+    }
+
+    if (userEl) {
+      userEl.value = val;
+    }
+    this.onLoginUsernameChange();
+
+    const pwdEl = document.getElementById("login-password");
+    if (pwdEl && !pwdEl.value) {
+      pwdEl.value = "123456789";
+    }
+  },
+
+  fillUsername(username) {
+    haptic("light");
+    const selectEl = document.getElementById("login-user-select");
+    const userEl = document.getElementById("login-username");
+
+    if (userEl) userEl.value = username;
+
+    if (selectEl) {
+      let matched = false;
+      for (let i = 0; i < selectEl.options.length; i++) {
+        if (selectEl.options[i].value.toLowerCase() === username.toLowerCase()) {
+          selectEl.selectedIndex = i;
+          matched = true;
+          break;
+        }
+      }
+      if (matched) {
+        this.toggleManualUsername(false);
+      } else {
+        this.toggleManualUsername(true);
+      }
+    }
+    this.onLoginUsernameChange();
+
+    const pwdEl = document.getElementById("login-password");
+    if (pwdEl && !pwdEl.value) {
+      pwdEl.value = "123456789";
+    }
+    if (pwdEl) pwdEl.focus();
+  },
+
+  onLoginUsernameChange() {
+    const userEl = document.getElementById("login-username");
+    const selectEl = document.getElementById("login-user-select");
+    let val = "";
+    if (this._isManualUsername) {
+      val = (userEl ? userEl.value : "").trim().toLowerCase();
+    } else {
+      val = (selectEl ? selectEl.value : "").trim().toLowerCase();
+      if (!val && userEl) val = userEl.value.trim().toLowerCase();
+    }
+
+    const roleGroup = document.getElementById("login-role-group");
+    if (roleGroup) {
+      if (val === "admin" || val === "quanly") {
+        roleGroup.classList.add("hidden");
+      } else {
+        roleGroup.classList.remove("hidden");
+      }
+    }
+  },
+
+  populateLoginUsers(users = null, employees = null) {
+    const selectEl = document.getElementById("login-user-select");
+    const datalist = document.getElementById("login-emp-datalist");
+    const chipsContainer = document.getElementById("login-chips-container");
+    const userEl = document.getElementById("login-username");
+    const pwdEl = document.getElementById("login-password");
+
+    const empList = employees || this.state.employees || [];
+    const savedUser = this.state.myNickname || localStorage.getItem("sober_my_nickname") || "";
+
+    if (pwdEl && !pwdEl.value) {
+      pwdEl.value = "123456789";
+    }
+
+    // 1. Dropdown Select: Cho nhân viên chọn luôn, không cần nhập
+    if (selectEl) {
+      const curVal = selectEl.value || savedUser || "";
+      let html = '<option value="">-- Chọn tên của bạn để đăng nhập --</option>';
+      html += '<option value="admin">👑 Quản Lý (Admin)</option>';
+      if (empList.length > 0) {
+        html += '<optgroup label="Danh sách nhân viên">';
+        empList.forEach((e) => {
+          const nick = e.nickname || e.full_name;
+          const full = e.full_name && e.full_name !== nick ? `${nick} (${e.full_name})` : nick;
+          const isSel = (nick === curVal || (nick.toLowerCase() === curVal.toLowerCase()));
+          html += `<option value="${esc(nick)}" ${isSel ? "selected" : ""}>👤 ${esc(full)}</option>`;
+        });
+        html += '</optgroup>';
+      }
+      html += '<option value="__manual__">✏️ Tự nhập tài khoản khác...</option>';
+      selectEl.innerHTML = html;
+
+      if (curVal && curVal !== "__manual__") {
+        selectEl.value = curVal;
+        if (userEl) userEl.value = curVal;
+      }
+    }
+
+    // 2. Datalist
+    const allNames = ["admin", ...empList.map((e) => e.nickname).filter(Boolean)];
+    const uniqueNames = Array.from(new Set(allNames));
+
+    if (datalist) {
+      datalist.innerHTML = uniqueNames.map((n) => `<option value="${esc(n)}"></option>`).join("");
+    }
+
+    // 3. Quick 1-tap Chips
+    if (chipsContainer) {
+      chipsContainer.innerHTML = uniqueNames
+        .map((n) => {
+          const isAdmin = n.toLowerCase() === "admin";
+          const cls = isAdmin ? "user-chip chip-admin" : "user-chip";
+          const icon = isAdmin ? "👑 " : "👤 ";
+          return `<button type="button" class="${cls}" onclick="App.fillUsername('${esc(n)}')">${icon}${esc(n)}</button>`;
+        })
+        .join("");
+    }
+
+    this.onLoginUsernameChange();
+  },
+
+  async loadPublicUsers() {
+    try {
+      const res = await this.api("/api/auth/public-users");
+      if (res && res.success) {
+        if (Array.isArray(res.employees) && res.employees.length > 0) {
+          this.state.employees = res.employees;
+        }
+        this.populateLoginUsers(res.users, res.employees);
+      }
+    } catch (e) {
+      this.populateLoginUsers();
+    }
   },
 
   showLoginScreen() {
@@ -270,7 +451,9 @@ const App = {
     document.querySelector(".app-content")?.classList.add("hidden");
     document.querySelector(".bottom-nav")?.classList.add("hidden");
     document.body.classList.add("login-mode");
-    this.populateLoginEmployeeSelect();
+
+    this.populateLoginUsers();
+    this.loadPublicUsers();
 
     const tgHint = document.getElementById("login-tg-auto");
     if (tgHint) {
@@ -292,67 +475,115 @@ const App = {
     document.body.classList.remove("login-mode");
   },
 
-  submitEmployeeLogin() {
-    haptic("success");
-    const selectEl = document.getElementById("login-emp-select");
-    const nick = (selectEl ? selectEl.value : "").trim();
-    if (!nick) {
-      haptic("error");
-      this.toast("⚠️ Vui lòng chọn tên nhân viên của bạn!");
-      return;
-    }
-    const role = this._selectedLoginRole || "Pha Chế";
-    this.state.myNickname = nick;
-    this.state.myRole = role;
-    this.state.checkinEmp = nick;
-    this._isExplicitLoggedOut = false;
-    localStorage.setItem("sober_my_nickname", nick);
-    localStorage.setItem("sober_my_role", role);
-    localStorage.removeItem("sober_admin_key");
-    localStorage.removeItem("sober_tg_admin_logged");
-
-    this.setEndshiftRole(role);
-    this.showMainApp();
-    this.renderHeader();
-    this.renderAll();
-    this.loadPersonalSummary(nick);
-    this.switchTab("attendance");
-    this.toast(`🎉 Chào mừng ${nick} (${role}) vào ca làm!`);
-  },
-
-  async submitAdminLogin() {
+  async submitLogin() {
     haptic("light");
-    const input = document.getElementById("login-admin-key-input");
-    const key = (input ? input.value : "").trim();
-    if (!key) {
+    const userEl = document.getElementById("login-username");
+    const selectEl = document.getElementById("login-user-select");
+    const pwdEl = document.getElementById("login-password");
+    const errAlert = document.getElementById("login-error-alert");
+    const btnSubmit = document.getElementById("btn-login-submit");
+
+    let username = "";
+    if (this._isManualUsername) {
+      username = (userEl ? userEl.value : "").trim();
+    } else {
+      username = (selectEl ? selectEl.value : "").trim();
+      if (!username || username === "__manual__") {
+        username = (userEl ? userEl.value : "").trim();
+      }
+    }
+
+    const password = (pwdEl ? pwdEl.value : "").trim();
+    const role = this._selectedLoginRole || "Pha Chế";
+
+    if (errAlert) {
+      errAlert.classList.add("hidden");
+      errAlert.textContent = "";
+    }
+
+    if (!username || username === "__manual__") {
       haptic("error");
-      this.toast("⚠️ Vui lòng nhập mã bảo mật Quản lý!");
+      this.toast("⚠️ Vui lòng chọn hoặc nhập Tên nhân viên!");
+      if (this._isManualUsername && userEl) userEl.focus();
+      else if (selectEl) selectEl.focus();
+      return;
+    }
+    if (!password) {
+      haptic("error");
+      this.toast("⚠️ Vui lòng nhập Mật khẩu (mặc định: 123456789)!");
+      if (pwdEl) pwdEl.focus();
       return;
     }
 
-    localStorage.setItem("sober_admin_key", key);
+    if (btnSubmit) {
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = "⏳ Đang đăng nhập...";
+    }
+
     try {
-      const data = await this.api("/api/bootstrap");
-      if (data && data.user && data.user.is_admin) {
-        haptic("success");
-        this.state.user = data.user;
-        this.state.serverTime = data.server_time;
-        this.state.employees = data.employees || [];
-        this._isExplicitLoggedOut = false;
-        this.showMainApp();
-        this.renderHeader();
-        this.renderAll();
-        this.switchTab("admin");
-        this.toast("👑 Đăng nhập Quản lý thành công!");
+      const res = await this.api("/api/auth/login", {
+        method: "POST",
+        body: { username, password, role },
+      });
+
+      if (!res || !res.success) {
+        throw new Error(res?.message || "Đăng nhập không thành công.");
+      }
+
+      haptic("success");
+      const user = res.user || {};
+      const token = res.token || "";
+
+      if (token) {
+        localStorage.setItem("sober_auth_token", token);
+      }
+      const myNick = user.nickname || (user.username !== "admin" ? user.username : "");
+      if (myNick) {
+        this.state.myNickname = myNick;
+        this.state.checkinEmp = myNick;
+        localStorage.setItem("sober_my_nickname", myNick);
+      } else {
+        this.state.myNickname = "";
+        localStorage.removeItem("sober_my_nickname");
+      }
+
+      const assignedRole = res.role || role;
+      this.state.myRole = assignedRole;
+      localStorage.setItem("sober_my_role", assignedRole);
+
+      if (user.is_admin) {
+        localStorage.setItem("sober_admin_key", password);
       } else {
         localStorage.removeItem("sober_admin_key");
-        haptic("error");
-        this.toast("❌ Mã Quản lý không hợp lệ hoặc không có quyền!");
       }
+      this._isExplicitLoggedOut = false;
+
+      this.state.user = user;
+      this.showMainApp();
+      this.renderHeader();
+      this.renderAll();
+
+      if (user.is_admin && !myNick) {
+        this.switchTab("admin");
+      } else {
+        this.setEndshiftRole(assignedRole);
+        this.loadPersonalSummary(myNick);
+        this.switchTab("attendance");
+      }
+
+      this.toast(res.message || `🎉 Chào mừng ${user.full_name || username}!`);
     } catch (err) {
-      localStorage.removeItem("sober_admin_key");
       haptic("error");
-      this.toast("❌ Đăng nhập thất bại: " + (err.message || "Lỗi xác thực"));
+      if (errAlert) {
+        errAlert.textContent = "❌ " + (err.message || "Tên đăng nhập hoặc mật khẩu không chính xác.");
+        errAlert.classList.remove("hidden");
+      }
+      this.toast("❌ " + (err.message || "Đăng nhập thất bại. Mặc định: 123456789"));
+    } finally {
+      if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = "🚀 Đăng Nhập";
+      }
     }
   },
 
@@ -373,6 +604,7 @@ const App = {
 
   logout() {
     haptic("light");
+    localStorage.removeItem("sober_auth_token");
     localStorage.removeItem("sober_my_nickname");
     localStorage.removeItem("sober_my_role");
     localStorage.removeItem("sober_admin_key");
@@ -382,6 +614,55 @@ const App = {
     this._isExplicitLoggedOut = true;
     this.showLoginScreen();
     this.toast("👋 Đã đăng xuất!");
+  },
+
+  showChangePasswordModal() {
+    haptic("light");
+    const user = this.state.user || {};
+    const curName = this.state.myNickname || user.full_name || user.username || "Tài khoản";
+    this.openModal({
+      title: `🔑 Đổi Mật Khẩu (${esc(curName)})`,
+      body: `
+        <div class="form-group mb-12">
+          <label class="field-label">Mật khẩu hiện tại</label>
+          <input type="password" id="modal-pwd-current" class="input" placeholder="Nhập mật khẩu hiện tại (mặc định: 123456789)" />
+        </div>
+        <div class="form-group mb-16">
+          <label class="field-label">Mật khẩu mới</label>
+          <input type="password" id="modal-pwd-new" class="input" placeholder="Nhập mật khẩu mới (tối thiểu 4 ký tự)" />
+        </div>
+        <button type="button" class="btn btn-primary btn-block btn-lg" onclick="App.submitChangePassword()">
+          💾 Lưu Mật Khẩu Mới
+        </button>
+      `,
+    });
+  },
+
+  async submitChangePassword() {
+    const curPwd = (document.getElementById("modal-pwd-current")?.value || "").trim();
+    const newPwd = (document.getElementById("modal-pwd-new")?.value || "").trim();
+
+    if (!curPwd || !newPwd) {
+      this.toast("⚠️ Vui lòng nhập đầy đủ thông tin.");
+      return;
+    }
+    if (newPwd.length < 4) {
+      this.toast("⚠️ Mật khẩu mới phải có ít nhất 4 ký tự.");
+      return;
+    }
+
+    try {
+      const res = await this.api("/api/auth/change-password", {
+        method: "POST",
+        body: { old_password: curPwd, new_password: newPwd },
+      });
+      haptic("success");
+      this.closeModal();
+      this.toast(res.message || "✅ Đổi mật khẩu thành công!");
+    } catch (err) {
+      haptic("error");
+      this.toast("❌ " + (err.message || "Không thể đổi mật khẩu."));
+    }
   },
 
   async init() {
@@ -419,9 +700,10 @@ const App = {
         lvDateEl.value = data.server_time.date || "";
       }
 
-      this.populateLoginEmployeeSelect();
+      this.populateLoginUsers();
 
       // Check whether user has logged in
+      const hasAuthToken = Boolean(localStorage.getItem("sober_auth_token"));
       const hasNick = Boolean(this.state.myNickname);
       const isAdminKey = Boolean(localStorage.getItem("sober_admin_key"));
       const isTgAdmin = Boolean(
@@ -431,7 +713,7 @@ const App = {
         !this._isExplicitLoggedOut
       );
 
-      const isAuthenticated = (hasNick && this.state.myRole) || isAdminKey || isTgAdmin;
+      const isAuthenticated = !this._isExplicitLoggedOut && (hasAuthToken || (hasNick && this.state.myRole) || isAdminKey || isTgAdmin);
 
       document.getElementById("app-loading").classList.add("hidden");
 
@@ -584,29 +866,106 @@ const App = {
 
     // Open sessions
     const badge = document.getElementById("open-sessions-badge");
-    badge.textContent = `${this.state.openSessions.length} phiên`;
+    if (badge) badge.textContent = `${this.state.openSessions.length} phiên`;
     const listEl = document.getElementById("open-sessions-list");
+    const isShopOrAdmin = this.isShopDevice() || (this.state.user && this.state.user.is_admin);
 
-    if (!this.state.openSessions.length) {
-      listEl.innerHTML = `<p class="empty-text">Chưa có nhân viên nào đang trong ca.</p>`;
-    } else {
-      listEl.innerHTML = this.state.openSessions
-        .map(
-          (s) => `
-          <div class="session-item">
-            <div class="session-info">
-              <strong>👤 ${esc(s.nickname)}</strong>
-              <span>${esc(s.shift_type)} (${esc(s.ca || "")}) • Vào lúc ${esc(s.checkin_time)}</span>
-            </div>
-            <button class="btn btn-danger btn-sm" onclick="App.submitCheckout('${esc(s.nickname)}', '${esc(s.shift_type)}')">
-              📤 Check Out
-            </button>
-          </div>`
-        )
-        .join("");
+    if (listEl) {
+      if (!this.state.openSessions.length) {
+        listEl.innerHTML = `<p class="empty-text">Chưa có nhân viên nào đang trong ca.</p>`;
+      } else {
+        listEl.innerHTML = this.state.openSessions
+          .map(
+            (s) => `
+            <div class="session-item">
+              <div class="session-info">
+                <strong>👤 ${esc(s.nickname)}</strong>
+                <span>${esc(s.shift_type)} (${esc(s.ca || "")}) • Vào lúc ${esc(s.checkin_time)}</span>
+              </div>
+              ${
+                isShopOrAdmin
+                  ? `<button class="btn btn-danger btn-sm" onclick="App.submitCheckout('${esc(s.nickname)}', '${esc(s.shift_type)}')">
+                📤 Check Out
+              </button>`
+                  : `<span class="badge-active-shift">🟢 Đang làm</span>`
+              }
+            </div>`
+          )
+          .join("");
+      }
     }
 
     this.renderCheckinEmployees();
+    this.updateKioskUI();
+  },
+
+  // ── Kiosk Device Management ──
+  isShopDevice() {
+    return Boolean(localStorage.getItem("sober_shop_kiosk_key"));
+  },
+
+  updateKioskUI() {
+    const isShop = this.isShopDevice();
+    const isAdmin = Boolean(this.state.user && this.state.user.is_admin);
+
+    const noticeEl = document.getElementById("kiosk-notice-banner");
+    const badgeEl = document.getElementById("kiosk-active-badge");
+    if (noticeEl && badgeEl) {
+      if (isShop) {
+        noticeEl.classList.add("hidden");
+        badgeEl.classList.remove("hidden");
+      } else if (isAdmin) {
+        noticeEl.classList.add("hidden");
+        badgeEl.classList.add("hidden");
+      } else {
+        noticeEl.classList.remove("hidden");
+        badgeEl.classList.add("hidden");
+      }
+    }
+
+    const admBadge = document.getElementById("kiosk-status-badge");
+    const actBtn = document.getElementById("btn-kiosk-activate");
+    const deactBtn = document.getElementById("btn-kiosk-deactivate");
+    const descEl = document.getElementById("kiosk-status-desc");
+
+    if (admBadge && actBtn && deactBtn) {
+      if (isShop) {
+        admBadge.textContent = "🟢 Máy Của Quán";
+        admBadge.className = "badge badge-admin";
+        if (descEl) descEl.textContent = "Thiết bị này ĐANG LÀ máy điểm danh cố định tại quầy. Nhân viên có thể chấm công trực tiếp tại đây.";
+        actBtn.classList.add("hidden");
+        deactBtn.classList.remove("hidden");
+      } else {
+        admBadge.textContent = "⚪ Chưa kích hoạt";
+        admBadge.className = "badge badge-emp";
+        if (descEl) descEl.textContent = "Thiết bị này CHƯA được kích hoạt làm máy quán. Bấm nút dưới để biến máy này thành máy điểm danh cố định.";
+        actBtn.classList.remove("hidden");
+        deactBtn.classList.add("hidden");
+      }
+    }
+  },
+
+  async activateShopDevice() {
+    haptic("light");
+    try {
+      const res = await this.api("/api/admin/kiosk/activate", { method: "POST" });
+      if (res.kiosk_key) {
+        localStorage.setItem("sober_shop_kiosk_key", res.kiosk_key);
+        this.updateKioskUI();
+        haptic("success");
+        this.toast(res.message || "✅ Đã kích hoạt máy quán!");
+      }
+    } catch (err) {
+      haptic("error");
+      this.toast("❌ " + err.message);
+    }
+  },
+
+  async deactivateShopDevice() {
+    haptic("light");
+    localStorage.removeItem("sober_shop_kiosk_key");
+    this.updateKioskUI();
+    this.toast("⚪ Đã hủy kích hoạt máy điểm danh trên thiết bị này.");
   },
 
   setCheckinType(type) {
@@ -632,8 +991,9 @@ const App = {
   },
 
   renderCheckinEmployees() {
-    const q = stripAccents(document.getElementById("ci-emp-search")?.value || "");
     const grid = document.getElementById("ci-emp-grid");
+    if (!grid) return;
+    const q = stripAccents(document.getElementById("ci-emp-search")?.value || "");
     const filtered = this.state.employees.filter(
       (e) => !q || stripAccents(e.nickname).includes(q) || stripAccents(e.full_name).includes(q)
     );
@@ -661,6 +1021,11 @@ const App = {
   },
 
   async submitCheckin() {
+    if (!this.isShopDevice() && !this.state.user?.is_admin) {
+      haptic("error");
+      this.toast("🔒 Chấm công chỉ được phép thực hiện trên máy điện thoại cố định tại quán!");
+      return;
+    }
     const nickname = this.state.checkinEmp;
     if (!nickname) {
       this.toast("⚠️ Vui lòng chạm chọn tên của bạn!");
@@ -692,6 +1057,11 @@ const App = {
   },
 
   async submitCheckout(nickname, shiftType) {
+    if (!this.isShopDevice() && !this.state.user?.is_admin) {
+      haptic("error");
+      this.toast("🔒 Check-out chỉ được phép thực hiện trên máy điện thoại cố định tại quán!");
+      return;
+    }
     haptic("light");
     try {
       const res = await this.api("/api/checkout", {
@@ -946,8 +1316,53 @@ const App = {
   // ==================== 3. REWARDS, REVENUE & ENDSHIFT ====================
 
   renderRewardBalances() {
-    const q = stripAccents(document.getElementById("rew-search")?.value || "");
     const el = document.getElementById("rew-balances-list");
+    if (!el) return;
+
+    const isAdmin = Boolean(this.state.user?.is_admin);
+    const myNick = stripAccents(this.state.myNickname || this.state.user?.nickname || this.state.user?.first_name || "");
+    const searchInput = document.getElementById("rew-search");
+
+    if (!isAdmin) {
+      // 🔒 Nhân viên thường: CỦA AI NGƯỜI ĐÓ XEM & CỦA AI NGƯỜI ĐÓ DÙNG
+      if (searchInput) searchInput.style.display = "none";
+
+      const myData = this.state.employees.find(
+        (e) => stripAccents(e.nickname) === myNick || stripAccents(e.full_name) === myNick
+      );
+
+      if (!myData) {
+        el.innerHTML = `
+          <div class="card p-16 text-center" style="background: var(--surface-variant, #f8f9fa);">
+            <p class="empty-text">⚠️ Chưa tìm thấy hồ sơ ly thưởng cho tài khoản: <b>${esc(this.state.myNickname || this.state.user?.full_name || "Bạn")}</b>.</p>
+            <p class="text-xs text-muted mt-8">Vui lòng báo Quản lý thêm tên của bạn vào danh sách để tích luỹ ly thưởng.</p>
+          </div>`;
+        return;
+      }
+
+      const bal = myData.balance || 0;
+      el.innerHTML = `
+        <div class="card p-20 text-center" style="border: 2px solid var(--accent, #d97706); border-radius: 16px; background: rgba(217, 119, 6, 0.05);">
+          <div style="font-size: 3rem; margin-bottom: 8px;">${bal > 0 ? "🎁" : "🥤"}</div>
+          <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 4px;">Ly Thưởng Của Bạn</h3>
+          <p class="text-muted text-xs mb-16">Nhân viên: <b>${esc(myData.nickname)}</b></p>
+          <div style="font-size: 2.4rem; font-weight: 800; color: var(--accent, #d97706); margin-bottom: 16px;">
+            ${bal} <span style="font-size: 1.1rem; font-weight: normal; color: var(--text-secondary, #666);">ly</span>
+          </div>
+          <button class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1rem;"
+            ${bal <= 0 ? "disabled" : ""}
+            onclick="App.confirmUseReward('${esc(myData.nickname)}', ${bal})">
+            🥤 Dùng 1 Ly Thưởng Ngay
+          </button>
+          ${bal <= 0 ? '<p class="text-xs text-muted mt-8">Hiện bạn chưa có ly thưởng nào khả dụng.</p>' : ''}
+        </div>
+      `;
+      return;
+    }
+
+    // 👑 Quản lý (Admin): Xem toàn bộ bảng thưởng và hỗ trợ trừ ly
+    if (searchInput) searchInput.style.display = "";
+    const q = stripAccents(searchInput?.value || "");
     const sorted = [...this.state.employees]
       .filter((e) => !q || stripAccents(e.nickname).includes(q))
       .sort((a, b) => (b.balance || 0) - (a.balance || 0));
@@ -962,13 +1377,13 @@ const App = {
         (e) => `
       <div class="reward-item">
         <div>
-          <strong>${e.balance > 0 ? "🎁" : "⬜"} ${esc(e.nickname)}</strong>
-          <div class="text-xs">Số dư: <b>${e.balance} ly thưởng</b></div>
+          <strong>${(e.balance || 0) > 0 ? "🎁" : "⬜"} ${esc(e.nickname)}</strong>
+          <div class="text-xs">Số dư: <b>${e.balance ?? 0} ly thưởng</b></div>
         </div>
-        <button class="btn ${e.balance > 0 ? "btn-primary" : "btn-ghost"} btn-sm"
-          ${e.balance <= 0 ? "disabled" : ""}
-          onclick="App.confirmUseReward('${esc(e.nickname)}', ${e.balance})">
-          🥤 Dùng 1 ly
+        <button class="btn ${(e.balance || 0) > 0 ? "btn-primary" : "btn-ghost"} btn-sm"
+          ${(e.balance || 0) <= 0 ? "disabled" : ""}
+          onclick="App.confirmUseReward('${esc(e.nickname)}', ${e.balance || 0})">
+          🥤 Trừ 1 ly
         </button>
       </div>`
       )
@@ -1705,6 +2120,7 @@ const App = {
   renderAdminOverview() {
     const ov = this.state.adminOverview;
     if (!ov) return;
+    this.updateKioskUI();
 
     const pendingRewards = ov.pending_rewards || [];
     const pendingLeaves = (ov.leave_requests || []).filter((x) => x.status === "pending");
@@ -2172,6 +2588,7 @@ const App = {
       this.state.employees = res.employees || [];
       this.renderAll();
       this.renderAdminEmployees();
+      this.populateLoginUsers();
       this.toast(res.message);
     } catch (err) {
       this.toast(err.message);
@@ -2200,6 +2617,7 @@ const App = {
       this.state.employees = res.employees || [];
       this.renderAll();
       this.renderAdminEmployees();
+      this.populateLoginUsers();
       this.toast(res.message);
     } catch (err) {
       this.toast(err.message);
@@ -2227,6 +2645,7 @@ const App = {
       this.state.employees = res.employees || [];
       this.renderAll();
       this.renderAdminEmployees();
+      this.populateLoginUsers();
       this.toast(res.message);
     } catch (err) {
       this.toast(err.message);
@@ -2279,6 +2698,7 @@ const App = {
       this.state.employees = res.employees || [];
       this.renderAll();
       this.renderAdminEmployees();
+      this.populateLoginUsers();
       this.toast(res.message);
     } catch (err) {
       this.toast(err.message);

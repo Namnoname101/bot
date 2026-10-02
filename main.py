@@ -11,7 +11,7 @@ from handlers.report_handler import handle_photo_report
 from handlers.reward_handler import (
     announce_command, button_click_handler, cancel_command, check_all_rewards,
     check_reward, help_command, inline_button_handler, open_mini_app_command,
-    quick_report_command, start_command, use_reward,
+    quick_report_command, set_pin_command, start_command, use_reward,
 )
 from handlers.checkin_handler import send_checkout_reminder, alert_unclosed_sessions, midnight_auto_cleanup
 from handlers.endshift_handler import handle_endshift_photo
@@ -53,6 +53,19 @@ async def post_init(application):
     except Exception:
         logger.exception("Không tải được danh sách admin phụ; chỉ dùng admin gốc.")
         application.bot_data['admin_ids'] = set()
+
+    # Tải cấu hình động (mã PIN WebApp) nếu có
+    try:
+        import json
+        from pathlib import Path
+        cfg_file = Path(__file__).resolve().parent / "data" / "app_settings.json"
+        if cfg_file.exists():
+            cfg_data = json.loads(cfg_file.read_text(encoding="utf-8"))
+            if cfg_data.get("webapp_admin_pin"):
+                application.bot_data["webapp_admin_pin"] = cfg_data["webapp_admin_pin"]
+                Config.WEBAPP_ADMIN_PIN = cfg_data["webapp_admin_pin"]
+    except Exception as e:
+        logger.warning("Không nạp được app_settings.json: %s", e)
 
     # 1. Quét dọn lúc 23:55 (Tự động chốt ca cho những người quên)
     application.job_queue.run_daily(
@@ -178,6 +191,7 @@ def main():
     app.add_handler(CommandHandler("baodoanhthu", quick_report_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("announce", announce_command))
+    app.add_handler(CommandHandler("setpin", set_pin_command))
     app.add_handler(CommandHandler("cancel", cancel_command))
     
     # Khởi động bàn phím ảo & Bắt sự kiện bấm nút

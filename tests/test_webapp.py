@@ -86,7 +86,11 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         await self.client.start_server()
 
         self.emp_headers = {
-            "X-Telegram-Init-Data": build_signed_init_data({"id": 555666, "first_name": "Nhân Viên"})
+            "X-Telegram-Init-Data": build_signed_init_data({"id": 555666, "first_name": "An"})
+        }
+        self.kiosk_headers = {
+            **self.emp_headers,
+            "X-Shop-Device-Key": Config.get_shop_kiosk_key(),
         }
         self.sub_admin_headers = {
             "X-Telegram-Init-Data": build_signed_init_data({"id": 777888, "first_name": "Quản Lý Phụ"})
@@ -145,6 +149,14 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(adm_data["user"]["is_super_admin"])
 
     async def test_checkin_and_checkout_flow(self):
+        # 1. Bị chặn 403 nếu check-in trên thiết bị cá nhân (thiếu key kiosk quán)
+        blocked_resp = await self.client.post(
+            "/api/checkin",
+            json={"nickname": "An", "shift_type": "Ca Chính", "ca": "Sáng"},
+            headers=self.emp_headers,
+        )
+        self.assertEqual(blocked_resp.status, 403)
+
         self.sheets.checkin.return_value = {
             "success": True,
             "time": "06:45:00",
@@ -155,10 +167,11 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
             "ca": "Sáng",
             "date_str": "28/09/2026",
         }
+        # 2. Thành công 200 khi gửi từ máy quán
         resp = await self.client.post(
             "/api/checkin",
             json={"nickname": "An", "shift_type": "Ca Chính", "ca": "Sáng"},
-            headers=self.emp_headers,
+            headers=self.kiosk_headers,
         )
         self.assertEqual(resp.status, 200)
         # 2 messages to admin (late info + late buttons) + 1 message to group
@@ -174,7 +187,7 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         co_resp = await self.client.post(
             "/api/checkout",
             json={"nickname": "An", "shift_type": "Ca Chính"},
-            headers=self.emp_headers,
+            headers=self.kiosk_headers,
         )
         self.assertEqual(co_resp.status, 200)
 
@@ -522,6 +535,155 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
             headers=self.sub_admin_headers,
         )
         self.assertEqual(rcp_del.status, 200)
+
+    async def test_username_password_auth_flow(self):
+        # 1. Đăng nhập nhân viên thành công với mật khẩu mặc định 123456789
+        emp_login = await self.client.post(
+            "/api/auth/login",
+            json={"username": "An", "password": "123456789", "role": "Pha Chế"},
+        )
+        self.assertEqual(emp_login.status, 200)
+        emp_data = await emp_login.json()
+        self.assertTrue(emp_data["success"])
+        token = emp_data.get("token")
+        self.assertTrue(bool(token))
+        self.assertEqual(emp_data["user"]["nickname"], "An")
+        self.assertEqual(emp_data["role"], "Pha Chế")
+
+        # 2. Dùng token xác thực qua header X-Auth-Token
+        bs_resp = await self.client.get("/api/bootstrap", headers={"X-Auth-Token": token})
+        self.assertEqual(bs_resp.status, 200)
+        bs_data = await bs_resp.json()
+        self.assertEqual(bs_data["user"]["nickname"], "An")
+
+        # 3. Đăng nhập Admin với mật khẩu mặc định 123456789
+        admin_login = await self.client.post(
+            "/api/auth/login",
+            json={"username": "admin", "password": "123456789"},
+        )
+        self.assertEqual(admin_login.status, 200)
+        adm_data = await admin_login.json()
+        self.assertTrue(adm_data["user"]["is_admin"])
+
+        # 4. Đăng nhập sai mật khẩu -> 401
+        wrong_pwd = await self.client.post(
+            "/api/auth/login",
+            json={"username": "An", "password": "WrongPassword!"},
+        )
+        self.assertEqual(wrong_pwd.status, 401)
+
+        # 5. Đăng nhập sai username -> 401
+        unknown_user = await self.client.post(
+            "/api/auth/login",
+            json={"username": "KhongTonTai", "password": "123456789"},
+        )
+        self.assertEqual(unknown_user.status, 401)
+
+        # 6. Đổi mật khẩu và đăng nhập lại
+        change_pwd = await self.client.post(
+            "/api/auth/change-password",
+            json={"old_password": "123456789", "new_password": "newSecretPassword2026"},
+            headers={"X-Auth-Token": token},
+        )
+        self.assertEqual(change_pwd.status, 200)
+
+        # Mật khẩu cũ 123456789 không còn hợp lệ
+        old_login = await self.client.post(
+            "/api/auth/login",
+            json={"username": "An", "password": "123456789"},
+        )
+        self.assertEqual(old_login.status, 401)
+
+        # Mật khẩu mới hoạt động bình thường
+        new_login = await self.client.post(
+            "/api/auth/login",
+            json={"username": "An", "password": "newSecretPassword2026"},
+        )
+        self.assertEqual(new_login.status, 200)
+
+        # 7. Admin thêm nhân viên mới -> Tự động có trên danh sách public và đăng nhập được ngay bằng pass mặc định 123456789
+        self.sheets.add_employee.return_value = {"success": True}
+        self.sheets.get_employees_detail.return_value = [
+            {"nickname": "An", "key": "an", "full_name": "Nguyễn An", "rate": 18.0, "balance": 2},
+            {"nickname": "Bình", "key": "binh", "full_name": "Trần Bình", "rate": 16.0, "balance": 0},
+            {"nickname": "Hương", "key": "huong", "full_name": "Lê Hương", "rate": 18.0, "balance": 0},
+        ]
+        add_emp_resp = await self.client.post(
+            "/api/admin/employee/add",
+            json={"nickname": "Hương"},
+            headers=self.sub_admin_headers,
+        )
+        self.assertEqual(add_emp_resp.status, 200)
+
+        # Kiểm tra danh sách public users có nhân viên mới "Hương"
+        pub_users = await self.client.get("/api/auth/public-users")
+        self.assertEqual(pub_users.status, 200)
+        pub_data = await pub_users.json()
+        self.assertIn("Hương", pub_data["users"])
+        self.assertTrue(any(e["nickname"] == "Hương" for e in pub_data["employees"]))
+
+        # Nhân viên mới "Hương" đăng nhập ngay bằng mật khẩu mặc định 123456789
+        huong_login = await self.client.post(
+            "/api/auth/login",
+            json={"username": "Hương", "password": "123456789", "role": "Phục Vụ"},
+        )
+        self.assertEqual(huong_login.status, 200)
+        huong_data = await huong_login.json()
+        self.assertTrue(huong_data["success"])
+        self.assertEqual(huong_data["user"]["nickname"], "Hương")
+        self.assertEqual(huong_data["role"], "Phục Vụ")
+
+    async def test_reward_ownership_access_control(self):
+        an_headers = {
+            "X-Telegram-Init-Data": build_signed_init_data({"id": 1001, "first_name": "An"})
+        }
+        binh_headers = {
+            "X-Telegram-Init-Data": build_signed_init_data({"id": 1002, "first_name": "Bình"})
+        }
+
+        # 1. Non-admin "Bình" cannot view other employee balances in bootstrap
+        boot_resp = await self.client.get("/api/bootstrap", headers=binh_headers)
+        self.assertEqual(boot_resp.status, 200)
+        boot_data = await boot_resp.json()
+        for emp in boot_data["employees"]:
+            if emp["nickname"] == "An":
+                self.assertIsNone(emp.get("balance"), "Other employee's balance must be hidden from non-admin")
+            elif emp["nickname"] == "Bình":
+                self.assertIsNotNone(emp.get("balance"), "Own balance must be visible")
+
+        # 2. Admin CAN see all balances in bootstrap
+        admin_boot_resp = await self.client.get("/api/bootstrap", headers=self.super_admin_headers)
+        self.assertEqual(admin_boot_resp.status, 200)
+        admin_boot_data = await admin_boot_resp.json()
+        an_emp = next(e for e in admin_boot_data["employees"] if e["nickname"] == "An")
+        self.assertEqual(an_emp.get("balance"), 2)
+
+        # 3. Non-admin "Bình" trying to consume "An"'s reward -> 403 Forbidden
+        use_other = await self.client.post(
+            "/api/rewards/use",
+            json={"nickname": "An"},
+            headers=binh_headers,
+        )
+        self.assertEqual(use_other.status, 403)
+        res_data = await use_other.json()
+        self.assertFalse(res_data["success"])
+
+        # 4. Non-admin "An" consuming "An"'s own reward -> 200 OK
+        self.sheets.consume_reward.return_value = {"success": True, "balance": 1}
+        use_own = await self.client.post(
+            "/api/rewards/use",
+            json={"nickname": "An"},
+            headers=an_headers,
+        )
+        self.assertEqual(use_own.status, 200)
+
+        # 5. Admin consuming "An"'s reward (support/admin on behalf) -> 200 OK
+        use_admin = await self.client.post(
+            "/api/rewards/use",
+            json={"nickname": "An"},
+            headers=self.super_admin_headers,
+        )
+        self.assertEqual(use_admin.status, 200)
 
     async def test_open_mini_app_bot_command(self):
         msg = SimpleNamespace(message_id=10, reply_text=AsyncMock())

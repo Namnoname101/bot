@@ -653,6 +653,10 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await handle_mark_unreported_late(query, context)
         return
 
+    if data.startswith("leave_appr_") or data.startswith("leave_rejc_"):
+        await handle_leave_decision_callback(query, context)
+        return
+
     if data.startswith("toggle_emp_"):
         nickname = data[len("toggle_emp_"):]
         if 'report_selection' in context.user_data:
@@ -842,3 +846,111 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
         keyboard = get_admin_keyboard(is_super_admin=is_super_admin(user_id)) if is_admin(user_id, context) else get_main_keyboard()
         msg = await context.bot.send_message(chat_id=chat_id, text="❌ Đã huỷ thao tác.", reply_markup=keyboard)
         track_message(context, msg.message_id)
+
+
+async def handle_leave_decision_callback(query, context: ContextTypes.DEFAULT_TYPE):
+    """Xử lý nút Duyệt / Từ chối đơn xin phép trên Telegram."""
+    user_id = query.from_user.id
+    if not is_admin(user_id, context):
+        await query.answer("⛔ Chỉ Quản lý mới có quyền duyệt đơn này.", show_alert=True)
+        return
+
+    data = query.data
+    approve = data.startswith("leave_appr_")
+    req_id = data[len("leave_appr_"):] if approve else data[len("leave_rejc_"):]
+
+    store = context.bot_data.get("store")
+    if not store:
+        from webapp.store import WebAppStore
+        store = WebAppStore(sheets_service=context.bot_data.get("sheets"))
+        context.bot_data["store"] = store
+
+    decided = store.decide_leave_request(req_id, approve)
+    if not decided:
+        await query.answer("⚠️ Không tìm thấy đơn hoặc đơn đã được xử lý.", show_alert=True)
+        return
+
+    nickname = decided.get("nickname", "")
+    date_str = decided.get("date", "")
+    ca = decided.get("ca", "")
+    req_type = decided.get("type", "late")
+    type_labels = {"late": "Xin đi muộn", "leave": "Xin nghỉ phép", "swap": "Xin đổi ca"}
+    t_label = type_labels.get(req_type, "Đơn xin phép")
+
+    sheets_service = context.bot_data.get("sheets")
+    if approve and req_type == "late" and sheets_service:
+        try:
+            await asyncio.to_thread(sheets_service.mark_reported_late, nickname, date_str)
+        except Exception:
+            pass
+
+    status_icon = "✅ ĐÃ DUYỆT ĐƠN" if approve else "❌ ĐÃ TỪ CHỐI ĐƠN"
+    now_str = local_now().strftime("%H:%M %d/%m")
+    decider = query.from_user.full_name or "Quản lý"
+
+    orig_text = query.message.text or query.message.caption or ""
+    new_text = f"{orig_text}\n\n📌 *{status_icon}* bởi {decider} ({now_str})"
+
+    try:
+        if query.message.caption:
+            await query.edit_message_caption(caption=new_text, parse_mode="Markdown")
+        else:
+            await query.edit_message_text(text=new_text, parse_mode="Markdown")
+    except Exception:
+        pass
+
+    try:
+        await context.bot.send_message(
+            chat_id=Config.GROUP_CHAT_ID,
+            text=f"{status_icon}: *{t_label}* của *{nickname}* ({date_str} • Ca {ca}) — duyệt bởi {decider}",
+            parse_mode="Markdown",
+        )
+    except Exception:
+        pass
+
+    await query.answer(f"Đã {status_icon.lower()}!")
+
+
+@admin_only
+async def set_pin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Lệnh đổi mã PIN Quản lý WebApp: /setpin <mã_mới>"""
+    args = context.args or []
+    if not args or not args[0].strip():
+        cur_pin = context.bot_data.get("webapp_admin_pin") or Config.WEBAPP_ADMIN_PIN or "Chưa đặt (dùng chat ID)"
+        await update.message.reply_text(
+            f"ℹ️ Mã PIN Quản lý WebApp hiện tại: `{cur_pin}`\n\n"
+            "Để đổi mã mới, gõ:\n`/setpin <mã_mới>` (Ví dụ: `/setpin 2026`)",
+            parse_mode="Markdown",
+        )
+        return
+
+    new_pin = args[0].strip()
+    if len(new_pin) < 3 or len(new_pin) > 20:
+        await update.message.reply_text("⚠️ Mã PIN nên từ 3 đến 20 ký tự.")
+        return
+
+    context.bot_data["webapp_admin_pin"] = new_pin
+    Config.WEBAPP_ADMIN_PIN = new_pin
+
+    try:
+        import json
+        from pathlib import Path
+        cfg_path = Path(__file__).resolve().parent.parent / "data" / "app_settings.json"
+        cfg_path.parent.mkdir(parents=True, exist_ok=True)
+        current_cfg = {}
+        if cfg_path.exists():
+            try:
+                current_cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+            except Exception:
+                current_cfg = {}
+        current_cfg["webapp_admin_pin"] = new_pin
+        cfg_path.write_text(json.dumps(current_cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception as e:
+        logger.warning("Không thể lưu app_settings.json: %s", e)
+
+    await update.message.reply_text(
+        f"✅ **Đã đổi mã PIN Quản lý thành:** `{new_pin}`\n"
+        "Mã mới có hiệu lực ngay lập tức trên WebApp.",
+        parse_mode="Markdown",
+    )
+

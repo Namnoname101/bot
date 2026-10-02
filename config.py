@@ -83,6 +83,16 @@ class Config:
     WEBAPP_DEV_MODE = os.getenv("WEBAPP_DEV_MODE", "false").strip().lower() in {"1", "true", "yes"}
     WEBAPP_ALLOW_BROWSER = os.getenv("WEBAPP_ALLOW_BROWSER", "true").strip().lower() not in {"0", "false", "no"}
     WEBAPP_ADMIN_PIN = os.getenv("WEBAPP_ADMIN_PIN", "").strip()
+    SHOP_KIOSK_KEY = os.getenv("SHOP_KIOSK_KEY", "").strip()
+
+    @classmethod
+    def get_shop_kiosk_key(cls) -> str:
+        """Khóa định danh thiết bị cố định tại quán cho điểm danh."""
+        if cls.SHOP_KIOSK_KEY:
+            return cls.SHOP_KIOSK_KEY
+        import hashlib
+        token_part = (cls.BOT_TOKEN or "")[:10]
+        return hashlib.sha256(f"sober_kiosk_{cls.ADMIN_CHAT_ID}_{token_part}".encode()).hexdigest()[:16]
 
 
     @classmethod

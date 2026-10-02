@@ -66,15 +66,91 @@ def validate_telegram_init_data(
     return parsed_pairs
 
 
+import base64
+
+
+def get_auth_token_secret() -> bytes:
+    token = (Config.BOT_TOKEN or "").strip()
+    if token:
+        return hashlib.sha256(f"SoberWebAuth:{token}".encode("utf-8")).digest()
+    return b"SoberCoffeeWebAuthSecretDefaultKey32B"
+
+
+def create_auth_token(payload: dict, exp_seconds: int = 30 * 86400) -> str:
+    """Tạo session token mã hoá an toàn dạng b64_payload.signature."""
+    body = dict(payload)
+    body["exp"] = int(time.time() + exp_seconds)
+    body_bytes = json.dumps(body, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    b64_payload = base64.urlsafe_b64encode(body_bytes).decode("utf-8").rstrip("=")
+    secret = get_auth_token_secret()
+    sig = hmac.new(secret, b64_payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{b64_payload}.{sig}"
+
+
+def verify_auth_token(token: str) -> dict | None:
+    """Xác thực token và trả về payload nếu hợp lệ."""
+    if not token or not isinstance(token, str) or "." not in token:
+        return None
+    try:
+        b64_payload, received_sig = token.rsplit(".", 1)
+        secret = get_auth_token_secret()
+        calc_sig = hmac.new(secret, b64_payload.encode("utf-8"), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(calc_sig, received_sig):
+            return None
+        padding = 4 - (len(b64_payload) % 4)
+        padded = b64_payload + ("=" * padding if padding < 4 else "")
+        body_bytes = base64.urlsafe_b64decode(padded.encode("utf-8"))
+        data = json.loads(body_bytes.decode("utf-8"))
+        if data.get("exp") and time.time() > data["exp"]:
+            return None
+        return data
+    except Exception:
+        return None
+
+
 def resolve_request_user(request, bot_data: dict | None = None) -> dict | None:
-    """Xác định người dùng Telegram từ request header hoặc query (hỗ trợ DEV_MODE khi bật)."""
+    """Xác định người dùng từ Session Token (Username/Password), Telegram initData hoặc header."""
+    context_stub = type("ContextStub", (), {"bot_data": bot_data or {}})()
+
+    # 1. Session Token từ đăng nhập Username/Password
+    auth_header = (
+        request.headers.get("X-Auth-Token")
+        or request.headers.get("Authorization")
+        or request.query.get("auth_token")
+        or ""
+    ).strip()
+    if auth_header.startswith("Bearer "):
+        auth_header = auth_header[7:].strip()
+
+    if auth_header:
+        token_payload = verify_auth_token(auth_header)
+        if token_payload and isinstance(token_payload, dict):
+            uid = int(token_payload.get("id") or token_payload.get("uid") or 0)
+            username = str(token_payload.get("username") or "")
+            nickname = str(token_payload.get("nickname") or username)
+            full_name = str(token_payload.get("full_name") or nickname or "Nhân viên")
+            is_adm = bool(token_payload.get("is_admin")) or is_admin(uid, context_stub)
+            is_super = bool(token_payload.get("is_super_admin")) or is_super_admin(uid)
+            return {
+                "id": uid,
+                "first_name": nickname or full_name,
+                "last_name": "",
+                "full_name": full_name,
+                "username": username,
+                "nickname": nickname,
+                "is_admin": is_adm,
+                "is_super_admin": is_super,
+                "role": token_payload.get("role") or "Pha Chế",
+                "authenticated": True,
+                "web_mode": True,
+            }
+
+    # 2. Telegram WebApp initData
     init_data = (
         request.headers.get("X-Telegram-Init-Data")
         or request.query.get("initData")
         or ""
     ).strip()
-
-    context_stub = type("ContextStub", (), {"bot_data": bot_data or {}})()
 
     if init_data:
         verified = validate_telegram_init_data(init_data)
@@ -130,9 +206,11 @@ def resolve_request_user(request, bot_data: dict | None = None) -> dict | None:
         or ""
     ).strip()
     if admin_key:
+        dyn_pin = str((bot_data or {}).get("webapp_admin_pin") or "").strip()
         valid_super = (
             admin_key == str(Config.ADMIN_CHAT_ID)
             or (bool(Config.WEBAPP_ADMIN_PIN) and admin_key == Config.WEBAPP_ADMIN_PIN)
+            or (bool(dyn_pin) and admin_key == dyn_pin)
         )
         valid_sub_admin = False
         sub_uid = 0
