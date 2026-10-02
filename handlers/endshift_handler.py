@@ -232,6 +232,19 @@ async def handle_endshift_send(update: Update, context: ContextTypes.DEFAULT_TYP
         parse_mode='Markdown',
     )
 
+    nvl_remind = await context.bot.send_message(
+        chat_id=chat_id,
+        text="📦 *Ca này bạn có lấy nguyên vật liệu nào chưa báo không?*",
+        reply_markup=InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("📦 Báo lấy NVL ngay", callback_data="inv_quick_start"),
+                InlineKeyboardButton("✔️ Đã báo đủ", callback_data="inv_cancel"),
+            ]
+        ]),
+        parse_mode='Markdown',
+    )
+    track_message(context, nvl_remind.message_id)
+
 
 # ── Hủy flow ────────────────────────────────────────────────────────────────
 

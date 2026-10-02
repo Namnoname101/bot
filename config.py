@@ -65,11 +65,25 @@ class Config:
     # ID của Google Spreadsheet (File Tính Lương)
     SALARY_SPREADSHEET_ID = os.getenv("SALARY_SPREADSHEET_ID")
 
+    # ID của Google Spreadsheet (Quản Lý Nguyên Vật Liệu)
+    INVENTORY_SPREADSHEET_ID = os.getenv("INVENTORY_SPREADSHEET_ID")
+
     # Thư mục Google Drive lưu ảnh check-in
     DRIVE_FOLDER_ID = os.getenv("DRIVE_FOLDER_ID")
 
     DEFAULT_HOURLY_RATE_K = float(os.getenv("DEFAULT_HOURLY_RATE_K", "16"))
     TIMEZONE = os.getenv("TIMEZONE", "Asia/Ho_Chi_Minh")
+
+    # Cấu hình Telegram Mini App (Web App)
+    WEBAPP_ENABLED = os.getenv("WEBAPP_ENABLED", "true").strip().lower() not in {"0", "false", "no"}
+    WEBAPP_HOST = os.getenv("WEBAPP_HOST", "0.0.0.0").strip() or "0.0.0.0"
+    WEBAPP_PORT = int(os.getenv("PORT", os.getenv("WEBAPP_PORT", "8080")))
+    WEBAPP_URL = os.getenv("WEBAPP_URL", "").strip().rstrip("/")
+    MINI_APP_SHORT_URL = os.getenv("MINI_APP_SHORT_URL", "").strip()
+    WEBAPP_DEV_MODE = os.getenv("WEBAPP_DEV_MODE", "false").strip().lower() in {"1", "true", "yes"}
+    WEBAPP_ALLOW_BROWSER = os.getenv("WEBAPP_ALLOW_BROWSER", "true").strip().lower() not in {"0", "false", "no"}
+    WEBAPP_ADMIN_PIN = os.getenv("WEBAPP_ADMIN_PIN", "").strip()
+
 
     @classmethod
     def get_google_credentials_info(cls) -> dict:

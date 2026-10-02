@@ -1,0 +1,24 @@
+Mapping headers: ['Tên Bảng Lương', 'Nickname Bot', 'Mức Lương/Giờ']
+Balance headers: ['Nickname', 'SoLyDaThuong', 'SoLyDaDung', 'SoLyConLai']
+
+Mapping data:
+['Nghĩa', 'Nghĩa', '15']
+['Trâm', 'Trâm', '15']
+['kly', 'kly', '17']
+['thathu', 'thathu', '']
+['truongg', 'truongg', '14']
+['Khahan', 'Khahan', '15']
+['Tuanchotim', 'Tuanchotim', '15']
+['Phuc', 'Phuc', '14']
+['thao', 'thao', '18']
+
+Balance data:
+['Trần T- Anh Thư', '0', '0', '0']
+['Duy Khánh', '2', '0', '2']
+['Nghĩa', '1', '0', '1']
+['Trâm', '1', '0', '1']
+['kly', '12', '12', '0']
+['thathu', '13', '9', '4']
+['truongg', '2', '2', '0']
+['Khahan', '9', '8', '1']
+['Tuanchotim', '6', '2', '4']

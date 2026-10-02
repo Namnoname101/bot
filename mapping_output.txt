@@ -1,0 +1,5 @@
+['Tên Bảng Lương', 'Nickname Bot', 'Mức Lương/Giờ']
+['Nghĩa', 'Nghĩa', '15']
+['Trâm', 'Trâm', '15']
+['kly', 'kly', '17']
+['thathu', 'thathu', '']

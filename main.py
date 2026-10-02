@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from zoneinfo import ZoneInfo
-from telegram import Update
+from telegram import MenuButtonWebApp, Update, WebAppInfo
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, CallbackQueryHandler, ContextTypes
 
 from config import Config
@@ -10,11 +10,12 @@ from google_sheets import GoogleSheetsService
 from handlers.report_handler import handle_photo_report
 from handlers.reward_handler import (
     announce_command, button_click_handler, cancel_command, check_all_rewards,
-    check_reward, help_command, inline_button_handler, quick_report_command,
-    start_command, use_reward,
+    check_reward, help_command, inline_button_handler, open_mini_app_command,
+    quick_report_command, start_command, use_reward,
 )
 from handlers.checkin_handler import send_checkout_reminder, alert_unclosed_sessions, midnight_auto_cleanup
 from handlers.endshift_handler import handle_endshift_photo
+from webapp.server import start_webapp_server, stop_webapp_server
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ async def photo_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Mặc định: xử lý như ảnh báo cáo doanh thu
     await handle_photo_report(update, context)
+
 
 async def post_init(application):
     """Thiết lập Menu Commands mặc định cho Bot và gửi tin hướng dẫn ban đầu"""
@@ -105,6 +107,30 @@ async def post_init(application):
         name='salary-sheet-maintenance',
     )
 
+    # 4. Khởi động Telegram Mini App HTTP Server & thiết lập Menu Button
+    try:
+        await start_webapp_server(application)
+    except Exception:
+        logger.exception("Không thể khởi động Mini App HTTP Server.")
+
+    if Config.WEBAPP_URL.startswith("https://"):
+        try:
+            await application.bot.set_chat_menu_button(
+                menu_button=MenuButtonWebApp(
+                    text="📱 Mở App",
+                    web_app=WebAppInfo(url=Config.WEBAPP_URL),
+                )
+            )
+            logger.info("✅ Đã thiết lập MenuButtonWebApp: %s", Config.WEBAPP_URL)
+        except Exception as e:
+            logger.warning("Không thiết lập được MenuButtonWebApp: %s", e)
+
+
+async def post_stop(application):
+    """Dọn dẹp HTTP server của Mini App khi tắt Bot."""
+    await stop_webapp_server(application)
+
+
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Ghi đầy đủ exception để một update lỗi không biến mất im lặng."""
     error = context.error
@@ -133,6 +159,7 @@ def main():
         .write_timeout(30)
         .pool_timeout(15)
         .post_init(post_init)
+        .post_stop(post_stop)
         .build()
     )
 
@@ -143,7 +170,8 @@ def main():
     # 3. Đăng ký các Handlers
     # Nhận ảnh (check-in/check-out hoặc báo cáo)
     app.add_handler(MessageHandler(filters.PHOTO, photo_dispatcher))
-    # Các lệnh liên quan đến thưởng
+    # Các lệnh liên quan đến thưởng & Mini App
+    app.add_handler(CommandHandler("app", open_mini_app_command))
     app.add_handler(CommandHandler("dadung", use_reward))
     app.add_handler(CommandHandler("thuong", check_reward))
     app.add_handler(CommandHandler("bangthuong", check_all_rewards))
@@ -163,6 +191,7 @@ def main():
     # 4. Chạy bot
     logger.info("✅ Bot đã sẵn sàng và đang chạy! Nhấn Ctrl + C để dừng.")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
+
 
 if __name__ == '__main__':
     main()

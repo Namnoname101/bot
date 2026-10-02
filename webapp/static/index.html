@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Sober — Mini App Tổng Hợp</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <!-- Standalone Login Screen (Shown when not authenticated) -->
+  <div id="screen-login" class="login-screen hidden">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo">☕</div>
+        <h2 class="login-title">SOBER COFFEE & TEA</h2>
+        <p class="login-sub">Đăng Nhập Điểm Danh & Vận Hành Ca Làm</p>
+      </div>
+
+      <!-- Login Role Switcher -->
+      <div class="segmented mb-16" id="login-role-tabs">
+        <button type="button" class="seg-btn active" data-role="employee" onclick="App.switchLoginTab('employee')">
+          👤 Nhân Viên
+        </button>
+        <button type="button" class="seg-btn" data-role="admin" onclick="App.switchLoginTab('admin')">
+          👑 Quản Lý
+        </button>
+      </div>
+
+      <!-- Employee Login Form -->
+      <div id="form-login-employee" class="login-form-panel">
+        <label class="field-label">1. Chọn tên nhân viên của bạn</label>
+        <select id="login-emp-select" class="input mb-12">
+          <option value="">-- Đang tải danh sách nhân sự... --</option>
+        </select>
+
+        <label class="field-label">2. Chọn vị trí làm việc ca này</label>
+        <div class="role-cards-grid mb-16">
+          <div class="role-select-card active" id="card-role-barista" onclick="App.setLoginRole('Pha Chế')">
+            <div class="role-card-icon">🍹</div>
+            <div class="role-card-title">Pha Chế</div>
+            <div class="role-card-desc">Barista • Kho NVL • Công thức</div>
+          </div>
+          <div class="role-select-card" id="card-role-server" onclick="App.setLoginRole('Phục Vụ')">
+            <div class="role-card-icon">🍽</div>
+            <div class="role-card-title">Phục Vụ</div>
+            <div class="role-card-desc">Order • Bàn ghế • Báo cáo DT</div>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-block btn-lg" onclick="App.submitEmployeeLogin()">
+          🚀 Vào Ca Làm Việc
+        </button>
+      </div>
+
+      <!-- Admin Login Form -->
+      <div id="form-login-admin" class="login-form-panel hidden">
+        <label class="field-label">Mã PIN hoặc Telegram ID Quản lý</label>
+        <input type="password" id="login-admin-key-input" class="input mb-12" placeholder="Nhập mã bảo mật Quản lý..." autocomplete="current-password" onkeydown="if(event.key==='Enter') App.submitAdminLogin()" />
+        <p class="helper-text mb-16">Dành riêng cho Quản lý & Chủ quán để duyệt lương, quản lý nhân sự, kho và báo cáo doanh thu.</p>
+
+        <button type="button" class="btn btn-primary btn-block btn-lg" onclick="App.submitAdminLogin()">
+          🛡 Đăng Nhập Quản Lý
+        </button>
+      </div>
+
+      <div id="login-tg-auto" class="login-tg-hint hidden">
+        <span>⚡ Tài khoản Telegram:</span>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="App.loginWithTelegram()">Đăng nhập nhanh</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top App Header -->
+  <header class="app-header hidden" id="app-header">
+    <div class="brand-row">
+      <div class="brand-logo">☕</div>
+      <div class="brand-info">
+        <h1>SOBER MINI APP</h1>
+        <p id="header-subtitle">Đang kết nối hệ thống...</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span id="role-badge" class="badge badge-emp">👤 Khách</span>
+      <button id="btn-logout" class="icon-btn" title="Đăng xuất / Đổi vai trò" onclick="App.logout()">🚪</button>
+      <button id="btn-refresh" class="icon-btn" title="Làm mới dữ liệu" onclick="App.refreshAll()">🔄</button>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="app-content">
+    <!-- Loading State -->
+    <div id="app-loading" class="state-card">
+      <div class="spinner"></div>
+      <p>Đang tải dữ liệu Sober...</p>
+    </div>
+
+    <!-- Error / Unauthorized State -->
+    <div id="app-error" class="state-card hidden">
+      <div class="state-icon">🔒</div>
+      <h3 id="error-title">Không thể xác thực</h3>
+      <p id="error-desc">Vui lòng mở ứng dụng trực tiếp từ nút bấm trong Telegram Bot.</p>
+      <button class="btn btn-primary" onclick="App.init()">Thử lại</button>
+    </div>
+
+    <!-- Quick Role / Identity Bar -->
+    <div id="identity-bar" class="identity-bar" onclick="App.openRoleModal()">
+      <div class="identity-left">
+        <span id="identity-icon" class="identity-icon">👤</span>
+        <div>
+          <div id="identity-title" class="identity-title">Chưa chọn tên nhân viên</div>
+          <div id="identity-sub" class="identity-sub">Bấm vào đây để chọn Tên & Vị trí (Pha chế / Phục vụ / Quản lý)</div>
+        </div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm">Đổi vai trò</button>
+    </div>
+
+    <!-- ==================== TAB 1: CHẤM CÔNG & LỊCH CA ==================== -->
+    <section id="tab-attendance" class="tab-panel hidden">
+      <div class="subtab-bar">
+        <button class="subtab-btn active" data-sub="att-main" onclick="App.switchSubtab('attendance', 'att-main')">📥 Chấm Công</button>
+        <button class="subtab-btn" data-sub="att-personal" onclick="App.switchSubtab('attendance', 'att-personal')">👤 Cá Nhân</button>
+        <button class="subtab-btn" data-sub="att-schedule" onclick="App.switchSubtab('attendance', 'att-schedule')">📅 Lịch & Xin Phép</button>
+      </div>
+
+      <!-- Subtab 1.1: Main Check-in / Check-out -->
+      <div id="sub-att-main" class="subtab-panel">
+        <!-- Live Shift Status Banner -->
+        <div class="hero-card">
+          <div class="hero-meta">
+            <span class="hero-tag" id="shift-live-badge">⏰ Ca hiện tại: --</span>
+            <span class="hero-date" id="shift-live-date">--/--/----</span>
+          </div>
+          <div class="hero-stats">
+            <div class="stat-pill">
+              <span class="stat-val" id="stat-open-count">0</span>
+              <span class="stat-lbl">Đang trong ca</span>
+            </div>
+            <div class="stat-pill">
+              <span class="stat-val" id="stat-emp-count">0</span>
+              <span class="stat-lbl">Nhân sự</span>
+            </div>
+            <div class="stat-pill">
+              <span class="stat-val" id="stat-low-stock">0</span>
+              <span class="stat-lbl">NVL sắp hết</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Sessions (One-Tap Check Out) -->
+        <div class="card">
+          <div class="card-header">
+            <h2>🟡 Đang Trong Ca (Bấm để Check Out)</h2>
+            <span class="badge" id="open-sessions-badge">0 phiên</span>
+          </div>
+          <div id="open-sessions-list" class="session-list">
+            <p class="empty-text">Chưa có nhân viên nào đang trong ca.</p>
+          </div>
+        </div>
+
+        <!-- Check In Form -->
+        <div class="card">
+          <div class="card-header">
+            <h2>📥 Check In Vào Ca</h2>
+          </div>
+
+          <label class="field-label">1. Chọn loại ca</label>
+          <div class="segmented" id="ci-shift-type">
+            <button type="button" class="seg-btn active" data-val="Ca Chính" onclick="App.setCheckinType('Ca Chính')">🌞 Ca Chính</button>
+            <button type="button" class="seg-btn" data-val="Ca Gãy" onclick="App.setCheckinType('Ca Gãy')">🌗 Ca Gãy (19:30)</button>
+          </div>
+
+          <div id="ci-ca-wrapper">
+            <label class="field-label">2. Chọn khung ca</label>
+            <div class="segmented" id="ci-ca-select">
+              <button type="button" class="seg-btn" data-val="Sáng" onclick="App.setCheckinCa('Sáng')">🌅 Sáng (6:30)</button>
+              <button type="button" class="seg-btn" data-val="Chiều" onclick="App.setCheckinCa('Chiều')">☀️ Chiều (12:00)</button>
+              <button type="button" class="seg-btn" data-val="Tối" onclick="App.setCheckinCa('Tối')">🌙 Tối (18:00)</button>
+            </div>
+          </div>
+
+          <label class="field-label">3. Chọn tên của bạn</label>
+          <input type="text" id="ci-emp-search" class="input" placeholder="🔍 Tìm nhanh tên nhân viên..." oninput="App.renderCheckinEmployees()" />
+          <div id="ci-emp-grid" class="chip-grid"></div>
+
+          <button id="btn-submit-checkin" class="btn btn-primary btn-block mt-12" onclick="App.submitCheckin()">
+            📥 Xác Nhận Check In
+          </button>
+        </div>
+      </div>
+
+      <!-- Subtab 1.2: Personal Profile (Giờ công, Lương tạm tính, Đi muộn) -->
+      <div id="sub-att-personal" class="subtab-panel hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>👤 Hồ Sơ Công & Lương Tạm Tính</h2>
+          </div>
+          <div class="row-gap mb-8">
+            <select id="personal-emp-select" class="input" onchange="App.loadPersonalSummary()"></select>
+            <button class="btn btn-secondary" onclick="App.loadPersonalSummary()">Xem</button>
+          </div>
+          <div id="personal-summary-box">
+            <p class="empty-text">Chọn tên của bạn để xem tổng giờ công và lương tạm tính trong kỳ.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>🕒 Lịch Sử Chấm Công Cá Nhân Gần Đây</h2>
+          </div>
+          <div id="personal-checkins-list">
+            <p class="empty-text">Chưa có dữ liệu.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subtab 1.3: Shift Schedule Registration & Leave/Late/Swap Requests -->
+      <div id="sub-att-schedule" class="subtab-panel hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>📩 Xin Đi Muộn / Nghỉ Phép / Đổi Ca</h2>
+          </div>
+          <p class="helper-text">Gửi báo trước trên App để Quản lý duyệt 1 chạm và tự động ghi nhận "Đã báo trước":</p>
+
+          <label class="field-label">1. Nhân viên gửi đơn</label>
+          <select id="lv-emp-select" class="input mb-8"></select>
+
+          <label class="field-label">2. Loại đơn</label>
+          <div class="segmented mb-8" id="lv-type-select">
+            <button type="button" class="seg-btn active" data-val="late" onclick="App.setLeaveType('late')">⏰ Xin Đi Muộn</button>
+            <button type="button" class="seg-btn" data-val="leave" onclick="App.setLeaveType('leave')">🏖 Xin Nghỉ</button>
+            <button type="button" class="seg-btn" data-val="swap" onclick="App.setLeaveType('swap')">🔄 Đổi Ca</button>
+          </div>
+
+          <div class="row-gap mb-8">
+            <input type="text" id="lv-date-input" class="input" placeholder="Ngày (VD: 28/09/2026)" />
+            <select id="lv-ca-select" class="input">
+              <option value="Sáng">Ca Sáng</option>
+              <option value="Chiều">Ca Chiều</option>
+              <option value="Tối">Ca Tối</option>
+            </select>
+          </div>
+
+          <input type="text" id="lv-extra-input" class="input mb-8" placeholder="Số phút đi muộn (VD: 15 phút) hoặc người đổi ca cùng..." />
+          <textarea id="lv-reason-input" class="textarea" rows="2" placeholder="Lý do (VD: Kẹt xe / Bận lịch học / Đổi ca với Bình)..."></textarea>
+
+          <button class="btn btn-primary btn-block mt-8" onclick="App.submitLeaveRequest()">
+            📨 Gửi Đơn Cho Quản Lý
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>📅 Đăng Ký Lịch Ca Tuần Tới</h2>
+          </div>
+          <p class="helper-text">Tích vào các ca bạn có thể làm trong tuần tới để Quản lý xếp lịch:</p>
+          <select id="sch-emp-select" class="input mb-8" onchange="App.loadMyScheduleGrid()"></select>
+          <div id="sch-grid-container" class="schedule-grid-wrap"></div>
+          <input type="text" id="sch-note-input" class="input mt-8" placeholder="Ghi chú lịch tuần (VD: Thứ 5 bận thi sáng)..." />
+          <button class="btn btn-primary btn-block mt-8" onclick="App.submitShiftSchedule()">
+            💾 Lưu Lịch Đăng Ký Ca
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>📋 Trạng Thái Đơn Xin Phép Gần Đây</h2>
+          </div>
+          <div id="lv-history-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: KHO NVL & CÔNG THỨC ==================== -->
+    <section id="tab-inventory" class="tab-panel hidden">
+      <div class="subtab-bar">
+        <button class="subtab-btn active" data-sub="inv-catalog" onclick="App.switchSubtab('inventory', 'inv-catalog')">📂 Danh Mục</button>
+        <button class="subtab-btn" data-sub="inv-smart" onclick="App.switchSubtab('inventory', 'inv-smart')">⚡ Gõ Nhanh</button>
+        <button class="subtab-btn" data-sub="inv-recipes" onclick="App.switchSubtab('inventory', 'inv-recipes')">📖 Công Thức</button>
+      </div>
+
+      <!-- Cart Summary Bar (Floating when items > 0) -->
+      <div id="inv-cart-bar" class="cart-bar hidden">
+        <div class="cart-info">
+          <strong id="cart-count-text">0 món đã chọn</strong>
+          <span id="cart-preview-text" class="text-xs"></span>
+        </div>
+        <div class="cart-actions">
+          <button class="btn btn-ghost btn-sm" onclick="App.clearCart()">Xóa</button>
+          <button class="btn btn-primary btn-sm" onclick="App.submitCartExport()">✅ Xuất Kho</button>
+        </div>
+      </div>
+
+      <!-- Subtab 2.1: Browse Catalog -->
+      <div id="sub-inv-catalog" class="subtab-panel">
+        <div class="card">
+          <input type="text" id="inv-search-input" class="input" placeholder="🔍 Tìm nguyên vật liệu (không cần gõ dấu)..." oninput="App.renderInventoryList()" />
+          <div id="inv-group-pills" class="pill-scroll mt-8"></div>
+        </div>
+        <div id="inv-materials-list" class="material-list"></div>
+      </div>
+
+      <!-- Subtab 2.2: Smart Natural Input -->
+      <div id="sub-inv-smart" class="subtab-panel hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>⚡ Gõ Nhanh Nhiều Món</h2>
+          </div>
+          <p class="helper-text">Gõ số lượng + tên món, cách nhau bằng dấu phẩy hoặc xuống dòng (không cần dấu):</p>
+          <textarea id="inv-smart-text" class="textarea" rows="4" placeholder="VD: 2 sua tuoi, 1 sua dac, 0.5 matcha"></textarea>
+          <button class="btn btn-primary btn-block mt-8" onclick="App.parseSmartInventory()">🔍 Kiểm Tra & Xuất Kho</button>
+        </div>
+        <div id="inv-smart-result" class="card hidden"></div>
+      </div>
+
+      <!-- Subtab 2.3: Recipe Book (Sổ tay Công thức Pha chế) -->
+      <div id="sub-inv-recipes" class="subtab-panel hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>📖 Sổ Tay Công Thức Pha Chế</h2>
+            <button id="btn-add-recipe" class="btn btn-primary btn-sm hidden" onclick="App.openRecipeModal()">➕ Thêm Món</button>
+          </div>
+          <input type="text" id="recipe-search-input" class="input" placeholder="🔍 Tìm tên món (VD: bạc xỉu, matcha, trà đào)..." oninput="App.renderRecipesList()" />
+        </div>
+        <div id="recipes-list"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: THƯỞNG, DOANH THU & KẾT CA ==================== -->
+    <section id="tab-rewards" class="tab-panel hidden">
+      <div class="subtab-bar">
+        <button class="subtab-btn active" data-sub="rew-balance" onclick="App.switchSubtab('rewards', 'rew-balance')">🎁 Ly Thưởng</button>
+        <button class="subtab-btn" data-sub="rew-revenue" onclick="App.switchSubtab('rewards', 'rew-revenue')">💰 Doanh Thu & Chi</button>
+        <button class="subtab-btn" data-sub="rew-endshift" onclick="App.switchSubtab('rewards', 'rew-endshift')">📸 Kết Ca</button>
+      </div>
+
+      <!-- Subtab 3.1: Reward Balances & Shift Reward Request -->
+      <div id="sub-rew-balance" class="subtab-panel">
+        <div class="card">
+          <div class="card-header">
+            <h2>🥤 Tra Cứu & Báo Dùng Thưởng</h2>
+          </div>
+          <input type="text" id="rew-search" class="input mb-8" placeholder="🔍 Tìm nhân viên..." oninput="App.renderRewardBalances()" />
+          <div id="rew-balances-list" class="reward-list"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>⚡ Thưởng Doanh Thu Ca (+1 ly)</h2>
+          </div>
+          <p class="helper-text">Chọn các nhân viên có mặt trong ca để cộng 1 ly thưởng:</p>
+          <div id="rew-req-grid" class="chip-grid"></div>
+          <button class="btn btn-primary btn-block mt-12" onclick="App.submitRewardRequest()">
+            🎁 Gửi Yêu Cầu Cộng +1 Ly
+          </button>
+        </div>
+      </div>
+
+      <!-- Subtab 3.2: Revenue Report & Counter Petty Cash Expenses -->
+      <div id="sub-rew-revenue" class="subtab-panel hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>💰 Báo Cáo Doanh Thu Ca</h2>
+          </div>
+
+          <label class="field-label">1. Ca làm việc</label>
+          <div class="segmented" id="rpt-ca-select">
+            <button type="button" class="seg-btn" data-val="Sáng" onclick="App.setReportCa('Sáng')">🌅 Sáng</button>
+            <button type="button" class="seg-btn" data-val="Chiều" onclick="App.setReportCa('Chiều')">☀️ Chiều</button>
+            <button type="button" class="seg-btn" data-val="Tối" onclick="App.setReportCa('Tối')">🌙 Tối</button>
+          </div>
+
+          <label class="field-label">2. Nhân viên trong ca (chọn nhiều)</label>
+          <div id="rpt-emp-grid" class="chip-grid"></div>
+
+          <label class="field-label">3. Doanh thu (VD: 1500k, 1.5M, 1500000)</label>
+          <input type="text" id="rpt-revenue-input" class="input" placeholder="Nhập doanh thu ca..." oninput="App.updateRevenuePreview()" />
+          <div id="rpt-reward-preview" class="preview-banner mt-8">Chỉ tiêu thưởng: 2 NV ≥ 1.2M | ≥3 NV ≥ 1.5M (+1 ly/người)</div>
+
+          <label class="field-label">4. Ảnh báo cáo / bill (tùy chọn)</label>
+          <input type="file" id="rpt-photo-input" accept="image/*" class="file-input" />
+
+          <button id="btn-submit-report" class="btn btn-primary btn-block mt-12" onclick="App.submitRevenueReport()">
+            📤 Lưu Báo Cáo Doanh Thu
+          </button>
+        </div>
+
+        <!-- Petty Cash / Counter Expenses -->
+        <div class="card">
+          <div class="card-header">
+            <h2>🧾 Ghi Nhận Chi Vặt Tại Quầy</h2>
+          </div>
+          <p class="helper-text">Ghi lại các khoản chi tiền mặt phát sinh trong ca (mua đá viên, túi rác, trả ship...) để đối chiếu khi chốt két:</p>
+          <div class="row-gap mb-8">
+            <input type="text" id="exp-amount-input" class="input" placeholder="Số tiền (VD: 35k, 50000)" />
+            <input type="text" id="exp-reason-input" class="input" placeholder="Nội dung (VD: Mua 2 bao đá)" />
+          </div>
+          <button class="btn btn-secondary btn-block" onclick="App.submitPettyExpense()">💸 Ghi Chi Vặt Trong Ca</button>
+          <div id="petty-expenses-list" class="mt-12"></div>
+        </div>
+      </div>
+
+      <!-- Subtab 3.3: Role-Based Checklist & End-Shift Photos -->
+      <div id="sub-rew-endshift" class="subtab-panel hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>🔚 Checklist & Gửi Ảnh Kết Ca</h2>
+          </div>
+
+          <label class="field-label">1. Chọn ca kết thúc</label>
+          <div class="segmented" id="ks-ca-select">
+            <button type="button" class="seg-btn" data-val="Sáng" onclick="App.setEndshiftCa('Sáng')">☀️ Ca Sáng</button>
+            <button type="button" class="seg-btn" data-val="Chiều" onclick="App.setEndshiftCa('Chiều')">🌤 Ca Chiều</button>
+            <button type="button" class="seg-btn" data-val="Tối" onclick="App.setEndshiftCa('Tối')">🌙 Ca Tối</button>
+          </div>
+
+          <label class="field-label">2. Chọn bộ phận (Tự động đổi Checklist theo vị trí)</label>
+          <div class="segmented" id="ks-role-select">
+            <button type="button" class="seg-btn active" data-val="Pha Chế" onclick="App.setEndshiftRole('Pha Chế')">🍹 Pha Chế</button>
+            <button type="button" class="seg-btn" data-val="Phục Vụ" onclick="App.setEndshiftRole('Phục Vụ')">🍽 Phục Vụ</button>
+          </div>
+
+          <label class="field-label">3. Checklist công việc bắt buộc trước khi nghỉ</label>
+          <div id="ks-checklist-box" class="checklist-box"></div>
+
+          <label class="field-label">4. Chọn ảnh vệ sinh / kết ca (chọn nhiều ảnh)</label>
+          <input type="file" id="ks-photos-input" accept="image/*" multiple class="file-input" onchange="App.previewEndshiftPhotos()" />
+          <div id="ks-photos-preview" class="photo-preview-info">Chưa chọn ảnh nào.</div>
+
+          <button id="btn-submit-endshift" class="btn btn-primary btn-block mt-12" onclick="App.submitEndshiftPhotos()">
+            📤 Gửi Checklist & Toàn Bộ Ảnh Kết Ca
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: GÓP Ý & HƯỚNG DẪN ==================== -->
+    <section id="tab-feedback" class="tab-panel hidden">
+      <div class="card">
+        <div class="card-header">
+          <h2>💡 Đóng Góp Ý Kiến Ẩn Danh</h2>
+        </div>
+        <p class="helper-text">Nội dung bạn gửi sẽ chuyển trực tiếp tới Quản lý và hoàn toàn ẩn danh trên nhóm:</p>
+        <textarea id="feedback-input" class="textarea" rows="4" placeholder="Nhập ý kiến, đề xuất hoặc phản ánh của bạn..."></textarea>
+        <button class="btn btn-primary btn-block mt-8" onclick="App.submitFeedback()">📨 Gửi Cho Quản Lý</button>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>📖 Hướng Dẫn Nhanh Sober</h2>
+        </div>
+        <ul class="guide-list">
+          <li><strong>👤 Chọn Vai Trò:</strong> Bấm thanh trên cùng để chọn <em>Tên nhân viên</em> và vị trí <code>🍹 Pha Chế</code> hoặc <code>🍽 Phục Vụ</code>. App sẽ tự nhớ cho lần sau.</li>
+          <li><strong>📥 Check In / Check Out:</strong> Chọn loại ca (Chính/Gãy), ca làm và tên. Khi về bấm trực tiếp vào tên mình ở mục <em>Đang Trong Ca</em>.</li>
+          <li><strong>📅 Xin Đi Muộn / Đổi Ca:</strong> Vào mục <em>Lịch & Xin Phép</em> để báo trước cho Quản lý duyệt tự động.</li>
+          <li><strong>⏰ Khung giờ ca:</strong> Ca Sáng <code>06:30–12:00</code> | Ca Chiều <code>12:00–18:00</code> | Ca Tối <code>18:00–22:30</code> | Ca Gãy <code>19:30–21:30</code>.</li>
+          <li><strong>🎁 Thưởng doanh thu:</strong> Ca 2 người đạt từ <code>1.200.000đ</code> hoặc ca ≥ 3 người đạt từ <code>1.500.000đ</code> được cộng <code>+1 ly/người</code>.</li>
+          <li><strong>📦 Kho & Công Thức:</strong> Xuất kho NVL hoặc mở <em>Sổ Tay Công Thức</em> để xem định lượng chuẩn từng món.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: QUẢN LÝ (ADMIN ONLY) ==================== -->
+    <section id="tab-admin" class="tab-panel hidden">
+      <div class="subtab-bar subtab-scroll">
+        <button class="subtab-btn active" data-sub="adm-monitor" onclick="App.switchSubtab('admin', 'adm-monitor')">📊 Giám Sát</button>
+        <button class="subtab-btn" data-sub="adm-salary" onclick="App.switchSubtab('admin', 'adm-salary')">💰 Lương & OT</button>
+        <button class="subtab-btn" data-sub="adm-staff" onclick="App.switchSubtab('admin', 'adm-staff')">👥 Nhân Sự & DT</button>
+        <button class="subtab-btn" data-sub="adm-inv" onclick="App.switchSubtab('admin', 'adm-inv')">📦 Kho QL</button>
+        <button id="subtab-btn-super" class="subtab-btn hidden" data-sub="adm-super" onclick="App.switchSubtab('admin', 'adm-super')">👑 Admin</button>
+      </div>
+
+      <!-- Admin 5.1: Monitor (Dashboard Analytics, Leave Requests, Shift Schedules, Pending Rewards, Today Check-in, Late Stats, Announce) -->
+      <div id="sub-adm-monitor" class="subtab-panel">
+        <!-- Revenue & Expense Analytics Dashboard -->
+        <div class="card">
+          <div class="card-header">
+            <h2>📈 Biểu Đồ Doanh Thu & Chi Vặt</h2>
+            <button class="btn btn-ghost btn-sm" onclick="App.loadAdminOverview()">Làm mới</button>
+          </div>
+          <div id="adm-analytics-box"></div>
+        </div>
+
+        <!-- Pending Leave / Late / Swap Requests -->
+        <div class="card">
+          <div class="card-header">
+            <h2>📩 Duyệt Đơn Xin Đi Muộn / Nghỉ / Đổi Ca</h2>
+          </div>
+          <div id="adm-leave-requests-list"></div>
+        </div>
+
+        <!-- Registered Weekly Shift Schedules -->
+        <div class="card">
+          <div class="card-header">
+            <h2>📅 Tổng Hợp Đăng Ký Lịch Ca Tuần</h2>
+          </div>
+          <div id="adm-schedules-list"></div>
+        </div>
+
+        <!-- Pending Reward Requests -->
+        <div id="adm-pending-rewards-card" class="card hidden">
+          <div class="card-header">
+            <h2>🎁 Yêu Cầu Cộng Thưởng Chờ Duyệt</h2>
+          </div>
+          <div id="adm-pending-rewards-list"></div>
+        </div>
+
+        <!-- Today Check-in History -->
+        <div class="card">
+          <div class="card-header">
+            <h2>📋 Lịch Sử Check-In Hôm Nay</h2>
+          </div>
+          <div id="adm-checkin-today-list"></div>
+        </div>
+
+        <!-- Monthly Late Statistics -->
+        <div class="card">
+          <div class="card-header">
+            <h2>⚠️ Thống Kê Đi Muộn Trong Tháng</h2>
+          </div>
+          <div id="adm-late-stats-list"></div>
+        </div>
+
+        <!-- Group Announcement -->
+        <div class="card">
+          <div class="card-header">
+            <h2>📢 Gửi Thông Báo Nhóm</h2>
+          </div>
+          <textarea id="adm-announce-text" class="textarea" rows="3" placeholder="Nhập thông báo gửi tới nhóm chung..."></textarea>
+          <button class="btn btn-primary btn-block mt-8" onclick="App.submitAnnouncement()">🚀 Phát Thông Báo</button>
+        </div>
+      </div>
+
+      <!-- Admin 5.2: Salary & Overtime -->
+      <div id="sub-adm-salary" class="subtab-panel hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>💰 Bảng Lương Kỳ (17 → 16)</h2>
+          </div>
+          <div class="row-gap">
+            <select id="adm-salary-month-select" class="input" onchange="App.loadAdminSalary()"></select>
+            <button class="btn btn-secondary" onclick="App.loadAdminSalary()">Tải</button>
+          </div>
+          <div id="adm-salary-summary" class="salary-summary mt-12"></div>
+          <div id="adm-salary-list" class="mt-8"></div>
+        </div>
+
+        <!-- Salary Advance / Bonus Modifier -->
+        <div class="card">
+          <div class="card-header">
+            <h2>💸 Nhập Ứng Lương / 🎁 Thưởng Tiền</h2>
+          </div>
+          <div class="segmented mb-8" id="adm-sal-mod-type">
+            <button type="button" class="seg-btn active" data-val="advance" onclick="App.setSalaryModType('advance')">💸 Ứng Lương (-)</button>
+            <button type="button" class="seg-btn" data-val="bonus" onclick="App.setSalaryModType('bonus')">🎁 Thưởng Tiền (+)</button>
+          </div>
+          <select id="adm-sal-mod-emp" class="input mb-8"></select>
+          <input type="number" id="adm-sal-mod-amount" class="input mb-8" placeholder="Số tiền (nghìn đồng, VD: 50 = 50.000đ)" />
+          <button class="btn btn-primary btn-block" onclick="App.submitSalaryModifier()">💾 Cập Nhật Vào Kỳ Lương</button>
+        </div>
+
+        <!-- Overtime Management -->
+        <div class="card">
+          <div class="card-header">
+            <h2>⏰ Giờ Làm Thêm (Overtime)</h2>
+          </div>
+          <div id="adm-ot-summary" class="mb-12"></div>
+          <label class="field-label">Thêm giờ làm thêm mới</label>
+          <div class="row-gap">
+            <select id="adm-ot-emp" class="input"></select>
+            <input type="number" step="0.5" id="adm-ot-hours" class="input" placeholder="Số giờ (VD: 1.5)" />
+          </div>
+          <button class="btn btn-primary btn-block mt-8" onclick="App.submitAddOvertime()">➕ Cộng Giờ Làm Thêm</button>
+        </div>
+      </div>
+
+      <!-- Admin 5.3: Staff & Recent Revenue Reports -->
+      <div id="sub-adm-staff" class="subtab-panel hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>➕ Thêm Nhân Viên Mới</h2>
+          </div>
+          <div class="row-gap">
+            <input type="text" id="adm-new-emp-name" class="input" placeholder="Nhập nickname nhân viên mới..." />
+            <button class="btn btn-primary" onclick="App.submitAddEmployee()">Thêm</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>🧾 Danh Sách Nhân Sự</h2>
+          </div>
+          <div id="adm-employees-list"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>✏️ Sửa Doanh Thu Ca Gần Đây</h2>
+          </div>
+          <div id="adm-recent-reports-list"></div>
+        </div>
+      </div>
+
+      <!-- Admin 5.4: Inventory Management -->
+      <div id="sub-adm-inv" class="subtab-panel hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>➕ Nhập Kho Nguyên Vật Liệu</h2>
+          </div>
+          <select id="adm-inv-import-name" class="input mb-8"></select>
+          <div class="row-gap">
+            <input type="number" step="any" id="adm-inv-import-qty" class="input" placeholder="Số lượng nhập thêm..." />
+            <input type="text" id="adm-inv-import-note" class="input" placeholder="Ghi chú (tùy chọn)" />
+          </div>
+          <button class="btn btn-primary btn-block mt-8" onclick="App.submitImportStock()">📥 Xác Nhận Nhập Kho</button>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>🔧 Thêm Nguyên Vật Liệu Mới</h2>
+          </div>
+          <div class="row-gap mb-8">
+            <input type="text" id="adm-mat-name" class="input" placeholder="Tên NVL (VD: Cà phê hạt)" />
+            <input type="text" id="adm-mat-unit" class="input" placeholder="Đơn vị (kg, hộp, lon...)" />
+          </div>
+          <div class="row-gap mb-8">
+            <input type="number" step="any" id="adm-mat-min" class="input" placeholder="Tồn tối thiểu (VD: 5)" />
+            <input type="number" step="any" id="adm-mat-price" class="input" placeholder="Giá nhập (VNĐ)" />
+          </div>
+          <input type="text" id="adm-mat-group" class="input mb-8" placeholder="Nhóm NVL (VD: Bột cà phê, Trà, Chế phẩm từ sữa...)" />
+          <button class="btn btn-primary btn-block" onclick="App.submitAddMaterial()">➕ Thêm Vào Danh Mục</button>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>⚠️ Cảnh Báo Tồn Kho & Quản Lý Món</h2>
+          </div>
+          <div id="adm-inv-alerts-list"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>📜 Lịch Sử Xuất / Nhập Kho Gần Nhất</h2>
+          </div>
+          <div id="adm-inv-history-list"></div>
+        </div>
+      </div>
+
+      <!-- Admin 5.5: Super Admin -->
+      <div id="sub-adm-super" class="subtab-panel hidden">
+        <div class="card">
+          <div class="card-header">
+            <h2>👑 Cấp Quyền Quản Lý (Super Admin)</h2>
+          </div>
+          <p class="helper-text">Nhập Telegram User ID của người cần cấp quyền Quản lý phụ:</p>
+          <div class="row-gap">
+            <input type="number" id="adm-grant-id-input" class="input" placeholder="VD: 987654321" />
+            <button class="btn btn-primary" onclick="App.submitGrantAdmin()">Cấp Quyền</button>
+          </div>
+          <div id="adm-super-list" class="mt-12"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal Dialog -->
+  <div id="modal-overlay" class="modal-overlay hidden" onclick="App.closeModal(event)">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 id="modal-title">Thông báo</h3>
+        <button class="icon-btn" onclick="App.closeModal()">✖</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-tab="attendance" onclick="App.switchTab('attendance')">
+      <span class="nav-icon">🕒</span>
+      <span class="nav-label">Chấm Công</span>
+    </button>
+    <button class="nav-item" data-tab="inventory" onclick="App.switchTab('inventory')">
+      <span class="nav-icon">📦</span>
+      <span class="nav-label">Kho & Món</span>
+    </button>
+    <button class="nav-item" data-tab="rewards" onclick="App.switchTab('rewards')">
+      <span class="nav-icon">🎁</span>
+      <span class="nav-label">Thưởng & Kết Ca</span>
+    </button>
+    <button class="nav-item" data-tab="feedback" onclick="App.switchTab('feedback')">
+      <span class="nav-icon">💡</span>
+      <span class="nav-label">Góp Ý</span>
+    </button>
+    <button id="nav-admin-btn" class="nav-item hidden" data-tab="admin" onclick="App.switchTab('admin')">
+      <span class="nav-icon">👑</span>
+      <span class="nav-label">Quản Lý</span>
+      <span id="nav-admin-badge" class="nav-badge hidden">0</span>
+    </button>
+  </nav>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

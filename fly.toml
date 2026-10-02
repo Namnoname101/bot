@@ -1,14 +1,25 @@
-# Bot dùng long polling nên không mở HTTP service công khai.
+# Bot chạy song song Telegram Long Polling + HTTP Server cho Telegram Mini App.
 app = 'sober-bot'
 primary_region = 'nrt'
 
 [env]
   TZ = "Asia/Ho_Chi_Minh"
+  PORT = "8080"
+  WEBAPP_ENABLED = "true"
+  WEBAPP_URL = "https://sober-bot.fly.dev"
 
 [build]
 
 [processes]
   app = "python main.py"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
 
 [deploy]
   strategy = "immediate"
@@ -17,3 +28,4 @@ primary_region = 'nrt'
   memory = '256mb'
   cpu_kind = 'shared'
   cpus = 1
+

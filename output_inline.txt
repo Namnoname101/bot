@@ -1,0 +1,80 @@
+async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Xử lý các nút bấm Inline Keyboard"""
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data
+    sheets_service = context.bot_data['sheets']
+    # Trước khi xử lý callback, xóa các tin nhắn tracked khác nhưng giữ lại message này
+    if update.effective_chat and update.effective_chat.id == Config.GROUP_CHAT_ID:
+        try:
+            await delete_tracked_messages(context, update.effective_chat.id, exclude={query.message.message_id})
+        except Exception:
+            pass
+
+    # query.message.message_id is inherently tracked because it was a prompt created via button_click_handler
+    
+    if data.startswith('mgmt_'):
+        await handle_mgmt_callback(query, context)
+        return
+
+    if data.startswith('salary_') or data.startswith('sal_emp_'):
+        from handlers.salary_handler import salary_inline_handler
+        await salary_inline_handler(update, context)
+        return
+
+    if data.startswith('ks_ca_'):
+        await handle_endshift_ca_selected(query, context)
+        return
+
+    if data.startswith('ks_role_'):
+        await handle_endshift_role_selected(query, context)
+        return
+
+    if data == 'ks_cancel':
+        await handle_endshift_cancel(query, context)
+        return
+
+    if data.startswith("ci_type_"):
+        from handlers.checkin_handler import handle_checkin_type_selected
+        await handle_checkin_type_selected(query, context)
+        return
+
+    if data.startswith("ci_ca_"):
+        await handle_checkin_ca_selected(query, context)
+        return
+
+    if data.startswith("ci_sel_"):
+        await handle_checkin_employee_selected(query, context)
+        return
+    
+    if data.startswith("co_sel_"):
+        await handle_checkout_employee_selected(query, context)
+        return
+    
+    if data.startswith("ot_sel_"):
+        await handle_overtime_employee_selected(query, context)
+        return
+    
+    if data.startswith("mark_reported_"):
+        await handle_mark_reported_late(query, context)
+        return
+        
+    if data.startswith("mark_unreported_"):
+        await handle_mark_unreported_late(query, context)
+        return
+
+    if data.startswith("toggle_emp_"):
+        nickname = data[len("toggle_emp_"):]
+        if 'report_selection' in context.user_data:
+            context.user_data['report_selection'][nickname] = not context.user_data['report_selection'].get(nickname, False)
+            reply_markup = build_multi_select_keyboard(context.user_data['report_selection'])
+            await query.edit_message_reply_markup(reply_markup=reply_markup)
+            
+    elif data == "confirm_report_emps":
+        is_user_admin = is_admin(query.from_user.id, context)
+        if 'report_selection' not in context.user_data:
+            await query.edit_message_text("❌ Phiên làm việc đã hết hạn. Vui lòng bấm '⚡ Thưởng Doanh Thu' lại.")
+            return
+
+        selected = [nick for nick, is_sel in context.user_data['report_selection'].items() if is_sel]

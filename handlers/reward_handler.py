@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import ContextTypes
 from utils.time_utils import local_now
 from utils.decorators import group_only, admin_only
@@ -36,6 +36,12 @@ from handlers.endshift_handler import (
     handle_endshift_cancel, _cancel_endshift_tasks
 )
 from handlers.salary_handler import handle_salary_button, process_salary_input, handle_salary_modifier_request
+from handlers.inventory_handler import (
+    handle_use_material_button, handle_inventory_menu_button,
+    handle_material_qty_input, handle_import_qty_input,
+    handle_new_material_input, handle_edit_material_input,
+    handle_inv_callback,
+)
 from utils.admin import is_admin, is_super_admin
 
 logger = logging.getLogger(__name__)
@@ -236,6 +242,59 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.id == Config.GROUP_CHAT_ID:
         track_message(context, reply.message_id)
 
+async def open_mini_app_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Mở giao diện Telegram Mini App tổng hợp (/app hoặc nút 📱 Mở Mini App)."""
+    if not update.effective_chat or not update.message:
+        return
+
+    chat_type = getattr(update.effective_chat, "type", "")
+    webapp_url = (Config.WEBAPP_URL or "").strip()
+    short_url = (Config.MINI_APP_SHORT_URL or "").strip()
+
+    buttons = []
+    if chat_type == "private" and webapp_url.startswith("https://"):
+        buttons.append([InlineKeyboardButton("🚀 Mở Sober Mini App", web_app=WebAppInfo(url=webapp_url))])
+    elif short_url.startswith("https://t.me/"):
+        buttons.append([InlineKeyboardButton("🚀 Mở Sober Mini App", url=short_url)])
+    elif webapp_url.startswith("https://"):
+        bot_username = context.bot_data.get("bot_username")
+        if not bot_username and getattr(context, "bot", None):
+            try:
+                me = await context.bot.get_me()
+                bot_username = getattr(me, "username", None)
+                if bot_username:
+                    context.bot_data["bot_username"] = bot_username
+            except Exception:
+                bot_username = None
+        if bot_username:
+            buttons.append([
+                InlineKeyboardButton(
+                    "🚀 Mở Sober Mini App",
+                    url=f"https://t.me/{bot_username}?start=webapp",
+                )
+            ])
+        buttons.append([InlineKeyboardButton("🌐 Mở trên trình duyệt", url=webapp_url)])
+
+    if buttons:
+        reply = await update.message.reply_text(
+            "📱 *SOBER MINI APP TỔNG HỢP*\n"
+            "Chấm công • Kho NVL • Thưởng • Báo cáo • Quản lý tất cả trong 1 màn hình:",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(buttons),
+        )
+    else:
+        local_url = webapp_url or f"http://localhost:{Config.WEBAPP_PORT}"
+        reply = await update.message.reply_text(
+            f"📱 *SOBER MINI APP*\n"
+            f"Server Mini App đang chạy tại: `{local_url}`\n"
+            f"_(Cấu hình `WEBAPP_URL=https://...` hoặc `MINI_APP_SHORT_URL=https://t.me/TenBot/app` trong `.env` để mở trực tiếp trong Telegram)_",
+            parse_mode="Markdown",
+        )
+
+    if update.effective_chat.id == Config.GROUP_CHAT_ID:
+        track_message(context, reply.message_id)
+
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Lệnh /start để hiển thị bàn phím ảo (Reply Keyboard)"""
     if not update.effective_chat:
@@ -246,6 +305,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply = await update.message.reply_text("👋 Bot Sô bơ — sử dụng các nút bên dưới:", reply_markup=keyboard)
     if update.effective_chat.id == Config.GROUP_CHAT_ID:
         track_message(context, reply.message_id)
+
+    if getattr(context, "args", None) and context.args[0].lower() == "webapp":
+        await open_mini_app_command(update, context)
 
 def build_multi_select_keyboard(selection: dict):
     keyboard = []
@@ -311,6 +373,26 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         if handled:
             return
 
+    if context.user_data.get('awaiting_material_qty'):
+        handled = await handle_material_qty_input(update, context)
+        if handled:
+            return
+
+    if context.user_data.get('awaiting_import_qty'):
+        handled = await handle_import_qty_input(update, context)
+        if handled:
+            return
+
+    if context.user_data.get('awaiting_new_material'):
+        handled = await handle_new_material_input(update, context)
+        if handled:
+            return
+
+    if context.user_data.get('awaiting_edit_material'):
+        handled = await handle_edit_material_input(update, context)
+        if handled:
+            return
+
     if context.user_data.get('awaiting_feedback'):
         if text.startswith('/cancel'):
             context.user_data.pop('awaiting_feedback', None)
@@ -363,9 +445,17 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     context.user_data.pop('awaiting_edit_report_revenue', None)
     context.user_data.pop('awaiting_feedback', None)
     context.user_data.pop('awaiting_admin_id', None)
+    context.user_data.pop('awaiting_material_qty', None)
+    context.user_data.pop('smart_export_state', None)
+    context.user_data.pop('awaiting_import_qty', None)
+    context.user_data.pop('awaiting_new_material', None)
+    context.user_data.pop('awaiting_edit_material', None)
     _cancel_endshift_tasks(context)
 
-    if text == "📖 Hướng Dẫn":
+    if text == "📱 Mở Mini App":
+        await open_mini_app_command(update, context)
+
+    elif text == "📖 Hướng Dẫn":
         await help_command(update, context)
         
     elif text == "💡 Đóng Góp Ý Kiến":
@@ -486,6 +576,12 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     elif text == "👑 Cấp Quyền QL":
         await handle_grant_admin_button(update, context)
 
+    elif text == "📦 Lấy NVL":
+        await handle_use_material_button(update, context)
+
+    elif text == "📦 Kho NVL (QL)":
+        await handle_inventory_menu_button(update, context)
+
 
 async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Xử lý các nút bấm Inline Keyboard"""
@@ -505,6 +601,10 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
     
     if data.startswith('mgmt_'):
         await handle_mgmt_callback(query, context)
+        return
+
+    if data.startswith('inv_'):
+        await handle_inv_callback(query, context)
         return
 
     if data.startswith('salary_') or data.startswith('sal_emp_'):
