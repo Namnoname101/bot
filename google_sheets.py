@@ -20,6 +20,42 @@ class GoogleSheetsService:
     def _column_letter(index: int) -> str:
         return re.sub(r'\d+', '', rowcol_to_a1(1, index))
 
+    def _get_cache(self, key: str, ttl_seconds: float = 60.0):
+        lock = getattr(self, "_cache_lock", None)
+        if lock is None:
+            self._cache_lock = threading.Lock()
+            self._cache = {}
+        with self._cache_lock:
+            if key in self._cache:
+                ts, val = self._cache[key]
+                if time.time() - ts < ttl_seconds:
+                    return val
+                del self._cache[key]
+        return None
+
+    def _set_cache(self, key: str, value):
+        lock = getattr(self, "_cache_lock", None)
+        if lock is None:
+            self._cache_lock = threading.Lock()
+            self._cache = {}
+        with self._cache_lock:
+            self._cache[key] = (time.time(), value)
+
+    def _invalidate_cache(self, *keys_or_prefixes):
+        lock = getattr(self, "_cache_lock", None)
+        if lock is None:
+            self._cache_lock = threading.Lock()
+            self._cache = {}
+            return
+        with self._cache_lock:
+            if not keys_or_prefixes:
+                self._cache.clear()
+                return
+            for prefix in keys_or_prefixes:
+                for k in list(self._cache.keys()):
+                    if k == prefix or k.startswith(prefix):
+                        self._cache.pop(k, None)
+
     def __init__(self, max_retries=3):
         """Khởi tạo Google Sheets Service với retry logic.
         
@@ -321,6 +357,7 @@ class GoogleSheetsService:
                                 ws_balance.update_cell(1, 5, "Mức Lương/Giờ")
                             ws_balance.update_cell(i, 5, rate)
                             break
+                self._invalidate_cache("employees_detail", "salary_rates")
                 return True
             except Exception as e:
                 logger.error(f"Lỗi khi cập nhật mức lương cho {nickname}: {e}")
@@ -368,6 +405,9 @@ class GoogleSheetsService:
 
     def get_employees_detail(self) -> list:
         """Lấy danh sách nhân viên đầy đủ (tên thật, nickname, mức lương/giờ, số dư ly thưởng)."""
+        cached = self._get_cache("employees_detail", ttl_seconds=60.0)
+        if cached is not None:
+            return [dict(e) for e in cached]
         default_rate = Config.DEFAULT_HOURLY_RATE_K
         employees = []
         try:
@@ -400,6 +440,7 @@ class GoogleSheetsService:
                     'rate': rate,
                     'balance': bal,
                 })
+            self._set_cache("employees_detail", employees)
             return employees
         except Exception as e:
             logger.error(f"Error get_employees_detail: {e}")
@@ -428,6 +469,7 @@ class GoogleSheetsService:
                             pass
                     new_val = current_val + amount_change
                     ws_map.update_cell(i, bal_col + 1, new_val)
+                    self._invalidate_cache("employees_detail")
                     return True
             
             # Nếu chưa có, thêm mới
@@ -435,6 +477,7 @@ class GoogleSheetsService:
             new_row[nick_col] = nickname
             new_row[bal_col] = amount_change
             ws_map.append_row(new_row, value_input_option='USER_ENTERED')
+            self._invalidate_cache("employees_detail")
             return True
         except Exception as e:
             logger.error(f"Error update_balance: {e}")
@@ -481,6 +524,7 @@ class GoogleSheetsService:
                 if nick_norm not in found_targets:
                     self._update_balance_unlocked(original_nick, amount_change)
             
+            self._invalidate_cache("employees_detail")
             return True
         except Exception as e:
             logger.error(f"Error batch_update_balances: {e}")
@@ -1081,6 +1125,7 @@ class GoogleSheetsService:
                         if len(row) > nick_col and normalize_name(row[nick_col]) == target:
                             return {'success': False, 'error': 'already_exists'}
                 ws.append_row([nickname, nickname, Config.DEFAULT_HOURLY_RATE_K, 0], value_input_option='USER_ENTERED')
+                self._invalidate_cache("employees_detail")
                 return {'success': True}
             except Exception as e:
                 return {'success': False, 'error': str(e)}
@@ -1143,6 +1188,7 @@ class GoogleSheetsService:
                     if updates:
                         ws.batch_update(updates, value_input_option='USER_ENTERED')
 
+                self._invalidate_cache("employees_detail")
                 return {'success': True}
             except Exception as e:
                 logger.error("Lỗi đổi tên %s -> %s: %s", old_nickname, new_nickname, e)
@@ -1160,6 +1206,7 @@ class GoogleSheetsService:
                 for i, row in enumerate(records[1:], start=2):
                     if len(row) > nick_col and normalize_name(row[nick_col]) == target:
                         ws.delete_rows(i)
+                        self._invalidate_cache("employees_detail")
                         return True
                 return False
             except Exception:
@@ -1617,6 +1664,10 @@ class GoogleSheetsService:
 
     def get_all_materials(self, group: str = None) -> list:
         """Đọc trực tiếp danh sách NVL & CCDC từ sheet tháng hiện tại."""
+        cache_key = f"materials_{group.lower() if group else 'all'}"
+        cached = self._get_cache(cache_key, ttl_seconds=60.0)
+        if cached is not None:
+            return [dict(m) for m in cached]
         try:
             ws = self._get_current_monthly_ws(create_if_new_month=True)
             rows = ws.get_all_values()
@@ -1679,6 +1730,7 @@ class GoogleSheetsService:
                                 'price': price,
                             })
 
+            self._set_cache(cache_key, materials)
             return materials
         except Exception as e:
             logger.error("Lỗi lấy danh mục NVL từ sheet tháng: %s", e)
@@ -1686,12 +1738,16 @@ class GoogleSheetsService:
 
     def get_material_groups(self) -> list:
         """Lấy danh sách các nhóm NVL duy nhất."""
+        cached = self._get_cache("material_groups", ttl_seconds=60.0)
+        if cached is not None:
+            return list(cached)
         materials = self.get_all_materials()
         groups = []
         for m in materials:
             grp = m.get('group', 'Khác')
             if grp and grp not in groups:
                 groups.append(grp)
+        self._set_cache("material_groups", groups)
         return groups
 
     def _locate_item_on_monthly_ws(self, rows: list, target_norm: str):
@@ -1780,6 +1836,7 @@ class GoogleSheetsService:
                 except Exception:
                     pass
 
+                self._invalidate_cache("materials", "material_groups")
                 return {'success': True}
             except Exception as e:
                 logger.error("Lỗi thêm NVL %s: %s", name, e)
@@ -1830,6 +1887,7 @@ class GoogleSheetsService:
                 except Exception:
                     pass
 
+                self._invalidate_cache("materials", "material_groups")
                 return True
             except Exception as e:
                 logger.error("Lỗi cập nhật NVL %s: %s", name, e)
@@ -1850,6 +1908,7 @@ class GoogleSheetsService:
                     ws.batch_clear([f'K{r_idx}:Q{r_idx}'])
                 else:
                     ws.batch_clear([f'B{r_idx}:H{r_idx}'])
+                self._invalidate_cache("materials", "material_groups")
                 return True
             except Exception as e:
                 logger.error("Lỗi xóa NVL %s: %s", name, e)
@@ -1916,6 +1975,7 @@ class GoogleSheetsService:
 
                 if updates:
                     ws.batch_update(updates, value_input_option='USER_ENTERED')
+                    self._invalidate_cache("materials", "material_groups")
                     try:
                         ws_log = self._get_inventory_ws("LichSu")
                         for lr in reversed(log_rows):
@@ -2015,6 +2075,7 @@ class GoogleSheetsService:
                 if updates:
                     try:
                         ws.batch_update(updates, value_input_option='USER_ENTERED')
+                        self._invalidate_cache("materials", "material_groups")
                         ws_log = self._get_inventory_ws("LichSu")
                         for lr in reversed(log_rows):
                             ws_log.insert_row(lr, index=2, value_input_option='USER_ENTERED')

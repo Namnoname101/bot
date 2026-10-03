@@ -120,6 +120,21 @@ async def post_init(application):
         name='salary-sheet-maintenance',
     )
 
+    # 4. Tự động sao lưu dữ liệu Google Sheets lúc 03:00 sáng hàng ngày
+    async def scheduled_sheets_backup(context):
+        try:
+            from scripts.backup_sheets import run_backup
+            await asyncio.to_thread(run_backup)
+            logger.info("✅ Hoàn tất tác vụ sao lưu tự động Google Sheets.")
+        except Exception as e:
+            logger.error(f"Lỗi sao lưu tự động Google Sheets: {e}")
+
+    application.job_queue.run_daily(
+        scheduled_sheets_backup,
+        time=datetime.time(hour=3, minute=0, tzinfo=tz),
+        name='daily-sheets-backup',
+    )
+
     # 4. Khởi động Telegram Mini App HTTP Server & thiết lập Menu Button
     try:
         await start_webapp_server(application)

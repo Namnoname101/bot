@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from pathlib import Path
 from aiohttp import web
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
@@ -176,8 +177,44 @@ async def handle_health(request: web.Request) -> web.Response:
     })
 
 
+_login_failures: dict[str, list[float]] = {}
+_login_lock = asyncio.Lock()
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_WINDOW = 300.0  # 5 phút (300 giây)
+
+
+def _get_client_ip(request: web.Request) -> str:
+    fly_ip = request.headers.get("Fly-Client-IP")
+    if fly_ip:
+        return fly_ip.strip()
+    x_forwarded = request.headers.get("X-Forwarded-For")
+    if x_forwarded:
+        return x_forwarded.split(",")[0].strip()
+    return getattr(request, "remote", None) or "127.0.0.1"
+
+
+async def _check_rate_limit(key: str) -> bool:
+    now = time.time()
+    async with _login_lock:
+        attempts = _login_failures.get(key, [])
+        attempts = [t for t in attempts if now - t < LOGIN_LOCKOUT_WINDOW]
+        _login_failures[key] = attempts
+        return len(attempts) >= MAX_LOGIN_ATTEMPTS
+
+
+async def _record_failed_attempt(key: str):
+    async with _login_lock:
+        attempts = _login_failures.setdefault(key, [])
+        attempts.append(time.time())
+
+
+async def _clear_failed_attempts(key: str):
+    async with _login_lock:
+        _login_failures.pop(key, None)
+
+
 async def handle_auth_login(request: web.Request) -> web.Response:
-    """Xử lý đăng nhập bằng Username và Mật khẩu (mặc định 123456789)."""
+    """Xử lý đăng nhập bằng Username và Mật khẩu (mặc định 123456789), có rate limiting chống brute-force."""
     try:
         data = await request.json()
     except Exception:
@@ -194,6 +231,17 @@ async def handle_auth_login(request: web.Request) -> web.Response:
     if not password:
         return web.json_response({"success": False, "message": "Vui lòng nhập Mật khẩu (mặc định: 123456789)."}, status=400)
 
+    # Rate limiting: kiểm tra số lần thử sai theo IP và Username
+    client_ip = _get_client_ip(request)
+    user_norm = normalize_name(username)
+    rate_key = f"{client_ip}:{user_norm}"
+    if await _check_rate_limit(rate_key) or await _check_rate_limit(client_ip):
+        return web.json_response({
+            "success": False,
+            "error": "rate_limited",
+            "message": "⛔ Bạn đã thử đăng nhập sai quá nhiều lần. Vui lòng đợi 5 phút trước khi thử lại.",
+        }, status=429)
+
     sheets = request.app[SHEETS_KEY]
     store: WebAppStore = request.app[STORE_KEY]
     bot_data = request.app.get(BOT_DATA_KEY) or {}
@@ -207,16 +255,27 @@ async def handle_auth_login(request: web.Request) -> web.Response:
         preferred_role=role,
     )
     if not ok:
+        await _record_failed_attempt(rate_key)
+        await _record_failed_attempt(client_ip)
         return web.json_response({"success": False, "message": err_msg}, status=401)
 
+    # Đăng nhập thành công -> xóa bộ đếm thất bại
+    await _clear_failed_attempts(rate_key)
+
     token = create_auth_token(user_info)
-    return web.json_response({
+    must_change = bool(user_info.get("must_change_password"))
+    res_data = {
         "success": True,
         "token": token,
         "user": user_info,
         "role": user_info.get("role") or role,
+        "must_change_password": must_change,
         "message": f"Chào mừng {user_info.get('full_name')} vào hệ thống!",
-    })
+    }
+    if must_change:
+        res_data["warning"] = "⚠️ Bạn đang sử dụng mật khẩu mặc định (123456789). Vui lòng đổi mật khẩu để bảo vệ tài khoản!"
+
+    return web.json_response(res_data)
 
 
 async def handle_auth_public_users(request: web.Request) -> web.Response:

@@ -445,12 +445,12 @@ class WebAppStore:
                     pwd_raw == DEFAULT_PASSWORD
                     or (bool(Config.WEBAPP_ADMIN_PIN) and pwd_raw == Config.WEBAPP_ADMIN_PIN)
                     or (bool(dyn_pin) and pwd_raw == dyn_pin)
-                    or pwd_raw == str(Config.ADMIN_CHAT_ID)
                 )
 
             if not valid_pass:
                 return False, None, "Mật khẩu Quản lý không đúng. Mật khẩu mặc định: 123456789."
 
+            is_default = (pwd_raw == DEFAULT_PASSWORD)
             user_info = {
                 "id": Config.ADMIN_CHAT_ID,
                 "username": "admin",
@@ -460,6 +460,7 @@ class WebAppStore:
                 "is_super_admin": True,
                 "role": "Quản Lý",
                 "authenticated": True,
+                "must_change_password": is_default,
             }
             return True, user_info, ""
 
@@ -477,10 +478,13 @@ class WebAppStore:
         nick = str(matched_emp.get("nickname") or matched_emp.get("full_name") or user_raw).strip()
         emp_acc = self.get_account(user_norm)
         valid_pass = False
+        is_default = False
         if emp_acc and emp_acc.get("password_hash") and emp_acc.get("salt"):
             valid_pass = verify_password(pwd_raw, emp_acc["password_hash"], emp_acc["salt"])
+            is_default = (pwd_raw == DEFAULT_PASSWORD)
         else:
             valid_pass = (pwd_raw == DEFAULT_PASSWORD)
+            is_default = True
 
         if not valid_pass:
             return False, None, "Mật khẩu không đúng. Mật khẩu mặc định: 123456789."
@@ -498,5 +502,6 @@ class WebAppStore:
             "is_super_admin": False,
             "role": assigned_role,
             "authenticated": True,
+            "must_change_password": is_default,
         }
         return True, user_info, ""

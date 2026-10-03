@@ -559,6 +559,8 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(bool(token))
         self.assertEqual(emp_data["user"]["nickname"], "An")
         self.assertEqual(emp_data["role"], "Pha Chế")
+        self.assertTrue(emp_data.get("must_change_password"))
+        self.assertIn("warning", emp_data)
 
         # 2. Dùng token xác thực qua header X-Auth-Token
         bs_resp = await self.client.get("/api/bootstrap", headers={"X-Auth-Token": token})
@@ -574,6 +576,7 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(admin_login.status, 200)
         adm_data = await admin_login.json()
         self.assertTrue(adm_data["user"]["is_admin"])
+        self.assertTrue(adm_data.get("must_change_password"))
 
         # 4. Đăng nhập sai mật khẩu -> 401
         wrong_pwd = await self.client.post(
@@ -604,12 +607,14 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(old_login.status, 401)
 
-        # Mật khẩu mới hoạt động bình thường
+        # Mật khẩu mới hoạt động bình thường và không còn cảnh báo đổi mật khẩu
         new_login = await self.client.post(
             "/api/auth/login",
             json={"username": "An", "password": "newSecretPassword2026"},
         )
         self.assertEqual(new_login.status, 200)
+        new_data = await new_login.json()
+        self.assertFalse(new_data.get("must_change_password"))
 
         # 7. Admin thêm nhân viên mới -> Tự động có trên danh sách public và đăng nhập được ngay bằng pass mặc định 123456789
         self.sheets.add_employee.return_value = {"success": True}
@@ -642,6 +647,22 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(huong_data["success"])
         self.assertEqual(huong_data["user"]["nickname"], "Hương")
         self.assertEqual(huong_data["role"], "Phục Vụ")
+
+        # 8. Kiểm tra Rate Limiting: thử sai liên tục 5 lần -> lần 6 bị 429 Too Many Requests
+        for _ in range(5):
+            await self.client.post(
+                "/api/auth/login",
+                json={"username": "HackerTarget", "password": "BadPassword"},
+                headers={"X-Forwarded-For": "192.168.1.99"},
+            )
+        rate_blocked = await self.client.post(
+            "/api/auth/login",
+            json={"username": "HackerTarget", "password": "BadPassword"},
+            headers={"X-Forwarded-For": "192.168.1.99"},
+        )
+        self.assertEqual(rate_blocked.status, 429)
+        block_data = await rate_blocked.json()
+        self.assertEqual(block_data.get("error"), "rate_limited")
 
     async def test_reward_ownership_access_control(self):
         an_headers = {

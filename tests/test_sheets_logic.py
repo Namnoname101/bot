@@ -219,6 +219,32 @@ class SheetsLogicTests(unittest.TestCase):
         self.assertTrue(result['success'], f"Cross-midnight checkout failed: {result}")
         self.assertEqual(result['total_hours'], '4,0')
 
+    def test_employees_detail_caching_and_invalidation(self):
+        service = self.service()
+        ws = ValuesWorksheet([
+            ['Tên', 'Nickname', 'Mức Lương/Giờ', 'Số Dư Ly Thưởng'],
+            ['Nguyễn An', 'an', '18.0', '2'],
+        ])
+        service._get_mapping_worksheet = lambda: ws
+
+        # First call fetches from ws
+        res1 = service.get_employees_detail()
+        self.assertEqual(res1[0]['balance'], 2)
+
+        # Mutate the underlying worksheet rows directly
+        ws.rows[1][3] = '5'
+
+        # Second call returns cached data (still 2)
+        res2 = service.get_employees_detail()
+        self.assertEqual(res2[0]['balance'], 2)
+
+        # Invalidate cache
+        service._invalidate_cache("employees_detail")
+
+        # Third call fetches new value 5
+        res3 = service.get_employees_detail()
+        self.assertEqual(res3[0]['balance'], 5)
+
 
 if __name__ == '__main__':
     unittest.main()
