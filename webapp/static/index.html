@@ -21,125 +21,197 @@
 <body>
   <!-- Standalone Login Screen (Shown when not authenticated) -->
   <div id="screen-login" class="login-screen hidden">
-    <div class="login-card">
-      <div class="login-banner-wrap">
-        <img src="/static/brand-banner.jpg" class="login-banner-img" alt="Morning Coffee Sober" />
-        <div class="login-banner-overlay"></div>
-      </div>
-      <div class="login-header">
-        <img src="/static/brand-logo.jpg" class="login-brand-logo" alt="Sober Coffee" />
-        <h2 class="login-title">Morning Coffee <em>sober.</em></h2>
-        <div class="brand-ribbon-badge">STAY SOBER • STAY VERTICAL</div>
-        <p class="login-sub">Ứng dụng điểm danh & vận hành quán</p>
-      </div>
-
-      <form id="form-login" onsubmit="event.preventDefault(); App.submitLogin();">
-        <!-- Account Selection (Chọn trực tiếp hoặc gõ tay) -->
-        <div class="form-group mb-12">
-          <div class="field-label-row">
-            <label class="field-label" for="login-user-select">👤 Chọn tài khoản của bạn</label>
-            <button type="button" class="btn-link-sm" id="btn-toggle-manual-input" onclick="App.toggleManualUsername()">Gõ tay ✏️</button>
-          </div>
-
-          <!-- Dropdown Select: Chọn trực tiếp tên mình, không cần nhập -->
-          <div id="login-select-wrap">
-            <select id="login-user-select" class="input" onchange="App.onLoginUserSelectChange()">
-              <option value="">-- Đang nạp danh sách nhân sự... --</option>
-            </select>
-          </div>
-
-          <!-- Manual input wrap (khi cần tự gõ) -->
-          <div id="login-manual-wrap" class="hidden mt-8">
-            <input 
-              type="text" 
-              id="login-username" 
-              class="input" 
-              placeholder="Nhập tên nhân viên hoặc 'admin'..." 
-              autocomplete="username" 
-              list="login-emp-datalist"
-              oninput="App.onLoginUsernameChange()"
-            />
-            <datalist id="login-emp-datalist"></datalist>
-          </div>
-
-          <!-- Quick clickable username tags -->
-          <div class="login-quick-chips" id="login-quick-chips">
-            <span class="chip-label">☕ Chạm nhanh tên bạn:</span>
-            <div class="chip-list" id="login-chips-container"></div>
+    <div class="login-card-container">
+      <!-- Visual Brand Panel (Hero banner for desktop & tablet) -->
+      <div class="login-visual-panel">
+        <img src="/static/brand-banner.jpg" class="login-visual-img" alt="Morning Coffee Sober" />
+        <div class="login-visual-overlay">
+          <div class="visual-brand-tag">SOBER COFFEE & TEA</div>
+          <h1 class="visual-brand-title">Morning Coffee <em>sober.</em></h1>
+          <div class="visual-ribbon">STAY SOBER • STAY VERTICAL</div>
+          <p class="visual-quote">"A magical, dark liquid that helps you get through the day."</p>
+          <div class="visual-footer-info">
+            <span>🌿 6:00 AM – 10:00 PM hàng ngày</span>
+            <span>📍 Quán cà phê mộc & sân vườn</span>
           </div>
         </div>
+      </div>
 
-        <!-- Password input -->
-        <div class="form-group mb-12">
-          <label class="field-label" for="login-password">🔑 Mật khẩu</label>
-          <div class="password-wrap">
-            <input 
-              type="password" 
-              id="login-password" 
-              class="input" 
-              value="123456789" 
-              placeholder="Mật khẩu mặc định: 123456789" 
-              autocomplete="current-password" 
-              required 
-            />
-            <button type="button" class="btn-toggle-eye" id="btn-toggle-pwd" onclick="App.togglePasswordVisibility()" title="Ẩn/Hiện mật khẩu">👁️</button>
-          </div>
-          <div class="login-pwd-hint">
-            <span>ℹ️ Mật khẩu mặc định: <strong class="text-amber">123456789</strong></span>
-          </div>
+      <!-- Interactive Form Panel -->
+      <div class="login-form-panel">
+        <div class="login-form-header">
+          <img src="/static/brand-logo.jpg" class="login-brand-logo" alt="Sober Coffee" />
+          <h2 class="login-title">Đăng Nhập Ca Làm</h2>
+          <p class="login-sub">Chọn tên nhân viên và vị trí để bắt đầu làm việc</p>
         </div>
 
-        <!-- Shift role selector -->
-        <div class="form-group mb-16" id="login-role-group">
-          <label class="field-label">Vị trí làm việc ca này</label>
-          <div class="role-cards-grid">
-            <div class="role-select-card active" id="card-role-barista" onclick="App.setLoginRole('Pha Chế')">
-              <div class="role-card-icon">☕</div>
-              <div class="role-card-title">Pha Chế</div>
-              <div class="role-card-desc">Barista • Kho NVL • Công thức</div>
+        <form id="form-login" onsubmit="event.preventDefault(); App.submitLogin();">
+          <!-- Account Selection (Chọn trực tiếp hoặc gõ tay) -->
+          <div class="form-group mb-12">
+            <div class="field-label-row">
+              <label class="field-label" for="login-user-select">👤 Chọn nhân sự vào ca</label>
+              <button type="button" class="btn-link-sm" id="btn-toggle-manual-input" onclick="App.toggleManualUsername()">Gõ tay ✏️</button>
             </div>
-            <div class="role-select-card" id="card-role-server" onclick="App.setLoginRole('Phục Vụ')">
-              <div class="role-card-icon">🍽️</div>
-              <div class="role-card-title">Phục Vụ</div>
-              <div class="role-card-desc">Order • Bàn ghế • Báo cáo DT</div>
+
+            <!-- Dropdown Select: Chọn trực tiếp tên mình, không cần nhập -->
+            <div id="login-select-wrap">
+              <select id="login-user-select" class="input" onchange="App.onLoginUserSelectChange()">
+                <option value="">-- Đang nạp danh sách nhân sự... --</option>
+              </select>
+            </div>
+
+            <!-- Manual input wrap (khi cần tự gõ) -->
+            <div id="login-manual-wrap" class="hidden mt-8">
+              <input 
+                type="text" 
+                id="login-username" 
+                class="input" 
+                placeholder="Nhập tên nhân viên hoặc 'admin'..." 
+                autocomplete="username" 
+                list="login-emp-datalist"
+                oninput="App.onLoginUsernameChange()"
+              />
+              <datalist id="login-emp-datalist"></datalist>
+            </div>
+
+            <!-- Quick clickable username tags -->
+            <div class="login-quick-chips" id="login-quick-chips">
+              <span class="chip-label">☕ Chạm nhanh tên bạn:</span>
+              <div class="chip-list" id="login-chips-container"></div>
             </div>
           </div>
+
+          <!-- Password input -->
+          <div class="form-group mb-12">
+            <label class="field-label" for="login-password">🔑 Mật khẩu</label>
+            <div class="password-wrap">
+              <input 
+                type="password" 
+                id="login-password" 
+                class="input" 
+                value="123456789" 
+                placeholder="Mật khẩu mặc định: 123456789" 
+                autocomplete="current-password" 
+                required 
+              />
+              <button type="button" class="btn-toggle-eye" id="btn-toggle-pwd" onclick="App.togglePasswordVisibility()" title="Ẩn/Hiện mật khẩu">👁️</button>
+            </div>
+            <div class="login-pwd-hint">
+              <span>ℹ️ Mật khẩu mặc định: <strong class="text-amber">123456789</strong></span>
+            </div>
+          </div>
+
+          <!-- Shift role selector -->
+          <div class="form-group mb-16" id="login-role-group">
+            <label class="field-label">Vị trí làm việc ca này</label>
+            <div class="role-cards-grid">
+              <div class="role-select-card active" id="card-role-barista" onclick="App.setLoginRole('Pha Chế')">
+                <div class="role-card-icon">☕</div>
+                <div class="role-card-title">Pha Chế</div>
+                <div class="role-card-desc">Barista • Kho NVL • Công thức</div>
+              </div>
+              <div class="role-select-card" id="card-role-server" onclick="App.setLoginRole('Phục Vụ')">
+                <div class="role-card-icon">🍽️</div>
+                <div class="role-card-title">Phục Vụ</div>
+                <div class="role-card-desc">Order • Bàn ghế • Báo cáo DT</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="login-error-alert" class="login-error-alert hidden"></div>
+
+          <button type="submit" id="btn-login-submit" class="btn btn-primary btn-block btn-lg">
+            ☕ Vào Ca Làm Việc
+          </button>
+        </form>
+
+        <div id="login-tg-auto" class="login-tg-hint hidden">
+          <span>⚡ Tài khoản Telegram:</span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="App.loginWithTelegram()">Đăng nhập nhanh</button>
         </div>
-
-        <div id="login-error-alert" class="login-error-alert hidden"></div>
-
-        <button type="submit" id="btn-login-submit" class="btn btn-primary btn-block btn-lg">
-          ☕ Vào Ca Làm Việc
-        </button>
-      </form>
-
-      <div id="login-tg-auto" class="login-tg-hint hidden">
-        <span>⚡ Tài khoản Telegram:</span>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="App.loginWithTelegram()">Đăng nhập nhanh</button>
       </div>
     </div>
   </div>
 
-  <!-- Top App Header -->
-  <header class="app-header hidden" id="app-header">
-    <div class="brand-row">
-      <img src="/static/brand-logo.jpg" class="brand-logo-img" alt="Sober Coffee" />
-      <div class="brand-info">
-        <h1 class="sr-only">SOBER MINI APP</h1>
-        <div class="brand-title-wrap">
-          <span class="brand-title-name">sober.</span>
-          <span class="brand-ribbon-pill">STAY VERTICAL</span>
+  <!-- App Layout (Desktop Sidebar + Main Viewport) -->
+  <div class="app-layout" id="app-layout">
+    <!-- Desktop Sidebar (Hidden on mobile via CSS) -->
+    <aside class="desktop-sidebar hidden" id="desktop-sidebar">
+      <div class="sidebar-brand">
+        <img src="/static/brand-logo.jpg" class="sidebar-brand-logo" alt="Sober Coffee" />
+        <div class="sidebar-brand-text">
+          <div class="sidebar-brand-name">sober.</div>
+          <div class="sidebar-brand-badge">STAY VERTICAL</div>
         </div>
-        <p id="header-subtitle">Đang kết nối hệ thống...</p>
       </div>
-    </div>
-    <div class="header-actions">
-      <span id="role-badge" class="badge badge-emp">👤 Khách</span>
-      <button id="btn-change-pwd" class="icon-btn" title="Đổi mật khẩu" onclick="App.showChangePasswordModal()">🔑</button>
-      <button id="btn-logout" class="icon-btn" title="Đăng xuất / Đổi vai trò" onclick="App.logout()">🚪</button>
-      <button id="btn-refresh" class="icon-btn" title="Làm mới dữ liệu" onclick="App.refreshAll()">🔄</button>
-    </div>
-  </header>
+
+      <div class="sidebar-profile" onclick="App.openRoleModal()">
+        <div class="sidebar-avatar" id="sidebar-avatar">☕</div>
+        <div class="sidebar-user-meta">
+          <div class="sidebar-user-name" id="sidebar-user-name">Chưa chọn nhân viên</div>
+          <div class="sidebar-user-role" id="sidebar-user-role">Pha Chế</div>
+        </div>
+        <span class="sidebar-profile-switch" title="Đổi vai trò">⇄</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="sidebar-nav-item active" data-tab="attendance" onclick="App.switchTab('attendance')">
+          <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Chấm Công & Ca</span>
+        </button>
+        <button class="sidebar-nav-item" data-tab="inventory" onclick="App.switchTab('inventory')">
+          <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+          <span>Kho & Công Thức</span>
+        </button>
+        <button class="sidebar-nav-item" data-tab="rewards" onclick="App.switchTab('rewards')">
+          <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect width="20" height="5" x="2" y="7"/><line x1="12" x2="12" y1="22" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+          <span>Thưởng & Báo Cáo</span>
+        </button>
+        <button class="sidebar-nav-item" data-tab="feedback" onclick="App.switchTab('feedback')">
+          <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+          <span>Góp Ý & Đề Xuất</span>
+        </button>
+        <button id="sidebar-admin-btn" class="sidebar-nav-item hidden" data-tab="admin" onclick="App.switchTab('admin')">
+          <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <span>Quản Lý Quán</span>
+          <span id="sidebar-admin-badge" class="nav-badge hidden">0</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-shop-info">
+          <div class="shop-hours">⏰ 6:00 AM – 10:00 PM</div>
+          <div class="shop-phone">📞 078 322 4638</div>
+        </div>
+        <div class="sidebar-actions">
+          <button class="btn btn-ghost btn-sm" onclick="App.showChangePasswordModal()">🔑 Đổi MK</button>
+          <button class="btn btn-ghost btn-sm" onclick="App.logout()">🚪 Đăng xuất</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Viewport -->
+    <div class="main-viewport">
+      <!-- Top App Header -->
+      <header class="app-header hidden" id="app-header">
+        <div class="brand-row">
+          <img src="/static/brand-logo.jpg" class="brand-logo-img" alt="Sober Coffee" />
+          <div class="brand-info">
+            <h1 class="sr-only">SOBER MINI APP</h1>
+            <div class="brand-title-wrap">
+              <span class="brand-title-name">sober.</span>
+              <span class="brand-ribbon-pill">STAY VERTICAL</span>
+            </div>
+            <p id="header-subtitle">Đang kết nối hệ thống...</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <span id="role-badge" class="badge badge-emp">👤 Khách</span>
+          <button id="btn-change-pwd" class="icon-btn" title="Đổi mật khẩu" onclick="App.showChangePasswordModal()">🔑</button>
+          <button id="btn-logout" class="icon-btn" title="Đăng xuất / Đổi vai trò" onclick="App.logout()">🚪</button>
+          <button id="btn-refresh" class="icon-btn" title="Làm mới dữ liệu" onclick="App.refreshAll()">🔄</button>
+        </div>
+      </header>
 
   <!-- Main Content Container -->
   <main class="app-content">
@@ -671,6 +743,8 @@
       </div>
     </section>
   </main>
+    </div> <!-- /.main-viewport -->
+  </div> <!-- /.app-layout -->
 
   <!-- Modal Dialog -->
   <div id="modal-overlay" class="modal-overlay hidden" onclick="App.closeModal(event)">
@@ -686,26 +760,26 @@
   <!-- Toast Notification -->
   <div id="toast" class="toast hidden"></div>
 
-  <!-- Bottom Navigation Bar -->
+  <!-- Bottom Navigation Bar (Mobile only) -->
   <nav class="bottom-nav">
     <button class="nav-item active" data-tab="attendance" onclick="App.switchTab('attendance')">
-      <span class="nav-icon">🕒</span>
+      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       <span class="nav-label">Chấm Công</span>
     </button>
     <button class="nav-item" data-tab="inventory" onclick="App.switchTab('inventory')">
-      <span class="nav-icon">📦</span>
+      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
       <span class="nav-label">Kho & Món</span>
     </button>
     <button class="nav-item" data-tab="rewards" onclick="App.switchTab('rewards')">
-      <span class="nav-icon">🎁</span>
-      <span class="nav-label">Thưởng & Kết Ca</span>
+      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect width="20" height="5" x="2" y="7"/><line x1="12" x2="12" y1="22" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+      <span class="nav-label">Thưởng</span>
     </button>
     <button class="nav-item" data-tab="feedback" onclick="App.switchTab('feedback')">
-      <span class="nav-icon">💡</span>
+      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
       <span class="nav-label">Góp Ý</span>
     </button>
     <button id="nav-admin-btn" class="nav-item hidden" data-tab="admin" onclick="App.switchTab('admin')">
-      <span class="nav-icon">👑</span>
+      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
       <span class="nav-label">Quản Lý</span>
       <span id="nav-admin-badge" class="nav-badge hidden">0</span>
     </button>

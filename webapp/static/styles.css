@@ -1,31 +1,31 @@
 /* ==========================================================================
-   SOBER COFFEE & TEA — BRAND DESIGN SYSTEM
-   Tone: Warm Artisanal Coffee & Garden Retreat (Espresso, Crema, Bamboo, Olive)
-   Typography: Playfair Display (Brand Titles) + Plus Jakarta Sans (UI & Controls)
+   SOBER COFFEE & TEA — UNIFIED WEB & MOBILE DESIGN SYSTEM
+   Tone: Warm Modern Coffee Artisan & Minimalist Garden (Espresso, Crema, Olive)
+   Layout: Responsive Desktop Sidebar + Mobile Bottom Navigation
    ========================================================================== */
 
 :root {
   /* Brand Core Palette */
-  --bg: #161412;                       /* Deep dark espresso background */
-  --bg-gradient: radial-gradient(circle at 50% 0%, #24201B 0%, #161412 100%);
-  --card-bg: #211E1A;                  /* Warm dark cafe card surface */
-  --card-bg-hover: #292520;
-  --card-bg-elevated: #2E2923;
+  --bg: #141311;                       /* Deep dark espresso background */
+  --bg-gradient: radial-gradient(circle at 50% 0%, #221F1B 0%, #141311 100%);
+  --card-bg: #1E1C18;                  /* Warm dark cafe card surface */
+  --card-bg-hover: #26231E;
+  --card-bg-elevated: #2A2722;
   --card-subtle: rgba(255, 255, 255, 0.03);
 
   /* Typography Colors */
-  --text: #F7F2EC;                     /* Warm foam/cream text */
-  --text-secondary: #D8CFC4;           /* Warm soft beige text */
-  --muted: #A19585;                    /* Muted latte cream */
+  --text: #F7F3EE;                     /* Warm foam/milk cream text */
+  --text-secondary: #D4CBBF;           /* Warm soft beige text */
+  --muted: #9E9384;                    /* Muted latte cream */
 
   /* Brand Accents */
   --primary: #D4A373;                  /* Caramel Crema Latte */
   --primary-hover: #E2B383;
   --primary-active: #C49363;
-  --primary-text: #161412;             /* High contrast dark text on primary button */
-  --primary-glow: rgba(212, 163, 115, 0.28);
+  --primary-text: #141311;             /* High contrast dark text on primary button */
+  --primary-glow: rgba(212, 163, 115, 0.25);
 
-  /* Specific Brand Badges (Extracted from photo logo) */
+  /* Brand Signature Accents */
   --accent-olive: #7D7858;             /* Signature Ribbon 'STAY SOBER - STAY VERTICAL' */
   --accent-olive-light: #9B946E;
   --accent-green: #5E8C6A;             /* Bamboo Garden Herbal Green */
@@ -36,9 +36,9 @@
   --accent-blue-bg: rgba(106, 142, 174, 0.16);
 
   /* Borders & Shadows */
-  --border: rgba(212, 163, 115, 0.16);
-  --border-subtle: rgba(247, 242, 236, 0.08);
-  --border-active: rgba(212, 163, 115, 0.5);
+  --border: rgba(212, 163, 115, 0.18);
+  --border-subtle: rgba(247, 243, 238, 0.08);
+  --border-active: rgba(212, 163, 115, 0.6);
   --radius: 16px;
   --radius-sm: 10px;
   --radius-pill: 9999px;
@@ -49,7 +49,8 @@
 
   /* Shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
 }
 
 /* Base Reset & Typography */
@@ -66,14 +67,14 @@ body {
   background-image: var(--bg-gradient);
   background-attachment: fixed;
   color: var(--text);
-  padding-bottom: 92px;
+  padding-bottom: 88px;
   min-height: 100vh;
-  line-height: 1.48;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
 body.login-mode {
-  padding-bottom: 0;
+  padding-bottom: 0 !important;
 }
 
 .hidden {
@@ -104,6 +105,255 @@ body.login-mode {
 .text-olive { color: var(--accent-olive-light); font-weight: 700; }
 .text-green { color: var(--accent-green); font-weight: 700; }
 
+/* SVGs */
+.nav-svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   APP LAYOUT (Desktop Sidebar + Main Viewport)
+   ========================================================================== */
+.app-layout {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.desktop-sidebar {
+  display: none; /* Hidden on mobile by default */
+}
+
+.main-viewport {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==========================================================================
+   DESKTOP RESPONSIVE BREAKPOINT (>= 768px)
+   ========================================================================== */
+@media (min-width: 768px) {
+  body {
+    padding-bottom: 0 !important;
+  }
+
+  .bottom-nav {
+    display: none !important;
+  }
+
+  .desktop-sidebar:not(.hidden) {
+    display: flex !important;
+    flex-direction: column;
+    width: 270px;
+    flex-shrink: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    background: #181613;
+    border-right: 1px solid var(--border);
+    padding: 24px 18px 20px;
+    z-index: 50;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.4);
+    overflow-y: auto;
+  }
+
+  .main-viewport {
+    margin-left: 270px;
+    width: calc(100% - 270px);
+  }
+
+  .app-header {
+    padding: 16px 32px;
+  }
+
+  .app-content {
+    max-width: 1100px;
+    padding: 24px 32px 64px;
+    margin: 0;
+  }
+
+  .hero-stats {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 16px !important;
+  }
+
+  .stat-pill {
+    padding: 16px 12px !important;
+  }
+
+  .stat-val {
+    font-size: 26px !important;
+  }
+}
+
+/* ==========================================================================
+   DESKTOP SIDEBAR STYLING
+   ========================================================================== */
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sidebar-brand-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.sidebar-brand-name {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--text);
+  line-height: 1;
+}
+
+.sidebar-brand-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  background: var(--accent-olive);
+  color: #F7F3EE;
+  padding: 2px 7px;
+  border-radius: 999px;
+  display: inline-block;
+  margin-top: 4px;
+}
+
+.sidebar-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(212, 163, 115, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 22px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.sidebar-profile:hover {
+  background: rgba(212, 163, 115, 0.14);
+  border-color: var(--primary);
+}
+
+.sidebar-avatar {
+  width: 36px;
+  height: 36px;
+  background: rgba(22, 20, 18, 0.85);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  border: 1px solid var(--border-subtle);
+}
+
+.sidebar-user-meta {
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar-user-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-role {
+  font-size: 11.5px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.sidebar-profile-switch {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+  text-align: left;
+}
+
+.sidebar-nav-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.sidebar-nav-item.active {
+  background: rgba(212, 163, 115, 0.14);
+  color: var(--primary);
+  border-color: rgba(212, 163, 115, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.sidebar-nav-item .nav-svg {
+  width: 19px;
+  height: 19px;
+}
+
+.sidebar-footer {
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sidebar-shop-info {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.sidebar-actions {
+  display: flex;
+  gap: 8px;
+}
+
 /* ==========================================================================
    APP HEADER
    ========================================================================== */
@@ -115,7 +365,7 @@ body.login-mode {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: rgba(27, 24, 21, 0.92);
+  background: rgba(26, 23, 20, 0.94);
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -128,12 +378,11 @@ body.login-mode {
 }
 
 .brand-logo-img {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
   object-fit: cover;
   border: 1.5px solid var(--border);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
 }
 
 .brand-title-wrap {
@@ -147,7 +396,6 @@ body.login-mode {
   font-size: 19px;
   font-weight: 700;
   font-style: italic;
-  letter-spacing: 0.2px;
   color: var(--text);
 }
 
@@ -157,7 +405,7 @@ body.login-mode {
   letter-spacing: 0.6px;
   text-transform: uppercase;
   background: var(--accent-olive);
-  color: #F7F2EC;
+  color: #F7F3EE;
   padding: 2px 7px;
   border-radius: 999px;
   display: inline-block;
@@ -196,10 +444,6 @@ body.login-mode {
   transform: translateY(-1px);
 }
 
-.icon-btn:active {
-  transform: translateY(0);
-}
-
 .badge {
   font-size: 11px;
   font-weight: 700;
@@ -223,10 +467,10 @@ body.login-mode {
 }
 
 /* ==========================================================================
-   MAIN CONTENT & CARDS
+   CARDS & CONTAINERS
    ========================================================================== */
 .app-content {
-  padding: 14px 14px 20px;
+  padding: 14px 14px 24px;
   max-width: 600px;
   margin: 0 auto;
 }
@@ -235,8 +479,8 @@ body.login-mode {
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 14px;
+  padding: 18px;
+  margin-bottom: 16px;
   box-shadow: var(--shadow-sm);
   transition: border-color 0.2s ease;
 }
@@ -245,18 +489,18 @@ body.login-mode {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .card-header h2 {
-  font-size: 15.5px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.2px;
 }
 
 .helper-text {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--muted);
   margin-bottom: 12px;
   line-height: 1.45;
@@ -266,7 +510,7 @@ body.login-mode {
   text-align: center;
   color: var(--muted);
   font-size: 13px;
-  padding: 24px 12px;
+  padding: 24px 14px;
   background: var(--card-subtle);
   border-radius: 12px;
   border: 1px dashed var(--border-subtle);
@@ -276,11 +520,11 @@ body.login-mode {
    HERO / LIVE SHIFT STATUS BANNER
    ========================================================================== */
 .hero-card {
-  background: linear-gradient(135deg, rgba(125, 120, 88, 0.28) 0%, rgba(212, 163, 115, 0.16) 100%);
-  border: 1px solid rgba(212, 163, 115, 0.26);
+  background: linear-gradient(135deg, rgba(125, 120, 88, 0.25) 0%, rgba(212, 163, 115, 0.15) 100%);
+  border: 1px solid rgba(212, 163, 115, 0.28);
   border-radius: var(--radius);
-  padding: 15px;
-  margin-bottom: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
   box-shadow: var(--shadow-sm);
 }
 
@@ -290,13 +534,13 @@ body.login-mode {
   align-items: center;
   font-size: 13px;
   font-weight: 700;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .hero-tag {
   background: var(--accent-olive);
-  color: #F7F2EC;
-  padding: 3px 10px;
+  color: #F7F3EE;
+  padding: 3px 11px;
   border-radius: 999px;
   font-size: 11.5px;
   font-weight: 700;
@@ -312,14 +556,14 @@ body.login-mode {
 .hero-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 10px;
 }
 
 .stat-pill {
-  background: rgba(22, 20, 18, 0.7);
+  background: rgba(20, 18, 16, 0.75);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 6px;
+  border-radius: 14px;
+  padding: 12px 8px;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -327,7 +571,7 @@ body.login-mode {
 }
 
 .stat-val {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--primary);
   line-height: 1.1;
@@ -339,16 +583,16 @@ body.login-mode {
   font-weight: 600;
 }
 
-/* Identity Bar */
+/* Quick Identity Bar */
 .identity-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 11px 14px;
-  margin-bottom: 14px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(212, 163, 115, 0.12), rgba(33, 30, 26, 0.9));
+  background: linear-gradient(135deg, rgba(212, 163, 115, 0.12), rgba(30, 28, 24, 0.95));
   border: 1px solid rgba(212, 163, 115, 0.28);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -356,13 +600,13 @@ body.login-mode {
 
 .identity-bar:hover {
   border-color: var(--primary);
-  background: linear-gradient(135deg, rgba(212, 163, 115, 0.18), rgba(33, 30, 26, 0.95));
+  background: linear-gradient(135deg, rgba(212, 163, 115, 0.18), rgba(30, 28, 24, 1));
 }
 
 .identity-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .identity-icon {
@@ -387,7 +631,7 @@ body.login-mode {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 8px;
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 700;
@@ -453,7 +697,7 @@ body.login-mode {
 }
 
 .btn-sm {
-  padding: 6px 12px;
+  padding: 7px 13px;
   font-size: 12px;
   border-radius: 8px;
 }
@@ -471,7 +715,7 @@ body.login-mode {
   background: rgba(18, 16, 14, 0.7);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 11px 14px;
+  padding: 12px 14px;
   color: var(--text);
   outline: none;
   transition: all 0.18s ease;
@@ -508,23 +752,17 @@ body.login-mode {
   gap: 8px;
 }
 
-.grid-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
 /* ==========================================================================
    SUBTAB NAV BAR (Segmented Control)
    ========================================================================== */
 .subtab-bar {
   display: flex;
   gap: 6px;
-  background: rgba(22, 20, 18, 0.75);
+  background: rgba(20, 18, 16, 0.75);
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
   padding: 4px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   overflow-x: auto;
 }
 
@@ -536,7 +774,7 @@ body.login-mode {
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 700;
-  padding: 8px 12px;
+  padding: 9px 12px;
   border-radius: 10px;
   cursor: pointer;
   white-space: nowrap;
@@ -554,7 +792,6 @@ body.login-mode {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
-/* Segmented Control Buttons (e.g. loại ca / loại đơn) */
 .segmented {
   display: flex;
   gap: 6px;
@@ -594,7 +831,7 @@ body.login-mode {
   justify-content: space-between;
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(22, 20, 18, 0.6);
+  background: rgba(20, 18, 16, 0.6);
   border: 1px solid var(--border-subtle);
   transition: border-color 0.18s ease;
 }
@@ -657,7 +894,7 @@ body.login-mode {
 }
 
 .material-card {
-  background: rgba(22, 20, 18, 0.7);
+  background: rgba(20, 18, 16, 0.7);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
   padding: 12px;
@@ -716,7 +953,7 @@ body.login-mode {
   justify-content: space-between;
   padding: 8px 10px;
   border-radius: 8px;
-  background: rgba(18, 16, 14, 0.8);
+  background: rgba(18, 16, 14, 0.85);
   margin-bottom: 6px;
   border: 1px solid var(--border-subtle);
 }
@@ -734,7 +971,7 @@ body.login-mode {
   gap: 12px;
   padding: 11px 13px;
   border-radius: 12px;
-  background: rgba(22, 20, 18, 0.6);
+  background: rgba(20, 18, 16, 0.6);
   border: 1px solid var(--border-subtle);
   cursor: pointer;
   font-size: 13.5px;
@@ -756,7 +993,7 @@ body.login-mode {
 
 /* Recipes */
 .recipe-card {
-  background: rgba(22, 20, 18, 0.65);
+  background: rgba(20, 18, 16, 0.65);
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
   padding: 14px;
@@ -783,98 +1020,159 @@ body.login-mode {
 }
 
 /* ==========================================================================
-   LOGIN SCREEN (Warm Cafe Greeting)
+   LOGIN SCREEN (SPLIT ON DESKTOP, COMPACT ON MOBILE)
    ========================================================================== */
 .login-screen {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 16px 40px;
+  padding: 24px 16px;
   background: var(--bg-gradient);
 }
 
-.login-card {
+.login-card-container {
   width: 100%;
   max-width: 440px;
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
 }
 
-.login-banner-wrap {
-  position: relative;
-  width: 100%;
-  height: 140px;
-  overflow: hidden;
-  background: #181614;
+/* Visual Panel (Desktop only by default) */
+.login-visual-panel {
+  display: none;
 }
 
-.login-banner-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.login-banner-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(22, 20, 18, 0.2) 0%, rgba(33, 30, 26, 0.95) 100%);
+.login-form-panel {
+  padding: 24px 20px;
 }
 
 .login-header {
   text-align: center;
-  padding: 0 20px 18px;
-  position: relative;
-  margin-top: -36px;
+  margin-bottom: 18px;
 }
 
 .login-brand-logo {
-  width: 68px;
-  height: 68px;
-  border-radius: 18px;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
   object-fit: cover;
-  border: 3px solid var(--card-bg);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--border);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
   margin-bottom: 10px;
 }
 
 .login-title {
   font-family: var(--font-serif);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.3px;
 }
 
-.login-title em {
-  font-style: italic;
-  color: var(--primary);
-}
-
-.brand-ribbon-badge {
-  display: inline-block;
-  background: var(--accent-olive);
-  color: #F7F2EC;
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  padding: 4px 12px;
-  border-radius: 999px;
-  margin: 6px 0 4px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-}
-
 .login-sub {
   font-size: 12.5px;
   color: var(--muted);
+  margin-top: 4px;
 }
 
-#form-login {
-  padding: 0 20px 24px;
+/* Desktop Split Layout for Login (>= 768px) */
+@media (min-width: 768px) {
+  .login-card-container {
+    display: grid !important;
+    grid-template-columns: 1fr 1.15fr !important;
+    max-width: 860px !important;
+    min-height: 560px !important;
+    border-radius: 24px !important;
+  }
+
+  .login-visual-panel {
+    display: block !important;
+    position: relative;
+    overflow: hidden;
+    background: #141311;
+  }
+
+  .login-visual-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .login-visual-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(20, 18, 16, 0.3) 0%, rgba(20, 18, 16, 0.94) 100%);
+    padding: 36px 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+
+  .visual-brand-tag {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: var(--primary);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+
+  .visual-brand-title {
+    font-family: var(--font-serif);
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #F7F3EE;
+    margin-bottom: 8px;
+  }
+
+  .visual-brand-title em {
+    font-style: italic;
+    color: var(--primary);
+  }
+
+  .visual-ribbon {
+    display: inline-block;
+    align-self: flex-start;
+    background: var(--accent-olive);
+    color: #F7F3EE;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+  }
+
+  .visual-quote {
+    font-size: 13px;
+    font-style: italic;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .visual-footer-info {
+    font-size: 11.5px;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 12px;
+  }
+
+  .login-form-panel {
+    padding: 36px 32px !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
 }
 
 .role-cards-grid {
@@ -884,7 +1182,7 @@ body.login-mode {
 }
 
 .role-select-card {
-  background: rgba(22, 20, 18, 0.7);
+  background: rgba(20, 18, 16, 0.7);
   border: 1.5px solid var(--border-subtle);
   border-radius: 14px;
   padding: 14px 10px;
@@ -997,7 +1295,7 @@ body.login-mode {
 .user-chip {
   font-size: 12px;
   font-weight: 600;
-  padding: 5px 11px;
+  padding: 5px 12px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -1042,7 +1340,7 @@ body.login-mode {
 }
 
 /* ==========================================================================
-   BOTTOM NAVIGATION
+   BOTTOM NAVIGATION (Mobile Only)
    ========================================================================== */
 .bottom-nav {
   position: fixed;
@@ -1051,12 +1349,12 @@ body.login-mode {
   right: 0;
   z-index: 50;
   display: flex;
-  background: rgba(24, 21, 18, 0.94);
+  background: rgba(24, 21, 18, 0.95);
   border-top: 1px solid var(--border);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.45);
 }
 
 .nav-item {
@@ -1068,11 +1366,13 @@ body.login-mode {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  justify-content: center;
+  gap: 4px;
   padding: 6px 4px;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 48px;
 }
 
 .nav-item:active {
@@ -1084,9 +1384,9 @@ body.login-mode {
   background: rgba(212, 163, 115, 0.12);
 }
 
-.nav-icon {
-  font-size: 18px;
-  line-height: 1;
+.nav-item.active .nav-svg {
+  stroke: var(--primary);
+  transform: scale(1.08);
 }
 
 .nav-label {
@@ -1097,11 +1397,11 @@ body.login-mode {
 
 .nav-badge {
   position: absolute;
-  top: 2px;
-  right: 20%;
+  top: 4px;
+  right: 22%;
   background: var(--accent-red);
   color: #fff;
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 800;
   padding: 1px 5px;
   border-radius: 999px;
@@ -1193,7 +1493,7 @@ body.login-mode {
   border: 1px solid rgba(217, 107, 100, 0.35);
   border-radius: 12px;
   padding: 11px 14px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   font-size: 12.5px;
   color: #F89B95;
   line-height: 1.4;
@@ -1208,7 +1508,7 @@ body.login-mode {
   border: 1px solid rgba(94, 140, 106, 0.35);
   border-radius: 10px;
   padding: 8px 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   font-size: 12px;
   font-weight: 700;
   color: #72B884;
@@ -1266,7 +1566,7 @@ body.login-mode {
 }
 
 .schedule-table th, .schedule-table td {
-  padding: 8px 6px;
+  padding: 9px 6px;
   border: 1px solid var(--border-subtle);
 }
 

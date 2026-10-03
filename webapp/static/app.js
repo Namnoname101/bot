@@ -448,6 +448,7 @@ const App = {
   showLoginScreen() {
     document.getElementById("screen-login")?.classList.remove("hidden");
     document.getElementById("app-header")?.classList.add("hidden");
+    document.getElementById("desktop-sidebar")?.classList.add("hidden");
     document.querySelector(".app-content")?.classList.add("hidden");
     document.querySelector(".bottom-nav")?.classList.add("hidden");
     document.body.classList.add("login-mode");
@@ -470,6 +471,7 @@ const App = {
   showMainApp() {
     document.getElementById("screen-login")?.classList.add("hidden");
     document.getElementById("app-header")?.classList.remove("hidden");
+    document.getElementById("desktop-sidebar")?.classList.remove("hidden");
     document.querySelector(".app-content")?.classList.remove("hidden");
     document.querySelector(".bottom-nav")?.classList.remove("hidden");
     document.body.classList.remove("login-mode");
@@ -758,6 +760,7 @@ const App = {
 
     const badge = document.getElementById("role-badge");
     const adminNav = document.getElementById("nav-admin-btn");
+    const adminSidebar = document.getElementById("sidebar-admin-btn");
     const superBtn = document.getElementById("subtab-btn-super");
     const addRecipeBtn = document.getElementById("btn-add-recipe");
 
@@ -765,26 +768,39 @@ const App = {
       badge.textContent = "👑 Admin Gốc";
       badge.className = "badge badge-admin";
       adminNav.classList.remove("hidden");
+      if (adminSidebar) adminSidebar.classList.remove("hidden");
       superBtn.classList.remove("hidden");
       if (addRecipeBtn) addRecipeBtn.classList.remove("hidden");
     } else if (u.is_admin) {
       badge.textContent = "🛡 Quản Lý";
       badge.className = "badge badge-admin";
       adminNav.classList.remove("hidden");
+      if (adminSidebar) adminSidebar.classList.remove("hidden");
       superBtn.classList.add("hidden");
       if (addRecipeBtn) addRecipeBtn.classList.remove("hidden");
     } else {
       badge.textContent = myNick ? `${roleIcon} ${myNick}` : "👤 Chọn NV";
       badge.className = "badge badge-emp";
       adminNav.classList.add("hidden");
+      if (adminSidebar) adminSidebar.classList.add("hidden");
       superBtn.classList.add("hidden");
       if (addRecipeBtn) addRecipeBtn.classList.add("hidden");
     }
 
-    // Update top Identity Bar
+    // Update top Identity Bar & Desktop Sidebar User Card
     const idIcon = document.getElementById("identity-icon");
     const idTitle = document.getElementById("identity-title");
     const idSub = document.getElementById("identity-sub");
+    const sideName = document.getElementById("sidebar-user-name");
+    const sideRole = document.getElementById("sidebar-user-role");
+    const sideAvatar = document.getElementById("sidebar-avatar");
+
+    if (sideName && sideRole) {
+      sideName.textContent = myNick || (u.is_admin ? "Quản Lý (Admin)" : "Chưa chọn NV");
+      sideRole.textContent = myRole || (u.is_admin ? "Quản Trị" : "Pha Chế");
+      if (sideAvatar) sideAvatar.textContent = roleIcon || "☕";
+    }
+
     if (idTitle && idSub && idIcon) {
       if (myNick) {
         idIcon.textContent = roleIcon;
@@ -824,7 +840,7 @@ const App = {
     const target = document.getElementById(`tab-${tabName}`);
     if (target) target.classList.remove("hidden");
 
-    document.querySelectorAll(".bottom-nav .nav-item").forEach((btn) => {
+    document.querySelectorAll(".bottom-nav .nav-item, .sidebar-nav .sidebar-nav-item").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.tab === tabName);
     });
 
