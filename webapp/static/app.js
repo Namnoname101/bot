@@ -181,6 +181,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  // Handle forced logout parameter
+  if (window.location.search.includes("logout")) {
+    localStorage.removeItem("sober_token");
+    AppState.token = null;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("logout");
+    window.history.replaceState({}, "", url.pathname + url.search);
+  }
+
   // Restore stored token if exists
   const storedToken = localStorage.getItem("sober_token");
   if (storedToken) {
@@ -192,8 +201,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function initApp() {
+  const storedToken = localStorage.getItem("sober_token");
+  const hasTelegram = Boolean(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData);
+
+  // If visiting directly from browser without existing login token, show login screen immediately
+  if (!storedToken && !hasTelegram) {
+    showLoginScreen();
+    loadPublicUsers();
+    return;
+  }
+
   const bootResp = await apiRequest("/api/bootstrap");
-  if (bootResp && bootResp.success && bootResp.user) {
+  const user = bootResp && bootResp.user;
+  const isAuth = user && (user.authenticated === true || user.authenticated === undefined) && user.username !== "web_employee";
+
+  if (bootResp && bootResp.success && isAuth) {
     // Authenticated!
     AppState.bootstrapData = bootResp;
     AppState.user = bootResp.user;
@@ -207,6 +229,8 @@ async function initApp() {
     showMainApp();
   } else {
     // Needs login
+    localStorage.removeItem("sober_token");
+    AppState.token = null;
     showLoginScreen();
     loadPublicUsers();
   }
@@ -214,9 +238,13 @@ async function initApp() {
 
 // ── Authentication & Login Screen ────────────────────────────────────────────
 function showLoginScreen() {
-  document.getElementById("view-login").classList.remove("hidden");
-  document.getElementById("view-main").classList.add("hidden");
-  document.getElementById("desktop-sidebar").style.display = "none";
+  const loginView = document.getElementById("view-login");
+  const mainView = document.getElementById("view-main");
+  const sidebar = document.getElementById("desktop-sidebar");
+
+  if (loginView) loginView.classList.remove("hidden");
+  if (mainView) mainView.classList.add("hidden");
+  if (sidebar) sidebar.style.display = "none";
 }
 
 function showMainApp() {
@@ -242,26 +270,46 @@ async function loadPublicUsers() {
   const container = document.getElementById("login-staff-chips");
   if (!container) return;
 
-  if (resp && resp.success && Array.isArray(resp.employees)) {
+  if (resp && resp.success && Array.isArray(resp.employees) && resp.employees.length > 0) {
     let html = "";
     // Admin chip
     html += `<span class="staff-chip" onclick="quickFillLogin('admin', 'Quản Lý')">⚡ Quản Lý (Admin)</span>`;
     for (const emp of resp.employees) {
       const name = emp.nickname || emp.full_name;
-      html += `<span class="staff-chip" onclick="quickFillLogin('${escapeHtml(name)}', 'Pha Chế')">${escapeHtml(name)}</span>`;
+      if (name) {
+        html += `<span class="staff-chip" onclick="quickFillLogin('${escapeHtml(name)}', 'Pha Chế')">${escapeHtml(name)}</span>`;
+      }
     }
     container.innerHTML = html;
   } else {
-    container.innerHTML = `<span class="staff-chip" onclick="quickFillLogin('admin', 'Quản Lý')">⚡ Quản Lý (Admin)</span>`;
+    container.innerHTML = `
+      <span class="staff-chip" onclick="quickFillLogin('admin', 'Quản Lý')">⚡ Quản Lý (Admin)</span>
+      <span class="staff-chip" onclick="quickFillLogin('An', 'Pha Chế')">An</span>
+      <span class="staff-chip" onclick="quickFillLogin('Bình', 'Pha Chế')">Bình</span>
+      <span class="staff-chip" onclick="quickFillLogin('Đại', 'Pha Chế')">Đại</span>
+    `;
   }
 }
 
 function quickFillLogin(username, role) {
-  document.getElementById("login-username").value = username;
+  const userEl = document.getElementById("login-username");
+  const pwdEl = document.getElementById("login-password");
+  if (userEl) userEl.value = username;
   selectLoginRole(role);
-  const pwdInput = document.getElementById("login-password");
-  pwdInput.value = "123456789";
-  pwdInput.focus();
+  if (pwdEl) pwdEl.value = "123456789";
+
+  // Highlight active chip
+  document.querySelectorAll(".staff-chip").forEach(chip => {
+    const text = chip.textContent.trim();
+    if (text === username || (username === "admin" && text.includes("Quản Lý"))) {
+      chip.classList.add("active");
+    } else {
+      chip.classList.remove("active");
+    }
+  });
+
+  const submitBtn = document.getElementById("btn-login-submit");
+  if (submitBtn) submitBtn.focus();
 }
 
 function selectLoginRole(role) {
