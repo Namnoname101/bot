@@ -1,2957 +1,2334 @@
-const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+/**
+ * ============================================================================
+ * SOBER CAFE MANAGEMENT SYSTEM — CLIENT LOGIC
+ * Clean • Modern • Minimal • Highly Responsive Cafe Management SaaS
+ * ============================================================================
+ */
 
-function esc(str) {
-  return String(str ?? "")
+// ── Application State ────────────────────────────────────────────────────────
+const AppState = {
+  user: null,               // { id, username, nickname, is_admin, role, full_name, ... }
+  role: "Pha Chế",          // 'Pha Chế' | 'Phục Vụ' | 'Quản Lý'
+  token: null,              // X-Auth-Token
+  activeTab: null,
+  bootstrapData: null,
+  weekInfo: null,           // Current week metadata (days, dates, labels)
+  weekOffset: 0,            // Offset in weeks from current
+  currentRoster: null,      // Active weekly roster
+  shiftSchedules: {},       // Employee availability registrations
+  swaps: [],                // Shift swap requests
+  notifications: [],        // Notifications list
+  personalSummary: null,    // Payroll & attendance summary
+
+  // Roster Planning Context (Admin)
+  selectedSlot: null,       // { day: 'T2', ca: 'Sáng', dateStr: '05/10', key: 'T2_Sáng' }
+  drawerTab: "registered",  // 'registered' | 'unregistered'
+  adminSelectedDay: "T2",   // For mobile admin day selector
+
+  // Shift Swap Wizard (Employee)
+  swapWizard: {
+    step: 1,
+    myShift: null,          // { day, ca, date, time }
+    partnerShift: null,     // { nickname, role, day, ca, date, time }
+    partnerNickname: null,
+    reason: "",
+    activeFilter: "all",    // 'all' | 'pending' | 'approved' | 'rejected'
+  },
+
+  scheduleViewMode: "week", // 'week' | 'month'
+};
+
+// ── SVG Icons Library (Lucide Crisp Vectors) ─────────────────────────────────
+const SVG_ICONS = {
+  home: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  calendar: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>',
+  swap: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>',
+  dollar: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>',
+  bell: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+  user: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  users: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  matrix: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>',
+  box: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
+  megaphone: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>',
+  settings: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  check: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
+  close: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  plus: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  clock: '<svg width="{s}" height="{s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+};
+
+function getIcon(name, size = 18) {
+  const tpl = SVG_ICONS[name] || SVG_ICONS.home;
+  return tpl.replace(/{s}/g, size);
+}
+
+// ── Format Helpers ───────────────────────────────────────────────────────────
+function formatCurrency(amount) {
+  if (amount === null || amount === undefined) return "0đ";
+  const num = Math.round(Number(amount) || 0);
+  return new Intl.NumberFormat("vi-VN").format(num) + "đ";
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/'/g, "&#039;");
 }
 
-function stripAccents(str) {
-  return String(str || "")
-    .replace(/[đĐ]/g, "d")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
+// ── Toast Notifications ──────────────────────────────────────────────────────
+function showToast(message, type = "success") {
+  const container = document.getElementById("toast-container");
+  if (!container) return;
+
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `
+    <span>${type === 'success' ? '✓' : (type === 'error' ? '✕' : 'ℹ')}</span>
+    <span>${escapeHtml(message)}</span>
+  `;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(-8px)";
+    toast.style.transition = "all 0.25s ease";
+    setTimeout(() => toast.remove(), 250);
+  }, 3200);
 }
 
-function haptic(type = "light") {
+// ── Modal Dialog Manager ─────────────────────────────────────────────────────
+function openModal(title, bodyHtml, actionsHtml = "") {
+  const overlay = document.getElementById("modal-overlay");
+  const titleEl = document.getElementById("modal-title");
+  const bodyEl = document.getElementById("modal-body");
+  const actionsEl = document.getElementById("modal-actions");
+
+  if (!overlay || !titleEl || !bodyEl) return;
+  titleEl.textContent = title;
+  bodyEl.innerHTML = bodyHtml;
+  actionsEl.innerHTML = actionsHtml;
+  overlay.classList.add("active");
+}
+
+function closeModal() {
+  const overlay = document.getElementById("modal-overlay");
+  if (overlay) overlay.classList.remove("active");
+}
+
+function closeModalOnBackdrop(e) {
+  if (e.target && e.target.id === "modal-overlay") {
+    closeModal();
+  }
+}
+
+// ── API Fetch Wrapper ────────────────────────────────────────────────────────
+async function apiRequest(endpoint, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+
+  // Attach token if stored
+  const token = AppState.token || localStorage.getItem("sober_token");
+  if (token) {
+    headers["X-Auth-Token"] = token;
+  }
+
+  // Attach Telegram initData if available
+  if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+    headers["X-Telegram-Init-Data"] = window.Telegram.WebApp.initData;
+  }
+
+  const fetchOptions = {
+    ...options,
+    headers,
+  };
+
+  if (fetchOptions.body && typeof fetchOptions.body === "object" && !(fetchOptions.body instanceof FormData)) {
+    fetchOptions.body = JSON.stringify(fetchOptions.body);
+  }
+
   try {
-    if (tg && tg.HapticFeedback) {
-      if (type === "success" || type === "error" || type === "warning") {
-        tg.HapticFeedback.notificationOccurred(type);
-      } else {
-        tg.HapticFeedback.impactOccurred(type);
-      }
+    const resp = await fetch(endpoint, fetchOptions);
+    const data = await resp.json().catch(() => ({}));
+    if (resp.status === 401) {
+      // Token expired or invalid
+      localStorage.removeItem("sober_token");
+      AppState.token = null;
+      showLoginScreen();
+      return { success: false, error: "unauthorized", message: "Phiên đăng nhập hết hạn" };
     }
-  } catch (_) {}
+    return { ...data, _status: resp.status, _ok: resp.ok };
+  } catch (err) {
+    console.error("API error at " + endpoint + ":", err);
+    return { success: false, error: "network_error", message: "Lỗi kết nối máy chủ" };
+  }
 }
 
-const App = {
-  state: {
-    activeTab: "attendance",
-    user: null,
-    serverTime: null,
-    employees: [],
-    openSessions: [],
-    materials: [],
-    materialGroups: [],
-    selectedInvGroup: "ALL",
-    cart: {}, // { materialName: qty }
-    smartExportState: null,
-
-    // Identity (Role & Nickname)
-    myNickname: localStorage.getItem("sober_my_nickname") || "",
-    myRole: localStorage.getItem("sober_my_role") || "Pha Chế",
-
-    // Practical features state
-    checklists: {},
-    checklistChecked: {},
-    recipes: [],
-    shiftSchedules: {},
-    myScheduleSlots: {},
-    pettyExpenses: [],
-    leaveRequests: [],
-    leaveType: "late",
-
-    // Check-in selections
-    checkinType: "Ca Chính",
-    checkinCa: "Sáng",
-    checkinEmp: localStorage.getItem("sober_my_nickname") || "",
-
-    // Rewards & Reports selections
-    rewardReqSelected: {},
-    reportCa: "Sáng",
-    reportSelectedEmps: {},
-    endshiftCa: "Sáng",
-    endshiftRole: localStorage.getItem("sober_my_role") || "Pha Chế",
-
-    // Admin state
-    adminOverview: null,
-    salaryOptions: [],
-    salaryData: null,
-    salaryModType: "advance",
-  },
-
-  async api(path, options = {}) {
-    const headers = Object.assign({}, options.headers || {});
-    const authToken = localStorage.getItem("sober_auth_token") || "";
-    if (authToken) {
-      headers["X-Auth-Token"] = authToken;
-    }
-    const initData = (tg && tg.initData) || new URLSearchParams(window.location.search).get("initData") || "";
-    if (initData) {
-      headers["X-Telegram-Init-Data"] = initData;
-    }
-    const adminKey = localStorage.getItem("sober_admin_key") || new URLSearchParams(window.location.search).get("admin_key") || "";
-    if (adminKey) {
-      headers["X-Admin-Key"] = adminKey;
-    }
-    const empName = this.state.myNickname || localStorage.getItem("sober_my_nickname") || "";
-    if (empName) {
-      headers["X-Employee-Name"] = encodeURIComponent(empName);
-    }
-    const kioskKey = localStorage.getItem("sober_shop_kiosk_key") || "";
-    if (kioskKey) {
-      headers["X-Shop-Device-Key"] = kioskKey;
-    }
-    if (options.body && !(options.body instanceof FormData) && typeof options.body === "object") {
-      headers["Content-Type"] = "application/json";
-      options.body = JSON.stringify(options.body);
-    }
-    const resp = await fetch(path, Object.assign({}, options, { headers }));
-    const data = await resp.json().catch(() => ({ success: false, message: "Lỗi phản hồi máy chủ" }));
-    if (!resp.ok || data.success === false) {
-      const err = new Error(data.message || `HTTP ${resp.status}`);
-      err.status = resp.status;
-      err.data = data;
-      throw err;
-    }
-    return data;
-  },
-
-  toast(msg, duration = 2800) {
-    const el = document.getElementById("toast");
-    el.textContent = msg;
-    el.classList.remove("hidden");
-    clearTimeout(this._toastTimer);
-    this._toastTimer = setTimeout(() => el.classList.add("hidden"), duration);
-  },
-
-  openModal(title, htmlContent) {
-    document.getElementById("modal-title").textContent = title;
-    document.getElementById("modal-body").innerHTML = htmlContent;
-    document.getElementById("modal-overlay").classList.remove("hidden");
-  },
-
-  closeModal() {
-    document.getElementById("modal-overlay").classList.add("hidden");
-  },
-
-  openRoleModal() {
-    const u = this.state.user || {};
-    const curNick = this.state.myNickname || "";
-    const curRole = this.state.myRole || "Pha Chế";
-    const empOptions = [
-      `<option value="">-- Chọn tên nhân viên --</option>`,
-      ...this.state.employees.map(
-        (e) => `<option value="${esc(e.nickname)}" ${e.nickname === curNick ? "selected" : ""}>${esc(e.nickname)}</option>`
-      ),
-    ].join("");
-
-    const adminSection = u.is_admin && localStorage.getItem("sober_admin_key")
-      ? `<hr style="border-color:var(--border);margin:14px 0" />
-         <p class="text-xs mb-8">🛡 Bạn đang bật quyền Quản lý trên trình duyệt.</p>
-         <button class="btn btn-danger btn-block" onclick="App.logoutAdminKey()">Đăng Xuất Quyền Quản Lý</button>`
-      : !u.is_admin
-      ? `<hr style="border-color:var(--border);margin:14px 0" />
-         <label class="field-label">👑 Dành cho Quản lý (Nhập ID/PIN Quản lý)</label>
-         <div class="row-gap">
-           <input id="modal-admin-key-input" type="password" class="input" placeholder="Mã PIN / ID Quản lý..." />
-           <button class="btn btn-secondary" onclick="App.submitAdminKey()">Mở Khóa</button>
-         </div>`
-      : `<p class="text-xs mt-8">👑 Đã tự động xác thực quyền Quản lý qua Telegram.</p>`;
-
-    this.openModal(
-      "👤 Chọn Nhân Viên & Vị Trí Ca Làm",
-      `
-      <label class="field-label">1. Tên nhân viên</label>
-      <select id="modal-emp-nick" class="input mb-8">${empOptions}</select>
-
-      <label class="field-label">2. Bộ phận làm việc hôm nay</label>
-      <div class="segmented mb-12" id="modal-role-seg">
-        <button type="button" class="seg-btn ${curRole === "Pha Chế" ? "active" : ""}" data-val="Pha Chế" onclick="App.selectModalRole('Pha Chế')">🍹 Pha Chế</button>
-        <button type="button" class="seg-btn ${curRole === "Phục Vụ" ? "active" : ""}" data-val="Phục Vụ" onclick="App.selectModalRole('Phục Vụ')">🍽 Phục Vụ</button>
-      </div>
-
-      <button class="btn btn-primary btn-block" onclick="App.saveEmployeeIdentity()">✅ Lưu & Vào Ca Làm Việc</button>
-      ${adminSection}
-      `
-    );
-    this._tempModalRole = curRole;
-  },
-
-  selectModalRole(role) {
-    this._tempModalRole = role;
-    document.querySelectorAll("#modal-role-seg .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.val === role);
-    });
-  },
-
-  saveEmployeeIdentity() {
-    const nick = (document.getElementById("modal-emp-nick")?.value || "").trim();
-    const role = this._tempModalRole || "Pha Chế";
-    this.state.myNickname = nick;
-    this.state.myRole = role;
-    localStorage.setItem("sober_my_nickname", nick);
-    localStorage.setItem("sober_my_role", role);
-    if (nick) {
-      this.state.checkinEmp = nick;
-    }
-    this.setEndshiftRole(role);
-    this.closeModal();
-    this.renderHeader();
-    this.renderAll();
-    if (nick) {
-      this.loadPersonalSummary(nick);
-    }
-    this.toast(`✅ Đã chọn: ${nick || "Nhân viên"} (${role})`);
-  },
-
-  async submitAdminKey() {
-    const val = (document.getElementById("modal-admin-key-input")?.value || "").trim();
-    if (!val) {
-      this.toast("⚠️ Vui lòng nhập mã Quản lý");
-      return;
-    }
-    localStorage.setItem("sober_admin_key", val);
-    this.closeModal();
-    await this.init();
-    if (this.state.user && this.state.user.is_admin) {
-      this.toast("✅ Đã mở khóa quyền Quản lý!");
-    } else {
-      localStorage.removeItem("sober_admin_key");
-      this.toast("❌ Mã Quản lý không đúng!");
-    }
-  },
-
-  async logoutAdminKey() {
-    localStorage.removeItem("sober_admin_key");
-    localStorage.removeItem("sober_tg_admin_logged");
-    this.closeModal();
-    this.state.activeTab = "attendance";
-    await this.init();
-    this.toast("Đã chuyển về chế độ Nhân viên");
-  },
-
-  // ==================== LOGIN & AUTH FLOW ====================
-
-  _selectedLoginRole: "Pha Chế",
-  _isExplicitLoggedOut: false,
-
-  // ==================== LOGIN & AUTH FLOW (Username & Password) ====================
-
-  _selectedLoginRole: "Pha Chế",
-  _isExplicitLoggedOut: false,
-  _isManualUsername: false,
-
-  setLoginRole(role) {
-    haptic("light");
-    this._selectedLoginRole = role;
-    const barCard = document.getElementById("card-role-barista");
-    const srvCard = document.getElementById("card-role-server");
-    if (barCard && srvCard) {
-      barCard.classList.toggle("active", role === "Pha Chế");
-      srvCard.classList.toggle("active", role === "Phục Vụ");
-    }
-  },
-
-  togglePasswordVisibility() {
-    haptic("light");
-    const pwdInput = document.getElementById("login-password");
-    const btn = document.getElementById("btn-toggle-pwd");
-    if (!pwdInput) return;
-    if (pwdInput.type === "password") {
-      pwdInput.type = "text";
-      if (btn) btn.textContent = "🙈";
-    } else {
-      pwdInput.type = "password";
-      if (btn) btn.textContent = "👁️";
-    }
-  },
-
-  toggleManualUsername(forceManual = null) {
-    haptic("light");
-    if (forceManual !== null) {
-      this._isManualUsername = forceManual;
-    } else {
-      this._isManualUsername = !this._isManualUsername;
-    }
-    const selectWrap = document.getElementById("login-select-wrap");
-    const manualWrap = document.getElementById("login-manual-wrap");
-    const toggleBtn = document.getElementById("btn-toggle-manual-input");
-    const selectEl = document.getElementById("login-user-select");
-    const userEl = document.getElementById("login-username");
-
-    if (this._isManualUsername) {
-      selectWrap?.classList.add("hidden");
-      manualWrap?.classList.remove("hidden");
-      if (toggleBtn) toggleBtn.textContent = "Chọn danh sách 📋";
-      if (userEl) userEl.focus();
-    } else {
-      selectWrap?.classList.remove("hidden");
-      manualWrap?.classList.add("hidden");
-      if (toggleBtn) toggleBtn.textContent = "Gõ tay ✏️";
-      if (selectEl && userEl && userEl.value) {
-        selectEl.value = userEl.value;
-      }
-    }
-    this.onLoginUsernameChange();
-  },
-
-  onLoginUserSelectChange() {
-    haptic("light");
-    const selectEl = document.getElementById("login-user-select");
-    const userEl = document.getElementById("login-username");
-    const val = (selectEl ? selectEl.value : "").trim();
-
-    if (val === "__manual__") {
-      this.toggleManualUsername(true);
-      if (userEl) {
-        userEl.value = "";
-        userEl.focus();
-      }
-      return;
-    }
-
-    if (userEl) {
-      userEl.value = val;
-    }
-    this.onLoginUsernameChange();
-
-    const pwdEl = document.getElementById("login-password");
-    if (pwdEl && !pwdEl.value) {
-      pwdEl.value = "123456789";
-    }
-  },
-
-  fillUsername(username) {
-    haptic("light");
-    const selectEl = document.getElementById("login-user-select");
-    const userEl = document.getElementById("login-username");
-
-    if (userEl) userEl.value = username;
-
-    if (selectEl) {
-      let matched = false;
-      for (let i = 0; i < selectEl.options.length; i++) {
-        if (selectEl.options[i].value.toLowerCase() === username.toLowerCase()) {
-          selectEl.selectedIndex = i;
-          matched = true;
-          break;
-        }
-      }
-      if (matched) {
-        this.toggleManualUsername(false);
-      } else {
-        this.toggleManualUsername(true);
-      }
-    }
-    this.onLoginUsernameChange();
-
-    const pwdEl = document.getElementById("login-password");
-    if (pwdEl && !pwdEl.value) {
-      pwdEl.value = "123456789";
-    }
-    if (pwdEl) pwdEl.focus();
-  },
-
-  onLoginUsernameChange() {
-    const userEl = document.getElementById("login-username");
-    const selectEl = document.getElementById("login-user-select");
-    let val = "";
-    if (this._isManualUsername) {
-      val = (userEl ? userEl.value : "").trim().toLowerCase();
-    } else {
-      val = (selectEl ? selectEl.value : "").trim().toLowerCase();
-      if (!val && userEl) val = userEl.value.trim().toLowerCase();
-    }
-
-    const roleGroup = document.getElementById("login-role-group");
-    if (roleGroup) {
-      if (val === "admin" || val === "quanly") {
-        roleGroup.classList.add("hidden");
-      } else {
-        roleGroup.classList.remove("hidden");
-      }
-    }
-  },
-
-  populateLoginUsers(users = null, employees = null) {
-    const selectEl = document.getElementById("login-user-select");
-    const datalist = document.getElementById("login-emp-datalist");
-    const chipsContainer = document.getElementById("login-chips-container");
-    const userEl = document.getElementById("login-username");
-    const pwdEl = document.getElementById("login-password");
-
-    const empList = employees || this.state.employees || [];
-    const savedUser = this.state.myNickname || localStorage.getItem("sober_my_nickname") || "";
-
-    if (pwdEl && !pwdEl.value) {
-      pwdEl.value = "123456789";
-    }
-
-    // 1. Dropdown Select: Cho nhân viên chọn luôn, không cần nhập
-    if (selectEl) {
-      const curVal = selectEl.value || savedUser || "";
-      let html = '<option value="">-- Chọn tên của bạn để đăng nhập --</option>';
-      html += '<option value="admin">👑 Quản Lý (Admin)</option>';
-      if (empList.length > 0) {
-        html += '<optgroup label="Danh sách nhân viên">';
-        empList.forEach((e) => {
-          const nick = e.nickname || e.full_name;
-          const full = e.full_name && e.full_name !== nick ? `${nick} (${e.full_name})` : nick;
-          const isSel = (nick === curVal || (nick.toLowerCase() === curVal.toLowerCase()));
-          html += `<option value="${esc(nick)}" ${isSel ? "selected" : ""}>👤 ${esc(full)}</option>`;
-        });
-        html += '</optgroup>';
-      }
-      html += '<option value="__manual__">✏️ Tự nhập tài khoản khác...</option>';
-      selectEl.innerHTML = html;
-
-      if (curVal && curVal !== "__manual__") {
-        selectEl.value = curVal;
-        if (userEl) userEl.value = curVal;
-      }
-    }
-
-    // 2. Datalist
-    const allNames = ["admin", ...empList.map((e) => e.nickname).filter(Boolean)];
-    const uniqueNames = Array.from(new Set(allNames));
-
-    if (datalist) {
-      datalist.innerHTML = uniqueNames.map((n) => `<option value="${esc(n)}"></option>`).join("");
-    }
-
-    // 3. Quick 1-tap Chips
-    if (chipsContainer) {
-      chipsContainer.innerHTML = uniqueNames
-        .map((n) => {
-          const isAdmin = n.toLowerCase() === "admin";
-          const cls = isAdmin ? "user-chip chip-admin" : "user-chip";
-          const icon = isAdmin ? "👑 " : "👤 ";
-          return `<button type="button" class="${cls}" onclick="App.fillUsername('${esc(n)}')">${icon}${esc(n)}</button>`;
-        })
-        .join("");
-    }
-
-    this.onLoginUsernameChange();
-  },
-
-  async loadPublicUsers() {
+// ── Application Initialization ───────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", async () => {
+  // Telegram WebApp setup
+  if (window.Telegram && window.Telegram.WebApp) {
     try {
-      const res = await this.api("/api/auth/public-users");
-      if (res && res.success) {
-        if (Array.isArray(res.employees) && res.employees.length > 0) {
-          this.state.employees = res.employees;
-        }
-        this.populateLoginUsers(res.users, res.employees);
-      }
+      window.Telegram.WebApp.ready();
+      window.Telegram.WebApp.expand();
     } catch (e) {
-      this.populateLoginUsers();
+      console.warn("Telegram WebApp API error:", e);
     }
-  },
+  }
 
-  showLoginScreen() {
-    document.getElementById("screen-login")?.classList.remove("hidden");
-    document.getElementById("app-header")?.classList.add("hidden");
-    document.getElementById("desktop-sidebar")?.classList.add("hidden");
-    document.querySelector(".app-content")?.classList.add("hidden");
-    document.querySelector(".bottom-nav")?.classList.add("hidden");
-    document.body.classList.add("login-mode");
+  // Restore stored token if exists
+  const storedToken = localStorage.getItem("sober_token");
+  if (storedToken) {
+    AppState.token = storedToken;
+  }
 
-    this.populateLoginUsers();
-    this.loadPublicUsers();
+  // Check login state via bootstrap
+  await initApp();
+});
 
-    const tgHint = document.getElementById("login-tg-auto");
-    if (tgHint) {
-      if (this.state.user && this.state.user.is_admin && !this._isExplicitLoggedOut) {
-        tgHint.classList.remove("hidden");
-        const span = tgHint.querySelector("span");
-        if (span) span.textContent = `⚡ Quản lý Telegram: ${this.state.user.full_name || ""}`;
-      } else {
-        tgHint.classList.add("hidden");
-      }
+async function initApp() {
+  const bootResp = await apiRequest("/api/bootstrap");
+  if (bootResp && bootResp.success && bootResp.user) {
+    // Authenticated!
+    AppState.bootstrapData = bootResp;
+    AppState.user = bootResp.user;
+    AppState.role = bootResp.user.role || (bootResp.user.is_admin ? "Quản Lý" : "Pha Chế");
+    AppState.weekInfo = bootResp.week_info;
+    AppState.currentRoster = bootResp.current_roster;
+    AppState.shiftSchedules = bootResp.shift_schedules || {};
+    AppState.swaps = bootResp.swaps || [];
+    AppState.notifications = bootResp.notifications || [];
+
+    showMainApp();
+  } else {
+    // Needs login
+    showLoginScreen();
+    loadPublicUsers();
+  }
+}
+
+// ── Authentication & Login Screen ────────────────────────────────────────────
+function showLoginScreen() {
+  document.getElementById("view-login").classList.remove("hidden");
+  document.getElementById("view-main").classList.add("hidden");
+  document.getElementById("desktop-sidebar").style.display = "none";
+}
+
+function showMainApp() {
+  document.getElementById("view-login").classList.add("hidden");
+  document.getElementById("view-main").classList.remove("hidden");
+  if (window.innerWidth >= 1024) {
+    document.getElementById("desktop-sidebar").style.display = "flex";
+  }
+
+  renderNavigation();
+  updateUserUI();
+
+  // Route to default role tab
+  if (AppState.user && AppState.user.is_admin) {
+    switchTab("tab-admin-dashboard");
+  } else {
+    switchTab("tab-emp-home");
+  }
+}
+
+async function loadPublicUsers() {
+  const resp = await apiRequest("/api/auth/public-users");
+  const container = document.getElementById("login-staff-chips");
+  if (!container) return;
+
+  if (resp && resp.success && Array.isArray(resp.employees)) {
+    let html = "";
+    // Admin chip
+    html += `<span class="staff-chip" onclick="quickFillLogin('admin', 'Quản Lý')">⚡ Quản Lý (Admin)</span>`;
+    for (const emp of resp.employees) {
+      const name = emp.nickname || emp.full_name;
+      html += `<span class="staff-chip" onclick="quickFillLogin('${escapeHtml(name)}', 'Pha Chế')">${escapeHtml(name)}</span>`;
     }
-  },
+    container.innerHTML = html;
+  } else {
+    container.innerHTML = `<span class="staff-chip" onclick="quickFillLogin('admin', 'Quản Lý')">⚡ Quản Lý (Admin)</span>`;
+  }
+}
 
-  showMainApp() {
-    document.getElementById("screen-login")?.classList.add("hidden");
-    document.getElementById("app-header")?.classList.remove("hidden");
-    document.getElementById("desktop-sidebar")?.classList.remove("hidden");
-    document.querySelector(".app-content")?.classList.remove("hidden");
-    document.querySelector(".bottom-nav")?.classList.remove("hidden");
-    document.body.classList.remove("login-mode");
-  },
+function quickFillLogin(username, role) {
+  document.getElementById("login-username").value = username;
+  selectLoginRole(role);
+  const pwdInput = document.getElementById("login-password");
+  pwdInput.value = "123456789";
+  pwdInput.focus();
+}
 
-  async submitLogin() {
-    haptic("light");
-    const userEl = document.getElementById("login-username");
-    const selectEl = document.getElementById("login-user-select");
-    const pwdEl = document.getElementById("login-password");
-    const errAlert = document.getElementById("login-error-alert");
-    const btnSubmit = document.getElementById("btn-login-submit");
-
-    let username = "";
-    if (this._isManualUsername) {
-      username = (userEl ? userEl.value : "").trim();
+function selectLoginRole(role) {
+  AppState.role = role;
+  document.querySelectorAll(".role-pill").forEach(p => {
+    if (p.getAttribute("data-role") === role) {
+      p.classList.add("active");
     } else {
-      username = (selectEl ? selectEl.value : "").trim();
-      if (!username || username === "__manual__") {
-        username = (userEl ? userEl.value : "").trim();
-      }
+      p.classList.remove("active");
     }
-
-    const password = (pwdEl ? pwdEl.value : "").trim();
-    const role = this._selectedLoginRole || "Pha Chế";
-
-    if (errAlert) {
-      errAlert.classList.add("hidden");
-      errAlert.textContent = "";
-    }
-
-    if (!username || username === "__manual__") {
-      haptic("error");
-      this.toast("⚠️ Vui lòng chọn hoặc nhập Tên nhân viên!");
-      if (this._isManualUsername && userEl) userEl.focus();
-      else if (selectEl) selectEl.focus();
-      return;
-    }
-    if (!password) {
-      haptic("error");
-      this.toast("⚠️ Vui lòng nhập Mật khẩu (mặc định: 123456789)!");
-      if (pwdEl) pwdEl.focus();
-      return;
-    }
-
-    if (btnSubmit) {
-      btnSubmit.disabled = true;
-      btnSubmit.textContent = "⏳ Đang đăng nhập...";
-    }
-
-    try {
-      const res = await this.api("/api/auth/login", {
-        method: "POST",
-        body: { username, password, role },
-      });
-
-      if (!res || !res.success) {
-        throw new Error(res?.message || "Đăng nhập không thành công.");
-      }
-
-      haptic("success");
-      const user = res.user || {};
-      const token = res.token || "";
-
-      if (token) {
-        localStorage.setItem("sober_auth_token", token);
-      }
-      const myNick = user.nickname || (user.username !== "admin" ? user.username : "");
-      if (myNick) {
-        this.state.myNickname = myNick;
-        this.state.checkinEmp = myNick;
-        localStorage.setItem("sober_my_nickname", myNick);
-      } else {
-        this.state.myNickname = "";
-        localStorage.removeItem("sober_my_nickname");
-      }
-
-      const assignedRole = res.role || role;
-      this.state.myRole = assignedRole;
-      localStorage.setItem("sober_my_role", assignedRole);
-
-      if (user.is_admin) {
-        localStorage.setItem("sober_admin_key", password);
-      } else {
-        localStorage.removeItem("sober_admin_key");
-      }
-      this._isExplicitLoggedOut = false;
-
-      this.state.user = user;
-      this.showMainApp();
-      this.renderHeader();
-      this.renderAll();
-
-      if (user.is_admin && !myNick) {
-        this.switchTab("admin");
-      } else {
-        this.setEndshiftRole(assignedRole);
-        this.loadPersonalSummary(myNick);
-        this.switchTab("attendance");
-      }
-
-      this.toast(res.message || `🎉 Chào mừng ${user.full_name || username}!`);
-    } catch (err) {
-      haptic("error");
-      if (errAlert) {
-        errAlert.textContent = "❌ " + (err.message || "Tên đăng nhập hoặc mật khẩu không chính xác.");
-        errAlert.classList.remove("hidden");
-      }
-      this.toast("❌ " + (err.message || "Đăng nhập thất bại. Mặc định: 123456789"));
-    } finally {
-      if (btnSubmit) {
-        btnSubmit.disabled = false;
-        btnSubmit.textContent = "🚀 Đăng Nhập";
-      }
-    }
-  },
-
-  loginWithTelegram() {
-    if (this.state.user && this.state.user.is_admin) {
-      haptic("success");
-      this._isExplicitLoggedOut = false;
-      localStorage.setItem("sober_tg_admin_logged", "1");
-      this.showMainApp();
-      this.renderHeader();
-      this.renderAll();
-      this.switchTab("admin");
-      this.toast(`👑 Đã đăng nhập Quản lý: ${this.state.user.full_name}`);
-    } else {
-      this.toast("Tài khoản Telegram của bạn không có quyền Quản lý.");
-    }
-  },
-
-  logout() {
-    haptic("light");
-    localStorage.removeItem("sober_auth_token");
-    localStorage.removeItem("sober_my_nickname");
-    localStorage.removeItem("sober_my_role");
-    localStorage.removeItem("sober_admin_key");
-    localStorage.removeItem("sober_tg_admin_logged");
-    this.state.myNickname = "";
-    this.state.myRole = "Pha Chế";
-    this._isExplicitLoggedOut = true;
-    this.showLoginScreen();
-    this.toast("👋 Đã đăng xuất!");
-  },
-
-  showChangePasswordModal() {
-    haptic("light");
-    const user = this.state.user || {};
-    const curName = this.state.myNickname || user.full_name || user.username || "Tài khoản";
-    this.openModal({
-      title: `🔑 Đổi Mật Khẩu (${esc(curName)})`,
-      body: `
-        <div class="form-group mb-12">
-          <label class="field-label">Mật khẩu hiện tại</label>
-          <input type="password" id="modal-pwd-current" class="input" placeholder="Nhập mật khẩu hiện tại (mặc định: 123456789)" />
-        </div>
-        <div class="form-group mb-16">
-          <label class="field-label">Mật khẩu mới</label>
-          <input type="password" id="modal-pwd-new" class="input" placeholder="Nhập mật khẩu mới (tối thiểu 4 ký tự)" />
-        </div>
-        <button type="button" class="btn btn-primary btn-block btn-lg" onclick="App.submitChangePassword()">
-          💾 Lưu Mật Khẩu Mới
-        </button>
-      `,
-    });
-  },
-
-  async submitChangePassword() {
-    const curPwd = (document.getElementById("modal-pwd-current")?.value || "").trim();
-    const newPwd = (document.getElementById("modal-pwd-new")?.value || "").trim();
-
-    if (!curPwd || !newPwd) {
-      this.toast("⚠️ Vui lòng nhập đầy đủ thông tin.");
-      return;
-    }
-    if (newPwd.length < 4) {
-      this.toast("⚠️ Mật khẩu mới phải có ít nhất 4 ký tự.");
-      return;
-    }
-
-    try {
-      const res = await this.api("/api/auth/change-password", {
-        method: "POST",
-        body: { old_password: curPwd, new_password: newPwd },
-      });
-      haptic("success");
-      this.closeModal();
-      this.toast(res.message || "✅ Đổi mật khẩu thành công!");
-    } catch (err) {
-      haptic("error");
-      this.toast("❌ " + (err.message || "Không thể đổi mật khẩu."));
-    }
-  },
-
-  async init() {
-    try {
-      if (tg) {
-        tg.ready();
-        tg.expand();
-      }
-    } catch (_) {}
-
-    document.getElementById("app-loading").classList.remove("hidden");
-    document.getElementById("app-error").classList.add("hidden");
-
-    try {
-      const data = await this.api("/api/bootstrap");
-      this.state.user = data.user;
-      this.state.serverTime = data.server_time;
-      this.state.employees = data.employees || [];
-      this.state.openSessions = data.open_sessions || [];
-      this.state.materials = data.materials || [];
-      this.state.materialGroups = data.material_groups || [];
-      this.state.checklists = data.checklists || {};
-      this.state.recipes = data.recipes || [];
-      this.state.shiftSchedules = data.shift_schedules || {};
-      this.state.pettyExpenses = data.petty_expenses || [];
-      this.state.leaveRequests = data.leave_requests || [];
-
-      const inferredCa = (data.server_time && data.server_time.inferred_ca) || "Sáng";
-      this.state.checkinCa = inferredCa;
-      this.state.reportCa = inferredCa;
-      this.state.endshiftCa = inferredCa;
-
-      const lvDateEl = document.getElementById("lv-date-input");
-      if (lvDateEl && !lvDateEl.value && data.server_time) {
-        lvDateEl.value = data.server_time.date || "";
-      }
-
-      this.populateLoginUsers();
-
-      // Check whether user has logged in
-      const hasAuthToken = Boolean(localStorage.getItem("sober_auth_token"));
-      const hasNick = Boolean(this.state.myNickname);
-      const isAdminKey = Boolean(localStorage.getItem("sober_admin_key"));
-      const isTgAdmin = Boolean(
-        localStorage.getItem("sober_tg_admin_logged") &&
-        this.state.user &&
-        this.state.user.is_admin &&
-        !this._isExplicitLoggedOut
-      );
-
-      const isAuthenticated = !this._isExplicitLoggedOut && (hasAuthToken || (hasNick && this.state.myRole) || isAdminKey || isTgAdmin);
-
-      document.getElementById("app-loading").classList.add("hidden");
-
-      if (isAuthenticated) {
-        this.showMainApp();
-        this.renderHeader();
-        this.setCheckinCa(inferredCa);
-        this.setReportCa(inferredCa);
-        this.setEndshiftCa(inferredCa);
-        this.setEndshiftRole(this.state.myRole || "Pha Chế");
-        this.renderAll();
-        const defaultTab = (!hasNick && (isAdminKey || isTgAdmin)) ? "admin" : (this.state.activeTab || "attendance");
-        this.switchTab(defaultTab);
-      } else {
-        this.showLoginScreen();
-      }
-    } catch (err) {
-      document.getElementById("app-loading").classList.add("hidden");
-      document.getElementById("app-error").classList.remove("hidden");
-      document.getElementById("error-desc").textContent = err.message || "Không thể kết nối máy chủ.";
-    }
-  },
-
-  async refreshAll() {
-    haptic("light");
-    await this.init();
-    if (this.state.user && this.state.user.is_admin && this.state.activeTab === "admin") {
-      await this.loadAdminOverview();
-    }
-    this.toast("🔄 Đã làm mới dữ liệu!");
-  },
-
-  renderHeader() {
-    const u = this.state.user || {};
-    const st = this.state.serverTime || {};
-    const myNick = this.state.myNickname;
-    const myRole = this.state.myRole || "Pha Chế";
-    const roleIcon = myRole === "Phục Vụ" ? "🍽" : "🍹";
-
-    const displayName = myNick ? `${myNick} (${myRole})` : u.full_name || "Nhân viên";
-    document.getElementById("header-subtitle").textContent = `${displayName} • ${st.time || ""} (${st.date || ""})`;
-
-    const badge = document.getElementById("role-badge");
-    const adminNav = document.getElementById("nav-admin-btn");
-    const adminSidebar = document.getElementById("sidebar-admin-btn");
-    const superBtn = document.getElementById("subtab-btn-super");
-    const addRecipeBtn = document.getElementById("btn-add-recipe");
-
-    if (u.is_super_admin) {
-      badge.textContent = "👑 Admin Gốc";
-      badge.className = "badge badge-admin";
-      adminNav.classList.remove("hidden");
-      if (adminSidebar) adminSidebar.classList.remove("hidden");
-      superBtn.classList.remove("hidden");
-      if (addRecipeBtn) addRecipeBtn.classList.remove("hidden");
-    } else if (u.is_admin) {
-      badge.textContent = "🛡 Quản Lý";
-      badge.className = "badge badge-admin";
-      adminNav.classList.remove("hidden");
-      if (adminSidebar) adminSidebar.classList.remove("hidden");
-      superBtn.classList.add("hidden");
-      if (addRecipeBtn) addRecipeBtn.classList.remove("hidden");
-    } else {
-      badge.textContent = myNick ? `${roleIcon} ${myNick}` : "👤 Chọn NV";
-      badge.className = "badge badge-emp";
-      adminNav.classList.add("hidden");
-      if (adminSidebar) adminSidebar.classList.add("hidden");
-      superBtn.classList.add("hidden");
-      if (addRecipeBtn) addRecipeBtn.classList.add("hidden");
-    }
-
-    // Update top Identity Bar & Desktop Sidebar User Card
-    const idIcon = document.getElementById("identity-icon");
-    const idTitle = document.getElementById("identity-title");
-    const idSub = document.getElementById("identity-sub");
-    const sideName = document.getElementById("sidebar-user-name");
-    const sideRole = document.getElementById("sidebar-user-role");
-    const sideAvatar = document.getElementById("sidebar-avatar");
-
-    if (sideName && sideRole) {
-      sideName.textContent = myNick || (u.is_admin ? "Quản Lý (Admin)" : "Chưa chọn NV");
-      sideRole.textContent = myRole || (u.is_admin ? "Quản Trị" : "Pha Chế");
-      if (sideAvatar) sideAvatar.textContent = roleIcon || "☕";
-    }
-
-    if (idTitle && idSub && idIcon) {
-      if (myNick) {
-        idIcon.textContent = roleIcon;
-        idTitle.textContent = `${myNick} — Bộ phận ${myRole}${u.is_admin ? " (👑 Quản lý)" : ""}`;
-        idSub.textContent = `Đã đồng bộ tên & checklist theo vị trí ${myRole}. Bấm để đổi nhân viên.`;
-      } else if (u.is_admin) {
-        idIcon.textContent = "👑";
-        idTitle.textContent = "Đang ở chế độ Quản lý (Admin)";
-        idSub.textContent = "Bấm vào đây nếu muốn chọn thêm tên nhân viên hoặc đăng xuất quyền Quản lý.";
-      } else {
-        idIcon.textContent = "👤";
-        idTitle.textContent = "Chưa chọn tên nhân viên";
-        idSub.textContent = "Bấm vào đây để chọn Tên & Vị trí (🍹 Pha chế / 🍽 Phục vụ / 👑 Quản lý)";
-      }
-    }
-  },
-
-  renderAll() {
-    this.renderAttendance();
-    this.renderInventoryGroups();
-    this.renderInventoryList();
-    this.renderRecipesList();
-    this.renderRewardBalances();
-    this.renderRewardRequestGrid();
-    this.renderReportEmpGrid();
-    this.renderPettyExpenses();
-    this.renderEndshiftChecklist();
-    this.populateEmployeeFeatureSelects();
-    this.renderLeaveHistory();
-    this.populateAdminSelects();
-  },
-
-  switchTab(tabName) {
-    haptic("light");
-    this.state.activeTab = tabName;
-    document.querySelectorAll(".tab-panel").forEach((el) => el.classList.add("hidden"));
-    const target = document.getElementById(`tab-${tabName}`);
-    if (target) target.classList.remove("hidden");
-
-    document.querySelectorAll(".bottom-nav .nav-item, .sidebar-nav .sidebar-nav-item").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.tab === tabName);
-    });
-
-    if (tabName === "admin" && this.state.user && this.state.user.is_admin) {
-      this.loadAdminOverview();
-      this.loadAdminSalary();
-      this.loadAdminInventory();
-    }
-  },
-
-  switchSubtab(section, subId) {
-    haptic("light");
-    const container = document.getElementById(`tab-${section}`);
-    if (!container) return;
-    container.querySelectorAll(".subtab-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.sub === subId);
-    });
-    container.querySelectorAll(".subtab-panel").forEach((panel) => {
-      panel.classList.toggle("hidden", panel.id !== `sub-${subId}`);
-    });
-    if (subId === "att-personal") {
-      this.loadPersonalSummary();
-    } else if (subId === "att-schedule") {
-      this.loadMyScheduleGrid();
-    }
-  },
-
-  // ==================== 1. ATTENDANCE ====================
-
-  renderAttendance() {
-    const st = this.state.serverTime || {};
-    document.getElementById("shift-live-badge").textContent = `⏰ Ca hiện tại: ${st.inferred_ca || "--"} (${st.time || "--:--"})`;
-    document.getElementById("shift-live-date").textContent = st.date || "";
-    document.getElementById("stat-open-count").textContent = this.state.openSessions.length;
-    document.getElementById("stat-emp-count").textContent = this.state.employees.length;
-
-    const lowCount = this.state.materials.filter((m) => m.stock <= 0 || (m.min_stock > 0 && m.stock <= m.min_stock)).length;
-    document.getElementById("stat-low-stock").textContent = lowCount;
-
-    // Open sessions
-    const badge = document.getElementById("open-sessions-badge");
-    if (badge) badge.textContent = `${this.state.openSessions.length} phiên`;
-    const listEl = document.getElementById("open-sessions-list");
-    const isShopOrAdmin = this.isShopDevice() || (this.state.user && this.state.user.is_admin);
-
-    if (listEl) {
-      if (!this.state.openSessions.length) {
-        listEl.innerHTML = `<p class="empty-text">Chưa có nhân viên nào đang trong ca.</p>`;
-      } else {
-        listEl.innerHTML = this.state.openSessions
-          .map(
-            (s) => `
-            <div class="session-item">
-              <div class="session-info">
-                <strong>👤 ${esc(s.nickname)}</strong>
-                <span>${esc(s.shift_type)} (${esc(s.ca || "")}) • Vào lúc ${esc(s.checkin_time)}</span>
-              </div>
-              ${
-                isShopOrAdmin
-                  ? `<button class="btn btn-danger btn-sm" onclick="App.submitCheckout('${esc(s.nickname)}', '${esc(s.shift_type)}')">
-                📤 Check Out
-              </button>`
-                  : `<span class="badge-active-shift">🟢 Đang làm</span>`
-              }
-            </div>`
-          )
-          .join("");
-      }
-    }
-
-    this.renderCheckinEmployees();
-    this.updateKioskUI();
-  },
-
-  // ── Kiosk Device Management ──
-  isShopDevice() {
-    return Boolean(localStorage.getItem("sober_shop_kiosk_key"));
-  },
-
-  updateKioskUI() {
-    const isShop = this.isShopDevice();
-    const isAdmin = Boolean(this.state.user && this.state.user.is_admin);
-
-    const noticeEl = document.getElementById("kiosk-notice-banner");
-    const badgeEl = document.getElementById("kiosk-active-badge");
-    if (noticeEl && badgeEl) {
-      if (isShop) {
-        noticeEl.classList.add("hidden");
-        badgeEl.classList.remove("hidden");
-      } else if (isAdmin) {
-        noticeEl.classList.add("hidden");
-        badgeEl.classList.add("hidden");
-      } else {
-        noticeEl.classList.remove("hidden");
-        badgeEl.classList.add("hidden");
-      }
-    }
-
-    const admBadge = document.getElementById("kiosk-status-badge");
-    const actBtn = document.getElementById("btn-kiosk-activate");
-    const deactBtn = document.getElementById("btn-kiosk-deactivate");
-    const descEl = document.getElementById("kiosk-status-desc");
-
-    if (admBadge && actBtn && deactBtn) {
-      if (isShop) {
-        admBadge.textContent = "🟢 Máy Của Quán";
-        admBadge.className = "badge badge-admin";
-        if (descEl) descEl.textContent = "Thiết bị này ĐANG LÀ máy điểm danh cố định tại quầy. Nhân viên có thể chấm công trực tiếp tại đây.";
-        actBtn.classList.add("hidden");
-        deactBtn.classList.remove("hidden");
-      } else {
-        admBadge.textContent = "⚪ Chưa kích hoạt";
-        admBadge.className = "badge badge-emp";
-        if (descEl) descEl.textContent = "Thiết bị này CHƯA được kích hoạt làm máy quán. Bấm nút dưới để biến máy này thành máy điểm danh cố định.";
-        actBtn.classList.remove("hidden");
-        deactBtn.classList.add("hidden");
-      }
-    }
-  },
-
-  async activateShopDevice() {
-    haptic("light");
-    try {
-      const res = await this.api("/api/admin/kiosk/activate", { method: "POST" });
-      if (res.kiosk_key) {
-        localStorage.setItem("sober_shop_kiosk_key", res.kiosk_key);
-        this.updateKioskUI();
-        haptic("success");
-        this.toast(res.message || "✅ Đã kích hoạt máy quán!");
-      }
-    } catch (err) {
-      haptic("error");
-      this.toast("❌ " + err.message);
-    }
-  },
-
-  async deactivateShopDevice() {
-    haptic("light");
-    localStorage.removeItem("sober_shop_kiosk_key");
-    this.updateKioskUI();
-    this.toast("⚪ Đã hủy kích hoạt máy điểm danh trên thiết bị này.");
-  },
-
-  setCheckinType(type) {
-    haptic("light");
-    this.state.checkinType = type;
-    document.querySelectorAll("#ci-shift-type .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.val === type);
-    });
-    const caWrapper = document.getElementById("ci-ca-wrapper");
-    if (type === "Ca Gãy") {
-      this.state.checkinCa = "Tối";
-      caWrapper.classList.add("hidden");
-    } else {
-      caWrapper.classList.remove("hidden");
-    }
-  },
-
-  setCheckinCa(ca) {
-    this.state.checkinCa = ca;
-    document.querySelectorAll("#ci-ca-select .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.val === ca);
-    });
-  },
-
-  renderCheckinEmployees() {
-    const grid = document.getElementById("ci-emp-grid");
-    if (!grid) return;
-    const q = stripAccents(document.getElementById("ci-emp-search")?.value || "");
-    const filtered = this.state.employees.filter(
-      (e) => !q || stripAccents(e.nickname).includes(q) || stripAccents(e.full_name).includes(q)
-    );
-    if (!filtered.length) {
-      grid.innerHTML = `<p class="empty-text" style="grid-column: span 2;">Không tìm thấy nhân viên.</p>`;
-      return;
-    }
-    grid.innerHTML = filtered
-      .map((e) => {
-        const isSel = this.state.checkinEmp === e.nickname;
-        return `
-        <button type="button" class="emp-chip ${isSel ? "selected" : ""}" onclick="App.selectCheckinEmp('${esc(e.nickname)}')">
-          <span>${esc(e.nickname)}</span>
-          <span>${isSel ? "✅" : ""}</span>
-        </button>`;
-      })
-      .join("");
-  },
-
-  selectCheckinEmp(nickname) {
-    haptic("light");
-    this.state.checkinEmp = nickname;
-    localStorage.setItem("sober_my_nickname", nickname);
-    this.renderCheckinEmployees();
-  },
-
-  async submitCheckin() {
-    if (!this.isShopDevice() && !this.state.user?.is_admin) {
-      haptic("error");
-      this.toast("🔒 Chấm công chỉ được phép thực hiện trên máy điện thoại cố định tại quán!");
-      return;
-    }
-    const nickname = this.state.checkinEmp;
-    if (!nickname) {
-      this.toast("⚠️ Vui lòng chạm chọn tên của bạn!");
-      return;
-    }
-    const btn = document.getElementById("btn-submit-checkin");
-    btn.disabled = true;
-    btn.textContent = "⏳ Đang ghi nhận Check-in...";
-    try {
-      const res = await this.api("/api/checkin", {
-        method: "POST",
-        body: {
-          nickname,
-          shift_type: this.state.checkinType,
-          ca: this.state.checkinCa,
-        },
-      });
-      haptic("success");
-      this.state.openSessions = res.open_sessions || [];
-      this.renderAttendance();
-      this.toast(res.message);
-    } catch (err) {
-      haptic("error");
-      this.toast(err.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "📥 Xác Nhận Check In";
-    }
-  },
-
-  async submitCheckout(nickname, shiftType) {
-    if (!this.isShopDevice() && !this.state.user?.is_admin) {
-      haptic("error");
-      this.toast("🔒 Check-out chỉ được phép thực hiện trên máy điện thoại cố định tại quán!");
-      return;
-    }
-    haptic("light");
-    try {
-      const res = await this.api("/api/checkout", {
-        method: "POST",
-        body: { nickname, shift_type: shiftType },
-      });
-      haptic("success");
-      this.state.openSessions = res.open_sessions || [];
-      this.renderAttendance();
-      this.toast(res.message);
-    } catch (err) {
-      haptic("error");
-      this.toast(err.message);
-    }
-  },
-
-  // ==================== 2. INVENTORY ====================
-
-  renderInventoryGroups() {
-    const el = document.getElementById("inv-group-pills");
-    const pills = [
-      { name: "ALL", label: "📦 Tất cả" },
-      ...this.state.materialGroups.map((g) => ({ name: g.name, label: `${g.icon} ${g.name}` })),
-    ];
-    el.innerHTML = pills
-      .map(
-        (p) => `
-      <button type="button" class="group-pill ${this.state.selectedInvGroup === p.name ? "active" : ""}"
-        onclick="App.selectInvGroup('${esc(p.name)}')">
-        ${esc(p.label)}
-      </button>`
-      )
-      .join("");
-  },
-
-  selectInvGroup(grp) {
-    haptic("light");
-    this.state.selectedInvGroup = grp;
-    this.renderInventoryGroups();
-    this.renderInventoryList();
-  },
-
-  renderInventoryList() {
-    const q = stripAccents(document.getElementById("inv-search-input")?.value || "");
-    const grp = this.state.selectedInvGroup;
-    const list = document.getElementById("inv-materials-list");
-
-    const filtered = this.state.materials.filter((m) => {
-      if (grp !== "ALL" && m.group !== grp) return false;
-      if (q && !stripAccents(m.name).includes(q) && !stripAccents(m.group).includes(q)) return false;
-      return true;
-    });
-
-    if (!filtered.length) {
-      list.innerHTML = `<div class="card"><p class="empty-text">Không có nguyên vật liệu phù hợp.</p></div>`;
-      return;
-    }
-
-    list.innerHTML = filtered
-      .map((m) => {
-        const qty = this.state.cart[m.name] || 0;
-        const stockCls = m.stock <= 0 ? "stock-out" : m.min_stock > 0 && m.stock <= m.min_stock ? "stock-low" : "stock-ok";
-        const unitStr = m.unit ? ` ${esc(m.unit)}` : "";
-        return `
-        <div class="material-item">
-          <div class="mat-meta">
-            <strong>${esc(m.name)}</strong>
-            <span>${esc(m.group)} • Tồn: <b class="${stockCls}">${m.stock}${unitStr}</b></span>
-          </div>
-          <div class="qty-control">
-            <button type="button" class="qty-btn" onclick="App.adjustCart('${esc(m.name)}', -1)">−</button>
-            <input type="number" step="any" min="0" class="qty-input" value="${qty || ""}" placeholder="0"
-              onchange="App.setCartQty('${esc(m.name)}', this.value)" />
-            <button type="button" class="qty-btn" onclick="App.adjustCart('${esc(m.name)}', 1)">+</button>
-          </div>
-        </div>`;
-      })
-      .join("");
-
-    this.renderCartBar();
-  },
-
-  adjustCart(name, delta) {
-    haptic("light");
-    const cur = parseFloat(this.state.cart[name] || 0);
-    const next = Math.max(0, Math.round((cur + delta) * 100) / 100);
-    if (next <= 0) delete this.state.cart[name];
-    else this.state.cart[name] = next;
-    this.renderInventoryList();
-  },
-
-  setCartQty(name, val) {
-    const num = parseFloat(String(val).replace(",", "."));
-    if (!num || num <= 0) delete this.state.cart[name];
-    else this.state.cart[name] = Math.round(num * 100) / 100;
-    this.renderInventoryList();
-  },
-
-  clearCart() {
-    this.state.cart = {};
-    this.renderInventoryList();
-  },
-
-  renderCartBar() {
-    const entries = Object.entries(this.state.cart).filter(([, q]) => q > 0);
-    const bar = document.getElementById("inv-cart-bar");
-    if (!entries.length) {
-      bar.classList.add("hidden");
-      return;
-    }
-    bar.classList.remove("hidden");
-    document.getElementById("cart-count-text").textContent = `📦 Đã chọn ${entries.length} món cần lấy`;
-    document.getElementById("cart-preview-text").textContent = entries
-      .slice(0, 3)
-      .map(([n, q]) => `${n} (x${q})`)
-      .join(", ");
-  },
-
-  async submitCartExport() {
-    const items = Object.entries(this.state.cart)
-      .filter(([, q]) => q > 0)
-      .map(([name, qty]) => ({ name, qty }));
-    if (!items.length) return;
-
-    try {
-      const actor = this.state.checkinEmp || this.state.user?.first_name || "Nhân viên";
-      const res = await this.api("/api/inventory/export", {
-        method: "POST",
-        body: { items, actor_name: actor },
-      });
-      haptic("success");
-      this.state.materials = res.materials || this.state.materials;
-      this.state.cart = {};
-      this.renderInventoryList();
-      this.renderAttendance();
-      this.toast(res.message);
-    } catch (err) {
-      haptic("error");
-      this.toast(err.message);
-    }
-  },
-
-  async parseSmartInventory() {
-    const text = document.getElementById("inv-smart-text").value.trim();
-    if (!text) {
-      this.toast("⚠️ Vui lòng nhập danh sách món cần lấy!");
-      return;
-    }
-    try {
-      const res = await this.api("/api/inventory/smart-parse", {
-        method: "POST",
-        body: { text },
-      });
-      this.state.smartExportState = {
-        confirmed: res.confirmed || [],
-        ambiguous: res.ambiguous || [],
-        not_found: res.not_found || [],
-      };
-      this.renderSmartExportStep();
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
-
-  renderSmartExportStep() {
-    const box = document.getElementById("inv-smart-result");
-    const st = this.state.smartExportState;
-    if (!st) {
-      box.classList.add("hidden");
-      return;
-    }
-    box.classList.remove("hidden");
-
-    if (st.ambiguous.length > 0) {
-      const amb = st.ambiguous[0];
-      box.innerHTML = `
-        <div class="card-header"><h2>❓ Chọn đúng món cho "${esc(amb.query)}" (SL: ${amb.qty})</h2></div>
-        <div class="chip-grid">
-          ${amb.candidates
-            .map(
-              (c, idx) => `
-            <button class="emp-chip" onclick="App.resolveSmartAmbiguous(${idx})">
-              <span>${esc(c.name)} (Tồn: ${c.stock})</span>
-            </button>`
-            )
-            .join("")}
-        </div>
-        <button class="btn btn-ghost btn-block mt-8" onclick="App.resolveSmartAmbiguous(-1)">⏭ Bỏ qua món này</button>
-      `;
-      return;
-    }
-
-    if (!st.confirmed.length) {
-      box.innerHTML = `<p class="empty-text">❌ Không tìm thấy món nào khớp (${esc(st.not_found.join(", "))}).</p>`;
-      return;
-    }
-
-    box.innerHTML = `
-      <div class="card-header"><h2>📋 Xác Nhận Xuất Kho (${st.confirmed.length} món)</h2></div>
-      ${st.confirmed
-        .map(
-          (item) => `
-        <div class="list-row">
-          <span><b>${esc(item.name)}</b></span>
-          <span>Lấy: <b>${item.qty} ${esc(item.unit || "")}</b> (Tồn: ${item.stock})</span>
-        </div>`
-        )
-        .join("")}
-      ${st.not_found.length ? `<p class="text-xs mt-8">❓ Không khớp: ${esc(st.not_found.join(", "))}</p>` : ""}
-      <button class="btn btn-primary btn-block mt-12" onclick="App.confirmSmartExport()">✅ Xác Nhận Xuất Kho Ngay</button>
+  });
+}
+
+function togglePasswordVisibility(id) {
+  const input = document.getElementById(id);
+  if (!input) return;
+  input.type = input.type === "password" ? "text" : "password";
+}
+
+async function handleLoginSubmit(e) {
+  e.preventDefault();
+  const username = document.getElementById("login-username").value.trim();
+  const password = document.getElementById("login-password").value.trim();
+  const btn = document.getElementById("btn-login-submit");
+
+  if (!username) {
+    showToast("Vui lòng nhập Tên đăng nhập", "error");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = `<span>Đang đăng nhập...</span>`;
+
+  const resp = await apiRequest("/api/auth/login", {
+    method: "POST",
+    body: {
+      username,
+      password,
+      role: AppState.role,
+    },
+  });
+
+  btn.disabled = false;
+  btn.innerHTML = `<span>Vào ca làm việc</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>`;
+
+  if (resp && resp.success) {
+    AppState.token = resp.token;
+    localStorage.setItem("sober_token", resp.token);
+    AppState.user = resp.user;
+    AppState.role = resp.role || resp.user.role || (resp.user.is_admin ? "Quản Lý" : "Pha Chế");
+
+    showToast("Đăng nhập thành công!", "success");
+    await initApp();
+  } else {
+    showToast(resp.message || "Tên đăng nhập hoặc mật khẩu không đúng", "error");
+  }
+}
+
+function handleLogout() {
+  openModal(
+    "Xác nhận đăng xuất",
+    `<p>Bạn có chắc chắn muốn đăng xuất khỏi tài khoản <strong>${escapeHtml(AppState.user ? (AppState.user.nickname || AppState.user.username) : "")}</strong>?</p>`,
+    `
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">Hủy</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmLogout()">Đăng xuất ngay</button>
+    `
+  );
+}
+
+function confirmLogout() {
+  closeModal();
+  localStorage.removeItem("sober_token");
+  AppState.token = null;
+  AppState.user = null;
+  showToast("Đã đăng xuất", "info");
+  showLoginScreen();
+  loadPublicUsers();
+}
+
+// ── Navigation & Role Separation ─────────────────────────────────────────────
+function renderNavigation() {
+  const isAdmin = AppState.user && AppState.user.is_admin;
+  const sidebarNav = document.getElementById("sidebar-nav-items");
+  const bottomNav = document.getElementById("bottom-nav");
+
+  if (!sidebarNav || !bottomNav) return;
+
+  if (isAdmin) {
+    // Admin Desktop Sidebar
+    sidebarNav.innerHTML = `
+      <li class="sidebar-nav-item" data-tab="tab-admin-dashboard" onclick="switchTab('tab-admin-dashboard')">
+        ${getIcon("home")} <span>Tổng quan</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-admin-roster" onclick="switchTab('tab-admin-roster')">
+        ${getIcon("calendar")} <span>Xếp lịch</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-admin-matrix" onclick="switchTab('tab-admin-matrix')">
+        ${getIcon("matrix")} <span>Đăng ký lịch</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-admin-swaps" onclick="switchTab('tab-admin-swaps')">
+        ${getIcon("swap")} <span>Duyệt đổi ca</span>
+        <span id="sidebar-swap-badge" class="sidebar-nav-badge hidden">0</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-admin-employees" onclick="switchTab('tab-admin-employees')">
+        ${getIcon("users")} <span>Nhân sự</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-admin-payroll" onclick="switchTab('tab-admin-payroll')">
+        ${getIcon("dollar")} <span>Công & lương</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-admin-inventory" onclick="switchTab('tab-admin-inventory')">
+        ${getIcon("box")} <span>Kho / NVL</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-admin-announcements" onclick="switchTab('tab-admin-announcements')">
+        ${getIcon("megaphone")} <span>Thông báo quán</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-admin-settings" onclick="switchTab('tab-admin-settings')">
+        ${getIcon("settings")} <span>Cài đặt</span>
+      </li>
     `;
-  },
 
-  resolveSmartAmbiguous(idx) {
-    const st = this.state.smartExportState;
-    if (!st || !st.ambiguous.length) return;
-    const current = st.ambiguous.shift();
-    if (idx >= 0 && current.candidates[idx]) {
-      const c = current.candidates[idx];
-      st.confirmed.push({
-        name: c.name,
-        qty: current.qty,
-        stock: c.stock,
-        unit: c.unit || "",
-      });
-    }
-    this.renderSmartExportStep();
-  },
-
-  async confirmSmartExport() {
-    const st = this.state.smartExportState;
-    if (!st || !st.confirmed.length) return;
-    try {
-      const actor = this.state.checkinEmp || this.state.user?.first_name || "Nhân viên";
-      const res = await this.api("/api/inventory/export", {
-        method: "POST",
-        body: { items: st.confirmed, actor_name: actor },
-      });
-      haptic("success");
-      this.state.materials = res.materials || this.state.materials;
-      this.state.smartExportState = null;
-      document.getElementById("inv-smart-text").value = "";
-      document.getElementById("inv-smart-result").classList.add("hidden");
-      this.renderInventoryList();
-      this.toast(res.message);
-    } catch (err) {
-      haptic("error");
-      this.toast(err.message);
-    }
-  },
-
-  // ==================== 3. REWARDS, REVENUE & ENDSHIFT ====================
-
-  renderRewardBalances() {
-    const el = document.getElementById("rew-balances-list");
-    if (!el) return;
-
-    const isAdmin = Boolean(this.state.user?.is_admin);
-    const myNick = stripAccents(this.state.myNickname || this.state.user?.nickname || this.state.user?.first_name || "");
-    const searchInput = document.getElementById("rew-search");
-
-    if (!isAdmin) {
-      // 🔒 Nhân viên thường: CỦA AI NGƯỜI ĐÓ XEM & CỦA AI NGƯỜI ĐÓ DÙNG
-      if (searchInput) searchInput.style.display = "none";
-
-      const myData = this.state.employees.find(
-        (e) => stripAccents(e.nickname) === myNick || stripAccents(e.full_name) === myNick
-      );
-
-      if (!myData) {
-        el.innerHTML = `
-          <div class="card p-16 text-center" style="background: var(--surface-variant, #f8f9fa);">
-            <p class="empty-text">⚠️ Chưa tìm thấy hồ sơ ly thưởng cho tài khoản: <b>${esc(this.state.myNickname || this.state.user?.full_name || "Bạn")}</b>.</p>
-            <p class="text-xs text-muted mt-8">Vui lòng báo Quản lý thêm tên của bạn vào danh sách để tích luỹ ly thưởng.</p>
-          </div>`;
-        return;
-      }
-
-      const bal = myData.balance || 0;
-      el.innerHTML = `
-        <div class="card p-20 text-center" style="border: 2px solid var(--accent, #d97706); border-radius: 16px; background: rgba(217, 119, 6, 0.05);">
-          <div style="font-size: 3rem; margin-bottom: 8px;">${bal > 0 ? "🎁" : "🥤"}</div>
-          <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 4px;">Ly Thưởng Của Bạn</h3>
-          <p class="text-muted text-xs mb-16">Nhân viên: <b>${esc(myData.nickname)}</b></p>
-          <div style="font-size: 2.4rem; font-weight: 800; color: var(--accent, #d97706); margin-bottom: 16px;">
-            ${bal} <span style="font-size: 1.1rem; font-weight: normal; color: var(--text-secondary, #666);">ly</span>
-          </div>
-          <button class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1rem;"
-            ${bal <= 0 ? "disabled" : ""}
-            onclick="App.confirmUseReward('${esc(myData.nickname)}', ${bal})">
-            🥤 Dùng 1 Ly Thưởng Ngay
-          </button>
-          ${bal <= 0 ? '<p class="text-xs text-muted mt-8">Hiện bạn chưa có ly thưởng nào khả dụng.</p>' : ''}
-        </div>
-      `;
-      return;
-    }
-
-    // 👑 Quản lý (Admin): Xem toàn bộ bảng thưởng và hỗ trợ trừ ly
-    if (searchInput) searchInput.style.display = "";
-    const q = stripAccents(searchInput?.value || "");
-    const sorted = [...this.state.employees]
-      .filter((e) => !q || stripAccents(e.nickname).includes(q))
-      .sort((a, b) => (b.balance || 0) - (a.balance || 0));
-
-    if (!sorted.length) {
-      el.innerHTML = `<p class="empty-text">Chưa có dữ liệu nhân viên.</p>`;
-      return;
-    }
-
-    el.innerHTML = sorted
-      .map(
-        (e) => `
-      <div class="reward-item">
-        <div>
-          <strong>${(e.balance || 0) > 0 ? "🎁" : "⬜"} ${esc(e.nickname)}</strong>
-          <div class="text-xs">Số dư: <b>${e.balance ?? 0} ly thưởng</b></div>
-        </div>
-        <button class="btn ${(e.balance || 0) > 0 ? "btn-primary" : "btn-ghost"} btn-sm"
-          ${(e.balance || 0) <= 0 ? "disabled" : ""}
-          onclick="App.confirmUseReward('${esc(e.nickname)}', ${e.balance || 0})">
-          🥤 Trừ 1 ly
-        </button>
-      </div>`
-      )
-      .join("");
-  },
-
-  confirmUseReward(nickname, balance) {
-    this.openModal(
-      "🥤 Xác nhận dùng ly thưởng",
-      `
-      <p class="mb-12">Bạn chắc chắn muốn trừ <b>1 ly thưởng</b> của <b>${esc(nickname)}</b>? (Hiện còn ${balance} ly)</p>
-      <div class="row-gap">
-        <button class="btn btn-ghost" onclick="App.closeModal()">Hủy</button>
-        <button class="btn btn-primary" onclick="App.submitUseReward('${esc(nickname)}')">✅ Dùng ngay!</button>
-      </div>`
-    );
-  },
-
-  async submitUseReward(nickname) {
-    this.closeModal();
-    try {
-      const res = await this.api("/api/rewards/use", {
-        method: "POST",
-        body: { nickname },
-      });
-      haptic("success");
-      this.state.employees = res.employees || this.state.employees;
-      this.renderAll();
-      this.toast(res.message);
-    } catch (err) {
-      haptic("error");
-      this.toast(err.message);
-    }
-  },
-
-  renderRewardRequestGrid() {
-    const grid = document.getElementById("rew-req-grid");
-    grid.innerHTML = this.state.employees
-      .map((e) => {
-        const sel = !!this.state.rewardReqSelected[e.nickname];
-        return `
-        <button type="button" class="emp-chip ${sel ? "selected" : ""}" onclick="App.toggleRewardReqEmp('${esc(e.nickname)}')">
-          <span>${esc(e.nickname)}</span>
-          <span>${sel ? "✅" : ""}</span>
-        </button>`;
-      })
-      .join("");
-  },
-
-  toggleRewardReqEmp(nickname) {
-    haptic("light");
-    this.state.rewardReqSelected[nickname] = !this.state.rewardReqSelected[nickname];
-    this.renderRewardRequestGrid();
-  },
-
-  async submitRewardRequest() {
-    const selected = Object.entries(this.state.rewardReqSelected)
-      .filter(([, v]) => v)
-      .map(([k]) => k);
-    if (!selected.length) {
-      this.toast("⚠️ Bạn chưa chọn nhân viên nào!");
-      return;
-    }
-    try {
-      const res = await this.api("/api/rewards/request", {
-        method: "POST",
-        body: { employees: selected },
-      });
-      haptic("success");
-      this.state.rewardReqSelected = {};
-      if (res.employees) this.state.employees = res.employees;
-      this.renderAll();
-      this.toast(res.message);
-    } catch (err) {
-      haptic("error");
-      this.toast(err.message);
-    }
-  },
-
-  setReportCa(ca) {
-    this.state.reportCa = ca;
-    document.querySelectorAll("#rpt-ca-select .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.val === ca);
-    });
-  },
-
-  renderReportEmpGrid() {
-    const grid = document.getElementById("rpt-emp-grid");
-    if (!grid) return;
-    grid.innerHTML = this.state.employees
-      .map((e) => {
-        const sel = !!this.state.reportSelectedEmps[e.nickname];
-        return `
-        <button type="button" class="emp-chip ${sel ? "selected" : ""}" onclick="App.toggleReportEmp('${esc(e.nickname)}')">
-          <span>${esc(e.nickname)}</span>
-          <span>${sel ? "✅" : ""}</span>
-        </button>`;
-      })
-      .join("");
-    this.updateRevenuePreview();
-  },
-
-  toggleReportEmp(nickname) {
-    haptic("light");
-    this.state.reportSelectedEmps[nickname] = !this.state.reportSelectedEmps[nickname];
-    this.renderReportEmpGrid();
-  },
-
-  updateRevenuePreview() {
-    const count = Object.values(this.state.reportSelectedEmps).filter(Boolean).length;
-    const raw = (document.getElementById("rpt-revenue-input")?.value || "").trim().toUpperCase();
-    const banner = document.getElementById("rpt-reward-preview");
-
-    let amount = 0;
-    if (raw) {
-      let s = raw.replace(/,/g, "");
-      if (s.endsWith("M")) amount = parseFloat(s.slice(0, -1)) * 1_000_000;
-      else if (s.endsWith("K")) amount = parseFloat(s.slice(0, -1)) * 1_000;
-      else amount = parseFloat(s.replace(/\./g, ""));
-    }
-
-    const eligible = (count === 2 && amount >= 1_200_000) || (count >= 3 && amount >= 1_500_000);
-    if (eligible) {
-      banner.textContent = `🎉 Đạt chỉ tiêu thưởng! Mỗi bạn (${count} NV) sẽ được +1 ly thưởng.`;
-    } else {
-      banner.textContent = `Đã chọn ${count} NV • Chỉ tiêu thưởng: 2 NV ≥ 1.2M | ≥3 NV ≥ 1.5M`;
-    }
-  },
-
-  async submitRevenueReport() {
-    const selected = Object.entries(this.state.reportSelectedEmps)
-      .filter(([, v]) => v)
-      .map(([k]) => k);
-    const revenue = document.getElementById("rpt-revenue-input").value.trim();
-    const photoInput = document.getElementById("rpt-photo-input");
-
-    if (!selected.length) {
-      this.toast("⚠️ Vui lòng chọn nhân viên trong ca!");
-      return;
-    }
-    if (!revenue) {
-      this.toast("⚠️ Vui lòng nhập doanh thu ca!");
-      return;
-    }
-
-    const btn = document.getElementById("btn-submit-report");
-    btn.disabled = true;
-    btn.textContent = "⏳ Đang lưu báo cáo...";
-
-    try {
-      const fd = new FormData();
-      fd.append("employees", JSON.stringify(selected));
-      fd.append("revenue", revenue);
-      fd.append("ca", this.state.reportCa);
-      if (photoInput.files && photoInput.files[0]) {
-        fd.append("photo", photoInput.files[0]);
-      }
-
-      const res = await this.api("/api/reports/revenue", {
-        method: "POST",
-        body: fd,
-      });
-      haptic("success");
-      this.state.reportSelectedEmps = {};
-      document.getElementById("rpt-revenue-input").value = "";
-      photoInput.value = "";
-      if (res.employees) this.state.employees = res.employees;
-      this.renderAll();
-      this.toast(res.message);
-    } catch (err) {
-      haptic("error");
-      this.toast(err.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "📤 Lưu Báo Cáo Doanh Thu";
-    }
-  },
-
-  setEndshiftCa(ca) {
-    this.state.endshiftCa = ca;
-    document.querySelectorAll("#ks-ca-select .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.val === ca);
-    });
-  },
-
-  setEndshiftRole(role) {
-    this.state.endshiftRole = role;
-    document.querySelectorAll("#ks-role-select .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.val === role);
-    });
-    this.renderEndshiftChecklist();
-  },
-
-  renderEndshiftChecklist() {
-    const box = document.getElementById("ks-checklist-box");
-    if (!box) return;
-    const role = this.state.endshiftRole || "Pha Chế";
-    const items = (this.state.checklists && this.state.checklists[role]) || [];
-    const checkedMap = this.state.checklistChecked[role] || {};
-
-    if (!items.length) {
-      box.innerHTML = `<p class="empty-text">Chưa có checklist cho bộ phận ${esc(role)}.</p>`;
-      return;
-    }
-
-    const doneCount = items.filter((_, i) => !!checkedMap[i]).length;
-    box.innerHTML = `
-      <div class="text-xs mb-8">Tiến độ Checklist <b>${esc(role)}</b>: <b>${doneCount}/${items.length}</b> mục hoàn thành</div>
-      ${items
-        .map((text, idx) => {
-          const isChecked = !!checkedMap[idx];
-          return `
-          <div class="checklist-item ${isChecked ? "checked" : ""}" onclick="App.toggleChecklistItem(${idx})">
-            <input type="checkbox" ${isChecked ? "checked" : ""} onclick="event.stopPropagation(); App.toggleChecklistItem(${idx})" />
-            <span>${esc(text)}</span>
-          </div>`;
-        })
-        .join("")}
+    // Admin Mobile Bottom Nav (5 items)
+    bottomNav.innerHTML = `
+      <button class="bottom-nav-item" data-tab="tab-admin-dashboard" onclick="switchTab('tab-admin-dashboard')">
+        ${getIcon("home", 20)}
+        <span>Tổng quan</span>
+      </button>
+      <button class="bottom-nav-item" data-tab="tab-admin-roster" onclick="switchTab('tab-admin-roster')">
+        ${getIcon("calendar", 20)}
+        <span>Lịch</span>
+      </button>
+      <button class="bottom-nav-item" data-tab="tab-admin-swaps" onclick="switchTab('tab-admin-swaps')">
+        ${getIcon("swap", 20)}
+        <span>Duyệt</span>
+        <span id="bottom-swap-badge" class="bottom-nav-badge hidden">0</span>
+      </button>
+      <button class="bottom-nav-item" data-tab="tab-admin-employees" onclick="switchTab('tab-admin-employees')">
+        ${getIcon("users", 20)}
+        <span>Nhân sự</span>
+      </button>
+      <button class="bottom-nav-item" data-tab="tab-profile" onclick="switchTab('tab-profile')">
+        ${getIcon("user", 20)}
+        <span>Cá nhân</span>
+      </button>
     `;
-  },
+  } else {
+    // Employee Desktop Sidebar
+    sidebarNav.innerHTML = `
+      <li class="sidebar-nav-item" data-tab="tab-emp-home" onclick="switchTab('tab-emp-home')">
+        ${getIcon("home")} <span>Trang chủ</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-emp-schedule" onclick="switchTab('tab-emp-schedule')">
+        ${getIcon("calendar")} <span>Lịch làm việc</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-emp-register" onclick="switchTab('tab-emp-register')">
+        ${getIcon("matrix")} <span>Đăng ký lịch</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-emp-swap" onclick="switchTab('tab-emp-swap')">
+        ${getIcon("swap")} <span>Đổi ca</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-emp-payroll" onclick="switchTab('tab-emp-payroll')">
+        ${getIcon("dollar")} <span>Công & lương</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-notifications" onclick="switchTab('tab-notifications')">
+        ${getIcon("bell")} <span>Thông báo</span>
+        <span id="sidebar-notif-badge" class="sidebar-nav-badge hidden">0</span>
+      </li>
+      <li class="sidebar-nav-item" data-tab="tab-profile" onclick="switchTab('tab-profile')">
+        ${getIcon("user")} <span>Tài khoản</span>
+      </li>
+    `;
 
-  toggleChecklistItem(idx) {
-    haptic("light");
-    const role = this.state.endshiftRole || "Pha Chế";
-    if (!this.state.checklistChecked[role]) {
-      this.state.checklistChecked[role] = {};
+    // Employee Mobile Bottom Nav (5 items)
+    bottomNav.innerHTML = `
+      <button class="bottom-nav-item" data-tab="tab-emp-home" onclick="switchTab('tab-emp-home')">
+        ${getIcon("home", 20)}
+        <span>Trang chủ</span>
+      </button>
+      <button class="bottom-nav-item" data-tab="tab-emp-schedule" onclick="switchTab('tab-emp-schedule')">
+        ${getIcon("calendar", 20)}
+        <span>Lịch</span>
+      </button>
+      <button class="bottom-nav-item" data-tab="tab-emp-swap" onclick="switchTab('tab-emp-swap')">
+        ${getIcon("swap", 20)}
+        <span>Đổi ca</span>
+      </button>
+      <button class="bottom-nav-item" data-tab="tab-notifications" onclick="switchTab('tab-notifications')">
+        ${getIcon("bell", 20)}
+        <span>Thông báo</span>
+        <span id="bottom-notif-badge" class="bottom-nav-badge hidden">0</span>
+      </button>
+      <button class="bottom-nav-item" data-tab="tab-profile" onclick="switchTab('tab-profile')">
+        ${getIcon("user", 20)}
+        <span>Cá nhân</span>
+      </button>
+    `;
+  }
+}
+
+function updateUserUI() {
+  if (!AppState.user) return;
+  const name = AppState.user.nickname || AppState.user.username || "Nhân viên";
+  const role = AppState.user.role || (AppState.user.is_admin ? "Quản Lý" : "Pha Chế");
+  const initial = name.charAt(0).toUpperCase();
+
+  // Sidebar user info
+  const sideAvatar = document.getElementById("sidebar-user-avatar");
+  const sideName = document.getElementById("sidebar-user-name");
+  const sideRole = document.getElementById("sidebar-user-role");
+  if (sideAvatar) sideAvatar.textContent = initial;
+  if (sideName) sideName.textContent = name;
+  if (sideRole) sideRole.textContent = role;
+
+  // Mobile header badge
+  const mobBadge = document.getElementById("mobile-role-badge");
+  if (mobBadge) mobBadge.textContent = role;
+
+  // Profile tab info
+  const profAvatar = document.getElementById("profile-avatar");
+  const profName = document.getElementById("profile-name");
+  const profRole = document.getElementById("profile-role");
+  if (profAvatar) profAvatar.textContent = initial;
+  if (profName) profName.textContent = name;
+  if (profRole) profRole.textContent = role;
+
+  // Employee Welcome
+  const empWelcomeName = document.getElementById("emp-welcome-name");
+  const empWelcomeRole = document.getElementById("emp-welcome-role");
+  if (empWelcomeName) empWelcomeName.textContent = name;
+  if (empWelcomeRole) empWelcomeRole.textContent = role;
+
+  updateBadgeCounts();
+}
+
+function updateBadgeCounts() {
+  const isAdmin = AppState.user && AppState.user.is_admin;
+  if (isAdmin) {
+    const pendingSwaps = (AppState.swaps || []).filter(s => s.status === "pending").length;
+    const sideBadge = document.getElementById("sidebar-swap-badge");
+    const botBadge = document.getElementById("bottom-swap-badge");
+    if (sideBadge) {
+      sideBadge.textContent = pendingSwaps;
+      sideBadge.classList.toggle("hidden", pendingSwaps === 0);
     }
-    this.state.checklistChecked[role][idx] = !this.state.checklistChecked[role][idx];
-    this.renderEndshiftChecklist();
-  },
+    if (botBadge) {
+      botBadge.textContent = pendingSwaps;
+      botBadge.classList.toggle("hidden", pendingSwaps === 0);
+    }
+  } else {
+    const unread = (AppState.notifications || []).filter(n => !n.is_read).length;
+    const sideBadge = document.getElementById("sidebar-notif-badge");
+    const botBadge = document.getElementById("bottom-notif-badge");
+    const headerDot = document.getElementById("header-notif-dot");
+    if (sideBadge) {
+      sideBadge.textContent = unread;
+      sideBadge.classList.toggle("hidden", unread === 0);
+    }
+    if (botBadge) {
+      botBadge.textContent = unread;
+      botBadge.classList.toggle("hidden", unread === 0);
+    }
+    if (headerDot) {
+      headerDot.classList.toggle("hidden", unread === 0);
+    }
+  }
+}
 
-  previewEndshiftPhotos() {
-    const files = document.getElementById("ks-photos-input").files;
-    const info = document.getElementById("ks-photos-preview");
-    if (!files || !files.length) {
-      info.textContent = "Chưa chọn ảnh nào.";
+function switchTab(tabId) {
+  // Hide all panels
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.add("hidden"));
+
+  // Show selected panel
+  const panel = document.getElementById(tabId);
+  if (panel) {
+    panel.classList.remove("hidden");
+    AppState.activeTab = tabId;
+  }
+
+  // Sync active nav item in Sidebar
+  document.querySelectorAll(".sidebar-nav-item").forEach(item => {
+    item.classList.toggle("active", item.getAttribute("data-tab") === tabId);
+  });
+
+  // Sync active nav item in Mobile Bottom Bar
+  document.querySelectorAll(".bottom-nav-item").forEach(item => {
+    item.classList.toggle("active", item.getAttribute("data-tab") === tabId);
+  });
+
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: "smooth" });
+
+  // Tab-specific lifecycle loader
+  switch (tabId) {
+    case "tab-emp-home":
+      loadEmployeeHomeData();
+      break;
+    case "tab-emp-register":
+      renderAvailabilityForm();
+      break;
+    case "tab-emp-schedule":
+      renderEmployeeSchedule();
+      break;
+    case "tab-emp-swap":
+      renderSwapWorkflow();
+      break;
+    case "tab-emp-payroll":
+      loadEmployeePayrollData();
+      break;
+    case "tab-notifications":
+      renderNotificationsTab();
+      break;
+    case "tab-admin-dashboard":
+      loadAdminDashboardData();
+      break;
+    case "tab-admin-roster":
+      loadAdminRosterData();
+      break;
+    case "tab-admin-matrix":
+      renderAdminAvailabilityMatrix();
+      break;
+    case "tab-admin-swaps":
+      renderAdminSwapsTab();
+      break;
+    case "tab-admin-employees":
+      renderAdminEmployeesTab();
+      break;
+    case "tab-admin-payroll":
+      loadAdminSalaryData();
+      break;
+    case "tab-admin-inventory":
+      renderAdminInventoryTab();
+      break;
+  }
+}
+
+// ============================================================================
+// EMPLOYEE MODULES
+// ============================================================================
+
+// ── 1. Employee Home ────────────────────────────────────────────────────────
+async function loadEmployeeHomeData() {
+  if (!AppState.user) return;
+  const nick = AppState.user.nickname || AppState.user.username;
+
+  // 1. Fetch personal salary summary
+  const summaryResp = await apiRequest(`/api/personal/summary?nickname=${encodeURIComponent(nick)}`);
+  if (summaryResp && summaryResp.success && summaryResp.summary) {
+    AppState.personalSummary = summaryResp.summary;
+    const s = summaryResp.summary;
+
+    const salaryEl = document.getElementById("emp-hero-salary");
+    const periodEl = document.getElementById("emp-hero-period");
+    const hoursEl = document.getElementById("emp-stat-hours");
+    const otEl = document.getElementById("emp-stat-ot");
+    const daysEl = document.getElementById("emp-stat-days");
+
+    if (salaryEl) salaryEl.textContent = formatCurrency((s.estimated_pay_k || 0) * 1000);
+    if (periodEl) periodEl.textContent = s.period ? `Kỳ lương: ${s.period}` : `Tháng ${s.month}/${s.year}`;
+    if (hoursEl) hoursEl.textContent = `${s.total_hours || 0}h`;
+    if (otEl) otEl.textContent = `${s.overtime_hours || 0}h`;
+    if (daysEl) daysEl.textContent = `${(s.recent_checkins || []).length} ca`;
+  }
+
+  // 2. Identify next upcoming shift from current roster
+  findNextUpcomingShift(nick);
+
+  // 3. Render recent notifications snippet
+  renderHomeNotificationsSnippet();
+}
+
+function findNextUpcomingShift(nick) {
+  const timeEl = document.getElementById("emp-next-shift-time");
+  const roleEl = document.getElementById("emp-next-shift-role");
+  const statusEl = document.getElementById("emp-next-shift-status");
+
+  if (!AppState.currentRoster || !AppState.currentRoster.shifts) {
+    if (timeEl) timeEl.textContent = "Chưa có lịch tuần chính thức";
+    if (roleEl) roleEl.textContent = "Vui lòng kiểm tra lại sau khi Quản lý chốt lịch";
+    if (statusEl) statusEl.textContent = "Chờ xếp ca";
+    return;
+  }
+
+  const shifts = AppState.currentRoster.shifts;
+  const days = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+  const cas = [
+    { name: "Sáng", time: "07:00 – 12:00" },
+    { name: "Chiều", time: "13:00 – 17:00" },
+    { name: "Tối", time: "18:00 – 22:30" }
+  ];
+
+  let found = null;
+  const userNorm = (nick || "").trim().toLowerCase();
+
+  for (const d of days) {
+    for (const ca of cas) {
+      const slotKey = `${d}_${ca.name}`;
+      const staffList = shifts[slotKey] || [];
+      if (staffList.some(name => name.toLowerCase() === userNorm)) {
+        found = { day: d, ca: ca.name, time: ca.time };
+        break;
+      }
+    }
+    if (found) break;
+  }
+
+  if (found) {
+    const dayNames = { T2: "Thứ Hai", T3: "Thứ Ba", T4: "Thứ Tư", T5: "Thứ Năm", T6: "Thứ Sáu", T7: "Thứ Bảy", CN: "Chủ Nhật" };
+    if (timeEl) timeEl.textContent = `${dayNames[found.day]} • Ca ${found.ca} (${found.time})`;
+    if (roleEl) roleEl.textContent = `Vị trí: ${AppState.user.role || 'Barista'}`;
+    if (statusEl) statusEl.textContent = "Đã xếp lịch";
+  } else {
+    if (timeEl) timeEl.textContent = "Bạn chưa có ca làm tiếp theo";
+    if (roleEl) roleEl.textContent = "Đã đăng ký ca? Xem thêm tại mục Đăng ký lịch";
+    if (statusEl) statusEl.textContent = "Không có ca";
+  }
+}
+
+function renderHomeNotificationsSnippet() {
+  const container = document.getElementById("emp-home-notifs-list");
+  if (!container) return;
+
+  const notifs = AppState.notifications || [];
+  if (notifs.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding: 16px;"><p>Chưa có thông báo mới.</p></div>`;
+    return;
+  }
+
+  let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+  notifs.slice(0, 3).forEach(n => {
+    html += `
+      <div style="padding: 10px 12px; background: ${n.is_read ? 'var(--bg-app)' : 'var(--primary-subtle)'}; border-radius: var(--radius-md); font-size: 13px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+          <strong style="color: var(--text-main);">${escapeHtml(n.title)}</strong>
+          <span style="font-size: 11px; color: var(--text-dim);">${escapeHtml(n.created_at)}</span>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin: 0;">${escapeHtml(n.message)}</p>
+      </div>
+    `;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── 2. Employee Availability Registration ────────────────────────────────────
+function renderAvailabilityForm() {
+  const wInfo = AppState.weekInfo;
+  const labelEl = document.getElementById("reg-week-label");
+  const container = document.getElementById("reg-days-container");
+  if (!container) return;
+
+  if (wInfo && labelEl) {
+    labelEl.textContent = wInfo.week_label || "Tuần tới";
+  }
+
+  const days = (wInfo && wInfo.days) ? wInfo.days : [
+    { code: "T2", label: "Thứ Hai", date_str: "T2" },
+    { code: "T3", label: "Thứ Ba", date_str: "T3" },
+    { code: "T4", label: "Thứ Tư", date_str: "T4" },
+    { code: "T5", label: "Thứ Năm", date_str: "T5" },
+    { code: "T6", label: "Thứ Sáu", date_str: "T6" },
+    { code: "T7", label: "Thứ Bảy", date_str: "T7" },
+    { code: "CN", label: "Chủ Nhật", date_str: "CN" },
+  ];
+
+  // Check if user already registered for this week
+  const nick = AppState.user ? (AppState.user.nickname || AppState.user.username) : "";
+  const existing = (AppState.shiftSchedules || {})[nick] || {};
+  const currentSlots = existing.slots || {};
+
+  let html = "";
+  days.forEach(d => {
+    const selected = currentSlots[d.code] || [];
+    html += `
+      <div class="reg-day-row">
+        <div class="reg-day-info">
+          <span class="reg-day-name">${d.label}</span>
+          <span class="reg-day-date">${d.date_str}</span>
+        </div>
+        <div class="reg-slots-options" data-day="${d.code}">
+          <div class="slot-toggle-pill ${selected.includes('Sáng') ? 'checked' : ''}" onclick="toggleSlotPill(this)">
+            Sáng (07-12)
+          </div>
+          <div class="slot-toggle-pill ${selected.includes('Chiều') ? 'checked' : ''}" onclick="toggleSlotPill(this)">
+            Chiều (13-17)
+          </div>
+          <div class="slot-toggle-pill ${selected.includes('Tối') ? 'checked' : ''}" onclick="toggleSlotPill(this)">
+            Tối (18-22h30)
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+
+  if (existing.target_shifts) {
+    const targetEl = document.getElementById("reg-target-shifts");
+    if (targetEl) targetEl.value = existing.target_shifts;
+  }
+  if (existing.note) {
+    const noteEl = document.getElementById("reg-note");
+    if (noteEl) noteEl.value = existing.note;
+  }
+}
+
+function toggleSlotPill(el) {
+  el.classList.toggle("checked");
+}
+
+function copyLastWeekAvailability() {
+  const nick = AppState.user ? (AppState.user.nickname || AppState.user.username) : "";
+  const existing = (AppState.shiftSchedules || {})[nick];
+  if (!existing || !existing.slots) {
+    showToast("Chưa có dữ liệu tuần trước để sao chép", "info");
+    return;
+  }
+
+  // Pre-fill
+  document.querySelectorAll(".reg-slots-options").forEach(row => {
+    const day = row.getAttribute("data-day");
+    const slots = existing.slots[day] || [];
+    const pills = row.querySelectorAll(".slot-toggle-pill");
+    pills[0].classList.toggle("checked", slots.includes("Sáng"));
+    pills[1].classList.toggle("checked", slots.includes("Chiều"));
+    pills[2].classList.toggle("checked", slots.includes("Tối"));
+  });
+
+  if (existing.target_shifts) {
+    document.getElementById("reg-target-shifts").value = existing.target_shifts;
+  }
+  showToast("Đã sao chép lịch từ tuần trước!", "success");
+}
+
+async function submitAvailabilityRegistration() {
+  if (!AppState.user) return;
+  const nick = AppState.user.nickname || AppState.user.username;
+  const role = AppState.user.role || "Pha Chế";
+  const targetShifts = parseInt(document.getElementById("reg-target-shifts").value) || 5;
+  const note = document.getElementById("reg-note").value.trim();
+  const weekLabel = AppState.weekInfo ? AppState.weekInfo.week_label : "Tuần tới";
+
+  const slots = {};
+  document.querySelectorAll(".reg-slots-options").forEach(row => {
+    const day = row.getAttribute("data-day");
+    const pills = row.querySelectorAll(".slot-toggle-pill");
+    const checked = [];
+    if (pills[0].classList.contains("checked")) checked.push("Sáng");
+    if (pills[1].classList.contains("checked")) checked.push("Chiều");
+    if (pills[2].classList.contains("checked")) checked.push("Tối");
+    if (checked.length > 0) {
+      slots[day] = checked;
+    }
+  });
+
+  const resp = await apiRequest("/api/schedule/register", {
+    method: "POST",
+    body: {
+      nickname: nick,
+      role,
+      slots,
+      target_shifts: targetShifts,
+      note,
+      week_label: weekLabel,
+    }
+  });
+
+  if (resp && resp.success) {
+    showToast(resp.message || "Đã lưu lịch đăng ký thành công!", "success");
+    if (resp.shift_schedules) {
+      AppState.shiftSchedules = resp.shift_schedules;
+    }
+  } else {
+    showToast(resp.message || "Không thể lưu lịch đăng ký", "error");
+  }
+}
+
+// ── 3. Employee Schedule View ────────────────────────────────────────────────
+function setScheduleViewMode(mode) {
+  AppState.scheduleViewMode = mode;
+  document.getElementById("btn-sch-week-view").classList.toggle("active", mode === "week");
+  document.getElementById("btn-sch-month-view").classList.toggle("active", mode === "month");
+  renderEmployeeSchedule();
+}
+
+function renderEmployeeSchedule() {
+  const container = document.getElementById("emp-schedule-container");
+  if (!container) return;
+
+  const roster = AppState.currentRoster;
+  const nick = AppState.user ? (AppState.user.nickname || AppState.user.username) : "";
+  const userNorm = (nick || "").trim().toLowerCase();
+
+  if (!roster || !roster.shifts) {
+    container.innerHTML = `
+      <div class="empty-state card">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-dim);"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+        <div class="empty-title">Chưa có lịch tuần chính thức</div>
+        <p class="empty-desc">Quản lý đang sắp xếp lịch. Bạn sẽ nhận được thông báo ngay khi lịch được công bố.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const days = (AppState.weekInfo && AppState.weekInfo.days) ? AppState.weekInfo.days : [
+    { code: "T2", label: "Thứ Hai", date_str: "T2", full_date: "" },
+    { code: "T3", label: "Thứ Ba", date_str: "T3", full_date: "" },
+    { code: "T4", label: "Thứ Tư", date_str: "T4", full_date: "" },
+    { code: "T5", label: "Thứ Năm", date_str: "T5", full_date: "" },
+    { code: "T6", label: "Thứ Sáu", date_str: "T6", full_date: "" },
+    { code: "T7", label: "Thứ Bảy", date_str: "T7", full_date: "" },
+    { code: "CN", label: "Chủ Nhật", date_str: "CN", full_date: "" },
+  ];
+
+  const caTimes = {
+    Sáng: "07:00 – 12:00",
+    Chiều: "13:00 – 17:00",
+    Tối: "18:00 – 22:30",
+  };
+
+  let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+  days.forEach(d => {
+    // Find all shifts the user works on day d
+    const userShiftsOnDay = [];
+    ["Sáng", "Chiều", "Tối"].forEach(caName => {
+      const slotKey = `${d.code}_${caName}`;
+      const staff = roster.shifts[slotKey] || [];
+      if (staff.some(s => s.toLowerCase() === userNorm)) {
+        userShiftsOnDay.push({ ca: caName, time: caTimes[caName], slotKey, staff });
+      }
+    });
+
+    html += `
+      <div class="card" style="padding: 16px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <div>
+            <strong style="font-size: 15px; color: var(--text-main);">${d.label}</strong>
+            <span style="font-size: 13px; color: var(--text-dim); margin-left: 6px;">${d.date_str}</span>
+          </div>
+          ${userShiftsOnDay.length > 0 ? '<span class="badge badge-primary">Có ca làm</span>' : '<span class="badge badge-muted">Nghỉ</span>'}
+        </div>
+    `;
+
+    if (userShiftsOnDay.length === 0) {
+      html += `<p style="font-size: 13px; color: var(--text-dim); margin: 0;">Bạn không có ca làm việc trong ngày này.</p>`;
     } else {
-      info.textContent = `📷 Đã chọn ${files.length} ảnh sẵn sàng gửi.`;
-    }
-  },
-
-  async submitEndshiftPhotos() {
-    const input = document.getElementById("ks-photos-input");
-    if (!input.files || !input.files.length) {
-      this.toast("⚠️ Vui lòng chọn ít nhất 1 ảnh kết ca!");
-      return;
-    }
-
-    const role = this.state.endshiftRole || "Pha Chế";
-    const items = (this.state.checklists && this.state.checklists[role]) || [];
-    const checkedMap = this.state.checklistChecked[role] || {};
-    const doneCount = items.filter((_, i) => !!checkedMap[i]).length;
-
-    const btn = document.getElementById("btn-submit-endshift");
-    btn.disabled = true;
-    btn.textContent = `⏳ Đang tải lên ${input.files.length} ảnh...`;
-
-    try {
-      const fd = new FormData();
-      fd.append("ca", this.state.endshiftCa);
-      fd.append("role", role);
-      if (this.state.myNickname) {
-        fd.append("actor_name", `${this.state.myNickname} (${this.state.myRole || role})`);
-      }
-      if (items.length) {
-        fd.append("checklist_summary", `${doneCount}/${items.length} mục (${role})`);
-      }
-      Array.from(input.files).forEach((file) => fd.append("photos", file));
-
-      const res = await this.api("/api/endshift/upload", {
-        method: "POST",
-        body: fd,
+      userShiftsOnDay.forEach(sh => {
+        html += `
+          <div style="background: var(--bg-card-subtle); border-radius: var(--radius-md); padding: 12px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <div style="font-size: 14px; font-weight: 700; color: var(--primary);">Ca ${sh.ca} • ${sh.time}</div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Cùng làm: ${sh.staff.filter(s => s.toLowerCase() !== userNorm).join(", ") || "Một mình"}</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="startSwapFromShift('${d.code}', '${sh.ca}', '${d.full_date || d.date_str}', '${sh.time}')">
+              ${getIcon("swap", 14)}
+              <span>Đổi ca này</span>
+            </button>
+          </div>
+        `;
       });
-      haptic("success");
-      input.value = "";
-      this.state.checklistChecked[role] = {};
-      this.renderEndshiftChecklist();
-      this.previewEndshiftPhotos();
-      this.toast(res.message);
-    } catch (err) {
-      haptic("error");
-      this.toast(err.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "📤 Gửi Checklist & Toàn Bộ Ảnh Kết Ca";
     }
-  },
 
-  // ── Petty Cash / Counter Expenses ─────────────────────────────────────────
-  async submitPettyExpense() {
-    const amountEl = document.getElementById("exp-amount-input");
-    const reasonEl = document.getElementById("exp-reason-input");
-    const amount = (amountEl?.value || "").trim();
-    const reason = (reasonEl?.value || "").trim();
-    if (!amount || !reason) {
-      this.toast("⚠️ Vui lòng nhập số tiền và nội dung chi vặt!");
-      return;
-    }
-    try {
-      const res = await this.api("/api/expenses/add", {
-        method: "POST",
-        body: {
-          nickname: this.state.myNickname || "Nhân viên",
-          role: this.state.myRole || "Nhân viên",
-          ca: this.state.reportCa || "Sáng",
-          amount,
-          reason,
-        },
-      });
-      haptic("success");
-      amountEl.value = "";
-      reasonEl.value = "";
-      this.state.pettyExpenses = res.petty_expenses || [];
-      this.renderPettyExpenses();
-      this.toast(res.message);
-    } catch (err) {
-      haptic("error");
-      this.toast(err.message);
-    }
-  },
+    html += `</div>`;
+  });
+  html += '</div>';
 
-  renderPettyExpenses() {
-    const el = document.getElementById("petty-expenses-list");
-    if (!el) return;
-    const list = this.state.pettyExpenses || [];
-    if (!list.length) {
-      el.innerHTML = `<p class="empty-text">Chưa có khoản chi vặt nào gần đây.</p>`;
-      return;
+  container.innerHTML = html;
+}
+
+function startSwapFromShift(day, ca, date, time) {
+  AppState.swapWizard.myShift = { day, ca, date, time };
+  switchTab("tab-emp-swap");
+  goToSwapStep(2);
+}
+
+// ── 4. Employee Shift Swap Workflow ──────────────────────────────────────────
+function renderSwapWorkflow() {
+  goToSwapStep(AppState.swapWizard.step || 1);
+}
+
+function goToSwapStep(step) {
+  AppState.swapWizard.step = step;
+
+  // Indicators
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById(`swap-step-ind-${i}`);
+    if (el) {
+      el.classList.toggle("active", i === step);
+      el.classList.toggle("done", i < step);
     }
-    el.innerHTML = list
-      .slice(0, 8)
-      .map(
-        (x) => `
-      <div class="list-row">
+  }
+
+  // Hide all step containers
+  document.getElementById("swap-step-1").classList.add("hidden");
+  document.getElementById("swap-step-2").classList.add("hidden");
+  document.getElementById("swap-step-3").classList.add("hidden");
+  document.getElementById("swap-step-4").classList.add("hidden");
+
+  if (step === 1) {
+    document.getElementById("swap-step-1").classList.remove("hidden");
+    renderSwapStep1MyShifts();
+  } else if (step === 2) {
+    document.getElementById("swap-step-2").classList.remove("hidden");
+    renderSwapStep2Partners();
+  } else if (step === 3) {
+    document.getElementById("swap-step-3").classList.remove("hidden");
+    renderSwapStep3Confirm();
+  }
+}
+
+function showMySwapHistory() {
+  document.getElementById("swap-step-1").classList.add("hidden");
+  document.getElementById("swap-step-2").classList.add("hidden");
+  document.getElementById("swap-step-3").classList.add("hidden");
+  document.getElementById("swap-step-4").classList.remove("hidden");
+  renderMySwapsList();
+}
+
+function renderSwapStep1MyShifts() {
+  const container = document.getElementById("swap-my-shifts-list");
+  const nextBtn = document.getElementById("btn-swap-to-step2");
+  if (!container) return;
+
+  const roster = AppState.currentRoster;
+  const nick = AppState.user ? (AppState.user.nickname || AppState.user.username) : "";
+  const userNorm = (nick || "").trim().toLowerCase();
+
+  if (!roster || !roster.shifts) {
+    container.innerHTML = `<p style="padding: 10px; color: var(--text-dim);">Chưa có lịch tuần chính thức để đổi ca.</p>`;
+    return;
+  }
+
+  const days = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+  const caTimes = { Sáng: "07:00 – 12:00", Chiều: "13:00 – 17:00", Tối: "18:00 – 22:30" };
+  const dayLabels = { T2: "Thứ Hai", T3: "Thứ Ba", T4: "Thứ Tư", T5: "Thứ Năm", T6: "Thứ Sáu", T7: "Thứ Bảy", CN: "Chủ Nhật" };
+
+  const myShifts = [];
+  days.forEach(d => {
+    ["Sáng", "Chiều", "Tối"].forEach(ca => {
+      const slotKey = `${d}_${ca}`;
+      const staff = roster.shifts[slotKey] || [];
+      if (staff.some(s => s.toLowerCase() === userNorm)) {
+        myShifts.push({ day: d, ca, time: caTimes[ca], dayLabel: dayLabels[d] });
+      }
+    });
+  });
+
+  if (myShifts.length === 0) {
+    container.innerHTML = `<p style="padding: 10px; color: var(--text-dim);">Bạn chưa có ca làm nào trong lịch tuần này để đổi.</p>`;
+    if (nextBtn) nextBtn.disabled = true;
+    return;
+  }
+
+  let html = "";
+  myShifts.forEach((sh, idx) => {
+    const isSelected = AppState.swapWizard.myShift &&
+      AppState.swapWizard.myShift.day === sh.day &&
+      AppState.swapWizard.myShift.ca === sh.ca;
+
+    html += `
+      <div class="shift-pick-item ${isSelected ? 'selected' : ''}" onclick="selectMySwapShift('${sh.day}', '${sh.ca}', '${sh.dayLabel}', '${sh.time}')">
         <div>
-          <strong>💸 ${Number(x.amount || 0).toLocaleString("vi-VN")}đ — ${esc(x.reason)}</strong>
-          <div class="text-xs">${esc(x.date)} ${esc(x.time)} • Ca ${esc(x.ca)} • Bởi: ${esc(x.nickname)}</div>
+          <strong style="color: var(--text-main); font-size: 15px;">${sh.dayLabel} • Ca ${sh.ca}</strong>
+          <div style="font-size: 13px; color: var(--text-muted);">${sh.time}</div>
         </div>
-      </div>`
-      )
-      .join("");
-  },
+        <div style="width: 20px; height: 20px; border-radius: 50%; border: 2px solid ${isSelected ? 'var(--primary)' : 'var(--border-strong)'}; background: ${isSelected ? 'var(--primary)' : 'transparent'};"></div>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+}
 
-  // ── Personal Profile, Leave Requests & Weekly Shift Schedule ──────────────
-  populateEmployeeFeatureSelects() {
-    const curNick = this.state.myNickname || (this.state.employees[0] && this.state.employees[0].nickname) || "";
-    const opts = this.state.employees
-      .map((e) => `<option value="${esc(e.nickname)}" ${e.nickname === curNick ? "selected" : ""}>${esc(e.nickname)}</option>`)
-      .join("");
+function selectMySwapShift(day, ca, dayLabel, time) {
+  AppState.swapWizard.myShift = { day, ca, dayLabel, time };
+  document.getElementById("btn-swap-to-step2").disabled = false;
+  renderSwapStep1MyShifts();
+}
 
-    ["personal-emp-select", "lv-emp-select", "sch-emp-select"].forEach((id) => {
-      const sel = document.getElementById(id);
-      if (sel) {
-        const prev = sel.value;
-        sel.innerHTML = opts;
-        if (curNick) sel.value = curNick;
-        else if (prev) sel.value = prev;
-      }
-    });
+function renderSwapStep2Partners() {
+  const container = document.getElementById("swap-partner-shifts-list");
+  const nextBtn = document.getElementById("btn-swap-to-step3");
+  if (!container) return;
 
-    this.loadMyScheduleGrid();
-  },
+  const roster = AppState.currentRoster;
+  const myShift = AppState.swapWizard.myShift;
+  const myNick = AppState.user ? (AppState.user.nickname || AppState.user.username) : "";
+  const myNorm = (myNick || "").trim().toLowerCase();
 
-  async loadPersonalSummary(forceNick) {
-    const sel = document.getElementById("personal-emp-select");
-    const nickname = forceNick || (sel && sel.value) || this.state.myNickname;
-    const box = document.getElementById("personal-summary-box");
-    const ciBox = document.getElementById("personal-checkins-list");
-    if (!nickname || !box) return;
+  if (!roster || !myShift) {
+    goToSwapStep(1);
+    return;
+  }
 
-    box.innerHTML = `<p class="empty-text">⏳ Đang tải hồ sơ của ${esc(nickname)}...</p>`;
-    try {
-      const res = await this.api(`/api/personal/summary?nickname=${encodeURIComponent(nickname)}`);
-      const s = res.summary || {};
-      box.innerHTML = `
-        <div class="salary-summary">
-          <div>
-            <div class="text-xs">Kỳ lương T${s.month}/${s.year}</div>
-            <strong>${esc(s.period)}</strong>
-          </div>
-          <div>
-            <div class="text-xs">Tổng giờ công (Gồm OT)</div>
-            <strong>⏱ ${s.total_hours}h (${s.regular_hours}h + ${s.overtime_hours}h OT)</strong>
-          </div>
-          <div>
-            <div class="text-xs">Mức lương & Tạm tính</div>
-            <strong style="color:#34d399;">💰 ~${Number((s.estimated_pay_k || 0) * 1000).toLocaleString("vi-VN")}đ (${s.rate}k/h)</strong>
-          </div>
-          <div>
-            <div class="text-xs">Ly thưởng & Đi muộn</div>
-            <strong>🥤 ${s.balance} ly • ⚠️ Muộn ${s.late_count} lần</strong>
-          </div>
-        </div>
-      `;
+  const days = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+  const caTimes = { Sáng: "07:00 – 12:00", Chiều: "13:00 – 17:00", Tối: "18:00 – 22:30" };
+  const dayLabels = { T2: "Thứ Hai", T3: "Thứ Ba", T4: "Thứ Tư", T5: "Thứ Năm", T6: "Thứ Sáu", T7: "Thứ Bảy", CN: "Chủ Nhật" };
 
-      const checkins = s.recent_checkins || [];
-      if (ciBox) {
-        ciBox.innerHTML = checkins.length
-          ? checkins
-              .map(
-                (c) => `
-              <div class="list-row">
-                <div>
-                  <strong>📅 ${esc(c.date)} • ${esc(c.checkin_time)} → ${esc(c.checkout_time)}</strong>
-                  <div class="text-xs">${esc(c.note || "Đúng giờ")}</div>
-                </div>
-                <span class="badge">${esc(c.total_hours)}h</span>
-              </div>`
-              )
-              .join("")
-          : `<p class="empty-text">Chưa có lịch sử chấm công.</p>`;
-      }
-    } catch (err) {
-      box.innerHTML = `<p class="empty-text">${esc(err.message)}</p>`;
-    }
-  },
+  // Find all colleagues who have a shift in the week
+  // A colleague is eligible if:
+  // 1. Not myself
+  // 2. Colleague is not already working on myShift.day (conflict rule)
+  // 3. I am not already working on Colleague's shift day (conflict rule)
+  const candidateList = [];
 
-  setLeaveType(type) {
-    this.state.leaveType = type;
-    document.querySelectorAll("#lv-type-select .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.val === type);
-    });
-  },
+  days.forEach(d => {
+    ["Sáng", "Chiều", "Tối"].forEach(ca => {
+      const slotKey = `${d}_${ca}`;
+      const staffList = roster.shifts[slotKey] || [];
+      staffList.forEach(colleague => {
+        if (colleague.toLowerCase() === myNorm) return;
 
-  async submitLeaveRequest() {
-    const nickname = document.getElementById("lv-emp-select")?.value || this.state.myNickname;
-    const date = (document.getElementById("lv-date-input")?.value || "").trim();
-    const ca = document.getElementById("lv-ca-select")?.value || "Sáng";
-    const extra = (document.getElementById("lv-extra-input")?.value || "").trim();
-    const reason = (document.getElementById("lv-reason-input")?.value || "").trim();
+        // Check if colleague already works on myShift.day
+        const colleagueWorksOnMyDay = ["Sáng", "Chiều", "Tối"].some(c => {
+          return (roster.shifts[`${myShift.day}_${c}`] || []).some(s => s.toLowerCase() === colleague.toLowerCase());
+        });
 
-    if (!nickname || !reason) {
-      this.toast("⚠️ Vui lòng chọn tên và nhập lý do!");
-      return;
-    }
-    try {
-      const res = await this.api("/api/requests/leave", {
-        method: "POST",
-        body: {
-          nickname,
-          role: this.state.myRole || "Nhân viên",
-          type: this.state.leaveType || "late",
-          date,
+        // Check if I work on colleague's d
+        const iWorkOnColleagueDay = ["Sáng", "Chiều", "Tối"].some(c => {
+          return (roster.shifts[`${d}_${c}`] || []).some(s => s.toLowerCase() === myNorm);
+        });
+
+        const hasConflict = colleagueWorksOnMyDay || (iWorkOnColleagueDay && d !== myShift.day);
+
+        candidateList.push({
+          nickname: colleague,
+          role: "Barista",
+          day: d,
+          dayLabel: dayLabels[d],
           ca,
-          extra,
-          reason,
-        },
+          time: caTimes[ca],
+          hasConflict,
+          conflictReason: colleagueWorksOnMyDay ? "Trùng lịch ca của bạn" : "Bạn đã có ca ngày này",
+        });
       });
-      haptic("success");
-      document.getElementById("lv-reason-input").value = "";
-      document.getElementById("lv-extra-input").value = "";
-      this.state.leaveRequests = res.leave_requests || [];
-      this.renderLeaveHistory();
-      this.toast(res.message);
-    } catch (err) {
-      haptic("error");
-      this.toast(err.message);
-    }
-  },
+    });
+  });
 
-  renderLeaveHistory() {
-    const el = document.getElementById("lv-history-list");
-    if (!el) return;
-    const list = this.state.leaveRequests || [];
-    if (!list.length) {
-      el.innerHTML = `<p class="empty-text">Chưa có đơn xin phép nào.</p>`;
-      return;
-    }
-    const typeMap = { late: "⏰ Xin đi muộn", leave: "🏖 Xin nghỉ", swap: "🔄 Đổi ca" };
-    const statusMap = {
-      pending: `<span class="badge" style="background:rgba(245,158,11,0.2);color:#fbbf24;">⏳ Chờ duyệt</span>`,
-      approved: `<span class="badge badge-admin">✅ Đã duyệt</span>`,
-      rejected: `<span class="badge" style="background:rgba(239,68,68,0.2);color:#f87171;">❌ Từ chối</span>`,
-    };
-    el.innerHTML = list
-      .slice(0, 10)
-      .map(
-        (r) => `
-      <div class="list-row">
-        <div>
-          <strong>${typeMap[r.type] || "📝 Đơn"} — ${esc(r.nickname)} (${esc(r.date)} • Ca ${esc(r.ca)})</strong>
-          <div class="text-xs">${esc(r.reason)} ${r.extra ? `• (${esc(r.extra)})` : ""}</div>
-        </div>
-        ${statusMap[r.status] || ""}
-      </div>`
-      )
-      .join("");
-  },
+  if (candidateList.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding: 20px;"><p>Không có ca phù hợp nào của đồng nghiệp trong tuần này để đổi.</p></div>`;
+    if (nextBtn) nextBtn.disabled = true;
+    return;
+  }
 
-  loadMyScheduleGrid() {
-    const nick = document.getElementById("sch-emp-select")?.value || this.state.myNickname;
-    const saved = (this.state.shiftSchedules && nick && this.state.shiftSchedules[nick]) || null;
-    const slots = (saved && saved.slots) || {};
-    this.state.myScheduleSlots = JSON.parse(JSON.stringify(slots));
-    const noteEl = document.getElementById("sch-note-input");
-    if (noteEl) noteEl.value = (saved && saved.note) || "";
-    this.renderScheduleGrid();
-  },
+  let html = "";
+  candidateList.forEach(cand => {
+    const isSelected = AppState.swapWizard.partnerShift &&
+      AppState.swapWizard.partnerShift.nickname === cand.nickname &&
+      AppState.swapWizard.partnerShift.day === cand.day &&
+      AppState.swapWizard.partnerShift.ca === cand.ca;
 
-  renderScheduleGrid() {
-    const wrap = document.getElementById("sch-grid-container");
-    if (!wrap) return;
-    const days = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
-    const shifts = ["Sáng", "Chiều", "Tối"];
-    const slots = this.state.myScheduleSlots || {};
-
-    wrap.innerHTML = `
-      <table class="schedule-table">
-        <thead>
-          <tr>
-            <th>Ca / Thứ</th>
-            ${days.map((d) => `<th>${d}</th>`).join("")}
-          </tr>
-        </thead>
-        <tbody>
-          ${shifts
-            .map(
-              (ca) => `
-            <tr>
-              <th>${ca}</th>
-              ${days
-                .map((d) => {
-                  const active = Array.isArray(slots[d]) && slots[d].includes(ca);
-                  return `<td>
-                    <button type="button" class="sch-slot-btn ${active ? "active" : ""}" onclick="App.toggleScheduleSlot('${d}', '${ca}')">
-                      ${active ? "✓" : "—"}
-                    </button>
-                  </td>`;
-                })
-                .join("")}
-            </tr>`
-            )
-            .join("")}
-        </tbody>
-      </table>
-    `;
-  },
-
-  toggleScheduleSlot(day, ca) {
-    haptic("light");
-    if (!this.state.myScheduleSlots[day]) {
-      this.state.myScheduleSlots[day] = [];
-    }
-    const arr = this.state.myScheduleSlots[day];
-    const idx = arr.indexOf(ca);
-    if (idx >= 0) arr.splice(idx, 1);
-    else arr.push(ca);
-    this.renderScheduleGrid();
-  },
-
-  async submitShiftSchedule() {
-    const nickname = document.getElementById("sch-emp-select")?.value || this.state.myNickname;
-    const note = (document.getElementById("sch-note-input")?.value || "").trim();
-    if (!nickname) {
-      this.toast("⚠️ Vui lòng chọn tên nhân viên!");
-      return;
-    }
-    try {
-      const res = await this.api("/api/schedule/register", {
-        method: "POST",
-        body: {
-          nickname,
-          role: this.state.myRole || "Nhân viên",
-          slots: this.state.myScheduleSlots || {},
-          note,
-          week_label: "Tuần tới",
-        },
-      });
-      haptic("success");
-      this.state.shiftSchedules = res.shift_schedules || {};
-      this.toast(res.message);
-    } catch (err) {
-      haptic("error");
-      this.toast(err.message);
-    }
-  },
-
-  // ── Recipe Book (Sổ tay Công thức Pha chế) ────────────────────────────────
-  renderRecipesList() {
-    const el = document.getElementById("recipes-list");
-    if (!el) return;
-    const q = stripAccents(document.getElementById("recipe-search-input")?.value || "");
-    const isAdmin = !!(this.state.user && this.state.user.is_admin);
-    const list = (this.state.recipes || []).filter(
-      (r) => !q || stripAccents(r.name).includes(q) || stripAccents(r.group).includes(q) || stripAccents(r.ingredients).includes(q)
-    );
-
-    if (!list.length) {
-      el.innerHTML = `<div class="card"><p class="empty-text">Không tìm thấy công thức phù hợp.</p></div>`;
-      return;
-    }
-
-    el.innerHTML = list
-      .map(
-        (r) => `
-      <div class="recipe-card">
-        <div class="recipe-header">
-          <div>
-            <div class="recipe-title">🍹 ${esc(r.name)}</div>
-            <div class="text-xs">${esc(r.group)} • ${esc(r.size || "Size M")}</div>
+    html += `
+      <div class="candidate-card ${cand.hasConflict ? 'disabled' : ''} ${isSelected ? 'selected' : ''}" style="${isSelected ? 'border-color: var(--primary); background: var(--primary-subtle);' : ''}">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="user-avatar" style="width: 34px; height: 34px; font-size: 13px;">${cand.nickname.charAt(0).toUpperCase()}</div>
+          <div class="candidate-meta">
+            <span class="candidate-name">${escapeHtml(cand.nickname)}</span>
+            <span class="candidate-stats">${cand.dayLabel} • Ca ${cand.ca} (${cand.time})</span>
           </div>
-          ${
-            isAdmin
-              ? `<div class="row-gap" style="flex:0;">
-                  <button class="btn btn-ghost btn-sm" onclick="App.openRecipeModal('${esc(r.id)}')">✏️</button>
-                  <button class="btn btn-danger btn-sm" onclick="App.submitDeleteRecipe('${esc(r.id)}')">🗑</button>
-                 </div>`
-              : ""
+        </div>
+        <div>
+          ${cand.hasConflict ?
+            `<span class="badge badge-danger">${cand.conflictReason}</span>` :
+            `<button class="btn btn-secondary btn-sm" onclick="selectSwapPartner('${escapeHtml(cand.nickname)}', '${cand.day}', '${cand.ca}', '${cand.dayLabel}', '${cand.time}')">
+              ${isSelected ? '✓ Đã chọn' : 'Chọn đổi'}
+            </button>`
           }
         </div>
-        <div class="text-xs"><b>📌 Định lượng nguyên liệu:</b></div>
-        <div class="recipe-block">${esc(r.ingredients)}</div>
-        ${
-          r.steps
-            ? `<div class="text-xs mt-8"><b>🥣 Các bước pha:</b></div>
-               <div class="recipe-block">${esc(r.steps)}</div>`
-            : ""
-        }
-      </div>`
-      )
-      .join("");
-  },
-
-  openRecipeModal(recipeId) {
-    const existing = (this.state.recipes || []).find((x) => x.id === recipeId) || {};
-    this.openModal(
-      recipeId ? `✏️ Sửa Công Thức: ${existing.name}` : "➕ Thêm Công Thức Mới",
-      `
-      <label class="field-label">Tên món</label>
-      <input id="modal-rcp-name" class="input mb-8" value="${esc(existing.name || "")}" placeholder="VD: Trà Sữa Ô Long" />
-      <div class="row-gap mb-8">
-        <input id="modal-rcp-group" class="input" value="${esc(existing.group || "Cà Phê")}" placeholder="Nhóm món" />
-        <input id="modal-rcp-size" class="input" value="${esc(existing.size || "Size M (500ml)")}" placeholder="Size ly" />
-      </div>
-      <label class="field-label">Định lượng nguyên liệu (mỗi dòng 1 nguyên liệu)</label>
-      <textarea id="modal-rcp-ing" class="textarea mb-8" rows="4" placeholder="Cốt trà: 120ml\nSữa đặc: 30ml...">${esc(existing.ingredients || "")}</textarea>
-      <label class="field-label">Các bước thực hiện</label>
-      <textarea id="modal-rcp-steps" class="textarea mb-12" rows="3" placeholder="1. Khuấy đều...\n2. Thêm đá...">${esc(existing.steps || "")}</textarea>
-      <button class="btn btn-primary btn-block" onclick="App.submitSaveRecipe('${esc(existing.id || "")}')">💾 Lưu Công Thức</button>
-      `
-    );
-  },
-
-  async submitSaveRecipe(id) {
-    const name = (document.getElementById("modal-rcp-name")?.value || "").trim();
-    const group = (document.getElementById("modal-rcp-group")?.value || "").trim();
-    const size = (document.getElementById("modal-rcp-size")?.value || "").trim();
-    const ingredients = (document.getElementById("modal-rcp-ing")?.value || "").trim();
-    const steps = (document.getElementById("modal-rcp-steps")?.value || "").trim();
-    if (!name || !ingredients) {
-      this.toast("⚠️ Vui lòng nhập Tên món và Định lượng!");
-      return;
-    }
-    this.closeModal();
-    try {
-      const res = await this.api("/api/admin/recipes/save", {
-        method: "POST",
-        body: { id, name, group, size, ingredients, steps },
-      });
-      haptic("success");
-      this.state.recipes = res.recipes || [];
-      this.renderRecipesList();
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
-
-  async submitDeleteRecipe(id) {
-    try {
-      const res = await this.api("/api/admin/recipes/delete", {
-        method: "POST",
-        body: { id },
-      });
-      haptic("success");
-      this.state.recipes = res.recipes || [];
-      this.renderRecipesList();
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
-
-  // ==================== 4. FEEDBACK ====================
-
-  async submitFeedback() {
-    const input = document.getElementById("feedback-input");
-    const message = input.value.trim();
-    if (!message) {
-      this.toast("⚠️ Vui lòng nhập nội dung góp ý!");
-      return;
-    }
-    try {
-      const res = await this.api("/api/feedback", {
-        method: "POST",
-        body: { message },
-      });
-      haptic("success");
-      input.value = "";
-      this.toast(res.message);
-    } catch (err) {
-      haptic("error");
-      this.toast(err.message);
-    }
-  },
-
-  // ==================== 5. ADMIN DASHBOARD ====================
-
-  populateAdminSelects() {
-    const empOpts = this.state.employees
-      .map((e) => `<option value="${esc(e.nickname)}">${esc(e.nickname)} (${e.rate}k/h)</option>`)
-      .join("");
-    const modSel = document.getElementById("adm-sal-mod-emp");
-    const otSel = document.getElementById("adm-ot-emp");
-    if (modSel) modSel.innerHTML = empOpts;
-    if (otSel) otSel.innerHTML = empOpts;
-
-    const matOpts = this.state.materials
-      .map((m) => `<option value="${esc(m.name)}">${esc(m.name)} (Tồn: ${m.stock} ${esc(m.unit || "")})</option>`)
-      .join("");
-    const impSel = document.getElementById("adm-inv-import-name");
-    if (impSel) impSel.innerHTML = matOpts;
-  },
-
-  async loadAdminOverview() {
-    try {
-      const res = await this.api("/api/admin/overview");
-      this.state.adminOverview = res;
-      this.renderAdminOverview();
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
-
-  renderAdminOverview() {
-    const ov = this.state.adminOverview;
-    if (!ov) return;
-    this.updateKioskUI();
-
-    const pendingRewards = ov.pending_rewards || [];
-    const pendingLeaves = (ov.leave_requests || []).filter((x) => x.status === "pending");
-    const totalPending = pendingRewards.length + pendingLeaves.length;
-
-    // Badge on bottom nav
-    const navBadge = document.getElementById("nav-admin-badge");
-    if (totalPending > 0) {
-      navBadge.textContent = totalPending;
-      navBadge.classList.remove("hidden");
-    } else {
-      navBadge.classList.add("hidden");
-    }
-
-    // 0. Analytics Dashboard (Revenue by Shift & Petty Expenses)
-    const anaEl = document.getElementById("adm-analytics-box");
-    if (anaEl && ov.analytics) {
-      const ana = ov.analytics;
-      const byCa = ana.revenue_by_ca || { Sáng: 0, Chiều: 0, Tối: 0 };
-      const maxCa = Math.max(1, byCa["Sáng"] || 0, byCa["Chiều"] || 0, byCa["Tối"] || 0);
-      const netEst = Math.max(0, (ana.total_recent_revenue || 0) - (ana.total_petty_expenses || 0));
-
-      anaEl.innerHTML = `
-        <div class="salary-summary mb-12">
-          <div>
-            <div class="text-xs">Tổng DT các ca gần nhất</div>
-            <strong style="color:#34d399;">💰 ${Number(ana.total_recent_revenue || 0).toLocaleString("vi-VN")}đ</strong>
-          </div>
-          <div>
-            <div class="text-xs">Tổng chi vặt tại quầy</div>
-            <strong style="color:#f87171;">💸 ${Number(ana.total_petty_expenses || 0).toLocaleString("vi-VN")}đ</strong>
-          </div>
-          <div>
-            <div class="text-xs">Thực thu sau chi vặt</div>
-            <strong style="color:#fbbf24;">✨ ${Number(netEst).toLocaleString("vi-VN")}đ</strong>
-          </div>
-          <div>
-            <div class="text-xs">Tổng giờ OT trong kỳ</div>
-            <strong>⏰ ${(ov.overtime && ov.overtime.total_hours) || 0}h</strong>
-          </div>
-        </div>
-        ${["Sáng", "Chiều", "Tối"]
-          .map((ca) => {
-            const val = byCa[ca] || 0;
-            const pct = Math.round((val / maxCa) * 100);
-            return `
-            <div class="chart-bar-row">
-              <div class="chart-bar-label">
-                <span>Ca ${ca}</span>
-                <b>${Number(val).toLocaleString("vi-VN")}đ</b>
-              </div>
-              <div class="chart-bar-track">
-                <div class="chart-bar-fill" style="width:${pct}%"></div>
-              </div>
-            </div>`;
-          })
-          .join("")}
-      `;
-    }
-
-    // 0.1 Leave / Late / Swap Requests
-    const lvEl = document.getElementById("adm-leave-requests-list");
-    if (lvEl) {
-      const allLeaves = ov.leave_requests || [];
-      const typeMap = { late: "⏰ Xin đi muộn", leave: "🏖 Xin nghỉ", swap: "🔄 Đổi ca" };
-      if (!allLeaves.length) {
-        lvEl.innerHTML = `<p class="empty-text">Chưa có đơn xin đi muộn / nghỉ phép / đổi ca nào.</p>`;
-      } else {
-        lvEl.innerHTML = allLeaves
-          .slice(0, 12)
-          .map((r) => {
-            const isPend = r.status === "pending";
-            return `
-            <div class="list-row">
-              <div>
-                <strong>${typeMap[r.type] || "📝 Đơn"} — ${esc(r.nickname)} (${esc(r.role || "")})</strong>
-                <div class="text-xs">📅 ${esc(r.date)} • Ca ${esc(r.ca)} ${r.extra ? `• ${esc(r.extra)}` : ""}</div>
-                <div class="text-xs">💬 ${esc(r.reason)}</div>
-              </div>
-              ${
-                isPend
-                  ? `<div class="row-gap" style="flex:0;">
-                      <button class="btn btn-success btn-sm" onclick="App.decideLeaveRequest('${esc(r.id)}', true)">Duyệt</button>
-                      <button class="btn btn-danger btn-sm" onclick="App.decideLeaveRequest('${esc(r.id)}', false)">Từ chối</button>
-                     </div>`
-                  : `<span class="badge">${r.status === "approved" ? "✅ Đã duyệt" : "❌ Từ chối"}</span>`
-              }
-            </div>`;
-          })
-          .join("");
-      }
-    }
-
-    // 0.2 Weekly Shift Schedules Summary
-    const schEl = document.getElementById("adm-schedules-list");
-    if (schEl) {
-      const entries = Object.values(ov.shift_schedules || {});
-      if (!entries.length) {
-        schEl.innerHTML = `<p class="empty-text">Chưa có nhân viên nào đăng ký lịch ca tuần tới.</p>`;
-      } else {
-        schEl.innerHTML = entries
-          .map((e) => {
-            const slotSummary = Object.entries(e.slots || {})
-              .filter(([, arr]) => Array.isArray(arr) && arr.length > 0)
-              .map(([d, arr]) => `<b>${esc(d)}:</b> ${esc(arr.join(", "))}`)
-              .join(" | ");
-            return `
-            <div class="list-row">
-              <div>
-                <strong>👤 ${esc(e.nickname)} (${esc(e.role || "NV")})</strong>
-                <div class="text-xs">${slotSummary || "Chưa chọn ca"}</div>
-                ${e.note ? `<div class="text-xs">📝 ${esc(e.note)}</div>` : ""}
-              </div>
-              <span class="text-xs">${esc(e.updated_at || "")}</span>
-            </div>`;
-          })
-          .join("");
-      }
-    }
-
-    // 1. Pending rewards
-    const pendCard = document.getElementById("adm-pending-rewards-card");
-    const pendList = document.getElementById("adm-pending-rewards-list");
-    if (!pendingRewards.length) {
-      pendCard.classList.add("hidden");
-    } else {
-      pendCard.classList.remove("hidden");
-      pendList.innerHTML = pendingRewards
-        .map(
-          (r) => `
-        <div class="list-row">
-          <div>
-            <strong>Ca ${esc(r.ca)}: ${esc((r.employees || []).join(", "))}</strong>
-            <div class="text-xs">Người gửi: ${esc(r.sender)}</div>
-          </div>
-          <div class="row-gap" style="flex:0;">
-            <button class="btn btn-success btn-sm" onclick="App.decideReward('${esc(r.id)}', true)">✅ Duyệt</button>
-            <button class="btn btn-danger btn-sm" onclick="App.decideReward('${esc(r.id)}', false)">❌ Từ chối</button>
-          </div>
-        </div>`
-        )
-        .join("");
-    }
-
-    // 2. Check-in today
-    const ciEl = document.getElementById("adm-checkin-today-list");
-    const ciList = ov.checkin_today || [];
-    if (!ciList.length) {
-      ciEl.innerHTML = `<p class="empty-text">Hôm nay chưa có lượt check-in nào.</p>`;
-    } else {
-      ciEl.innerHTML = ciList
-        .map((r) => {
-          const isOpen = !r.checkout_time;
-          return `
-          <div class="list-row">
-            <div>
-              <strong>👤 ${esc(r.nickname)} ${isOpen ? "🟡 Đang ca" : `✅ Ra (${esc(r.total_hours)}h)`}</strong>
-              <div class="text-xs">📥 ${esc(r.checkin_time)} → 📤 ${esc(r.checkout_time || "—")}</div>
-              <div class="text-xs">${esc(r.note)}</div>
-            </div>
-            ${
-              isOpen
-                ? `<button class="btn btn-danger btn-sm" onclick="App.submitCheckout('${esc(r.nickname)}', '')">Chốt Ra</button>`
-                : ""
-            }
-          </div>`;
-        })
-        .join("");
-    }
-
-    // 3. Late stats
-    const lateEl = document.getElementById("adm-late-stats-list");
-    const lates = ov.late_stats || [];
-    if (!lates.length) {
-      lateEl.innerHTML = `<p class="empty-text">✅ Không có trường hợp đi muộn nào trong tháng ${esc(ov.month_year)}!</p>`;
-    } else {
-      lateEl.innerHTML = lates
-        .map((l) => {
-          const decided =
-            l.note.toLowerCase().includes("báo trước");
-          return `
-          <div class="list-row">
-            <div>
-              <strong>👤 ${esc(l.nickname)} • ${esc(l.date)} (${esc(l.checkin_time)})</strong>
-              <div class="text-xs">${esc(l.note)}</div>
-            </div>
-            ${
-              !decided
-                ? `<div class="row-gap" style="flex:0;">
-                    <button class="btn btn-success btn-sm" onclick="App.markLate('${esc(l.nickname)}', '${esc(l.date)}', true)">Báo trước</button>
-                    <button class="btn btn-danger btn-sm" onclick="App.markLate('${esc(l.nickname)}', '${esc(l.date)}', false)">K.Báo</button>
-                   </div>`
-                : ""
-            }
-          </div>`;
-        })
-        .join("");
-    }
-
-    // 4. Overtime summary
-    const otEl = document.getElementById("adm-ot-summary");
-    if (otEl && ov.overtime) {
-      const entries = Object.entries(ov.overtime.summary || {});
-      otEl.innerHTML = `
-        <div class="text-xs mb-8">📅 Kỳ: ${esc(ov.overtime.period)} • Tổng: <b>${ov.overtime.total_hours}h</b></div>
-        ${
-          entries.length
-            ? entries
-                .map(([n, h]) => `<div class="list-row"><span>${esc(n)}</span><b>${h}h</b></div>`)
-                .join("")
-            : `<p class="empty-text">Chưa có giờ làm thêm trong kỳ này.</p>`
-        }
-      `;
-    }
-
-    // 5. Staff list & Recent reports
-    this.renderAdminEmployees();
-    this.renderAdminRecentReports(ov.recent_reports || []);
-
-    // 6. Super admin list
-    const supEl = document.getElementById("adm-super-list");
-    if (supEl && ov.admin_ids) {
-      supEl.innerHTML = ov.admin_ids.length
-        ? ov.admin_ids.map((id) => `<div class="list-row"><span>🛡 Admin phụ ID</span><code>${id}</code></div>`).join("")
-        : `<p class="empty-text">Chưa có Admin phụ nào.</p>`;
-    }
-  },
-
-  async decideLeaveRequest(id, approve) {
-    try {
-      const res = await this.api("/api/admin/requests/leave-decide", {
-        method: "POST",
-        body: { id, approve },
-      });
-      haptic("success");
-      this.state.leaveRequests = res.leave_requests || [];
-      this.renderLeaveHistory();
-      await this.loadAdminOverview();
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
-
-  async decideReward(requestId, approve) {
-    try {
-      const res = await this.api("/api/admin/rewards/decide", {
-        method: "POST",
-        body: { request_id: requestId, approve },
-      });
-      haptic("success");
-      this.toast(res.message);
-      await this.loadAdminOverview();
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
-
-  async markLate(nickname, dateStr, reported) {
-    try {
-      const res = await this.api("/api/admin/late/mark", {
-        method: "POST",
-        body: { nickname, date: dateStr, reported },
-      });
-      haptic("success");
-      this.toast(res.message);
-      await this.loadAdminOverview();
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
-
-  async submitAnnouncement() {
-    const el = document.getElementById("adm-announce-text");
-    const message = el.value.trim();
-    if (!message) {
-      this.toast("⚠️ Vui lòng nhập nội dung thông báo!");
-      return;
-    }
-    try {
-      const res = await this.api("/api/admin/announce", {
-        method: "POST",
-        body: { message },
-      });
-      haptic("success");
-      el.value = "";
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
-
-  // ── Salary & OT ──
-
-  async loadAdminSalary() {
-    const sel = document.getElementById("adm-salary-month-select");
-    let query = "";
-    if (sel && sel.value) {
-      const [m, y] = sel.value.split("-");
-      query = `?month=${m}&year=${y}`;
-    }
-    try {
-      const res = await this.api(`/api/admin/salary${query}`);
-      this.state.salaryOptions = res.options || [];
-      this.state.salaryData = res.salary || {};
-      this.renderAdminSalary();
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
-
-  renderAdminSalary() {
-    const sel = document.getElementById("adm-salary-month-select");
-    const sal = this.state.salaryData || {};
-    const curVal = `${sal.month}-${sal.year}`;
-
-    if (sel && this.state.salaryOptions.length) {
-      sel.innerHTML = this.state.salaryOptions
-        .map((o) => {
-          const v = `${o.month}-${o.year}`;
-          return `<option value="${v}" ${v === curVal ? "selected" : ""}>Tháng ${o.month}/${o.year} ${o.exists ? "" : "✨"}</option>`;
-        })
-        .join("");
-    }
-
-    const sumEl = document.getElementById("adm-salary-summary");
-    sumEl.innerHTML = `
-      <div>
-        <span class="text-xs">Tổng giờ làm (${esc(sal.period_start || "")} - ${esc(sal.period_end || "")})</span>
-        <div><b style="font-size:16px;">⏳ ${sal.total_hours || 0} giờ</b></div>
-      </div>
-      <div>
-        <span class="text-xs">Tổng thực nhận toàn quán</span>
-        <div><b style="font-size:16px; color:#34d399;">💵 ${sal.total_payout || 0}k</b></div>
       </div>
     `;
+  });
 
-    const listEl = document.getElementById("adm-salary-list");
-    const items = sal.items || [];
-    if (!items.length) {
-      listEl.innerHTML = `<p class="empty-text">Chưa có dữ liệu bảng lương.</p>`;
-      return;
+  container.innerHTML = html;
+}
+
+function selectSwapPartner(nickname, day, ca, dayLabel, time) {
+  AppState.swapWizard.partnerShift = { nickname, day, ca, dayLabel, time };
+  AppState.swapWizard.partnerNickname = nickname;
+  document.getElementById("btn-swap-to-step3").disabled = false;
+  renderSwapStep2Partners();
+}
+
+function renderSwapStep3Confirm() {
+  const my = AppState.swapWizard.myShift;
+  const partner = AppState.swapWizard.partnerShift;
+  const myNick = AppState.user ? (AppState.user.nickname || AppState.user.username) : "Bạn";
+
+  if (!my || !partner) {
+    goToSwapStep(1);
+    return;
+  }
+
+  document.getElementById("swap-confirm-my-name").textContent = myNick;
+  document.getElementById("swap-confirm-my-shift").textContent = `${my.dayLabel || my.day} • Ca ${my.ca} (${my.time})`;
+
+  document.getElementById("swap-confirm-partner-name").textContent = partner.nickname;
+  document.getElementById("swap-confirm-partner-shift").textContent = `${partner.dayLabel || partner.day} • Ca ${partner.ca} (${partner.time})`;
+}
+
+async function submitSwapRequest() {
+  const my = AppState.swapWizard.myShift;
+  const partner = AppState.swapWizard.partnerShift;
+  const myNick = AppState.user ? (AppState.user.nickname || AppState.user.username) : "";
+  const reason = document.getElementById("swap-reason").value.trim();
+
+  if (!my || !partner || !myNick) {
+    showToast("Vui lòng hoàn thành các bước chọn ca", "error");
+    return;
+  }
+
+  const weekKey = AppState.weekInfo ? AppState.weekInfo.week_key : "";
+
+  const resp = await apiRequest("/api/swaps/create", {
+    method: "POST",
+    body: {
+      week_key: weekKey,
+      requester: myNick,
+      requester_role: AppState.user.role || "Pha Chế",
+      requester_shift: { day: my.day, ca: my.ca, time: my.time },
+      target: partner.nickname,
+      target_role: "Pha Chế",
+      target_shift: { day: partner.day, ca: partner.ca, time: partner.time },
+      reason,
+    }
+  });
+
+  if (resp && resp.success) {
+    showToast("✅ Đã gửi yêu cầu đổi ca tới Quản lý thành công!", "success");
+    AppState.swapWizard.myShift = null;
+    AppState.swapWizard.partnerShift = null;
+    document.getElementById("swap-reason").value = "";
+
+    // Refresh swaps list
+    const swapsResp = await apiRequest(`/api/swaps?nickname=${encodeURIComponent(myNick)}`);
+    if (swapsResp && swapsResp.success) {
+      AppState.swaps = swapsResp.swaps;
+    }
+    showMySwapHistory();
+  } else {
+    showToast(resp.message || "Không thể gửi yêu cầu đổi ca", "error");
+  }
+}
+
+function filterMySwaps(status) {
+  AppState.swapWizard.activeFilter = status;
+  ["all", "pending", "approved", "rejected"].forEach(st => {
+    const btn = document.getElementById(`tab-swap-filter-${st}`);
+    if (btn) btn.classList.toggle("active", st === status);
+  });
+  renderMySwapsList();
+}
+
+function renderMySwapsList() {
+  const container = document.getElementById("my-swaps-list");
+  if (!container) return;
+
+  const swaps = AppState.swaps || [];
+  const filter = AppState.swapWizard.activeFilter || "all";
+  const filtered = filter === "all" ? swaps : swaps.filter(s => s.status === filter);
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding: 24px;"><p>Không có yêu cầu đổi ca nào.</p></div>`;
+    return;
+  }
+
+  let html = "";
+  filtered.forEach(sw => {
+    const statusBadges = {
+      pending: '<span class="badge badge-warning">Đang chờ duyệt</span>',
+      approved: '<span class="badge badge-success">Đã duyệt</span>',
+      rejected: '<span class="badge badge-danger">Đã từ chối</span>',
+    };
+    const reqS = sw.requester_shift || {};
+    const tgtS = sw.target_shift || {};
+
+    html += `
+      <div style="background: var(--bg-card-subtle); border-radius: var(--radius-md); padding: 14px; border: 1px solid var(--border-light);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <span style="font-size: 12px; color: var(--text-dim);">${sw.created_at}</span>
+          ${statusBadges[sw.status] || ''}
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; font-size: 13px;">
+          <div>
+            <strong>${escapeHtml(sw.requester)}</strong><br>
+            <span style="color: var(--text-muted);">${reqS.day || ''} Ca ${reqS.ca || ''}</span>
+          </div>
+          <div style="color: var(--text-dim);">⇄</div>
+          <div>
+            <strong>${escapeHtml(sw.target)}</strong><br>
+            <span style="color: var(--text-muted);">${tgtS.day || ''} Ca ${tgtS.ca || ''}</span>
+          </div>
+        </div>
+        ${sw.reason ? `<div style="margin-top: 8px; font-size: 12px; color: var(--text-muted); font-style: italic;">Lý do: "${escapeHtml(sw.reason)}"</div>` : ''}
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+// ── 5. Employee Payroll Tab ──────────────────────────────────────────────────
+async function loadEmployeePayrollData() {
+  if (!AppState.user) return;
+  const nick = AppState.user.nickname || AppState.user.username;
+
+  const resp = await apiRequest(`/api/personal/summary?nickname=${encodeURIComponent(nick)}`);
+  if (!resp || !resp.success || !resp.summary) return;
+
+  const s = resp.summary;
+  document.getElementById("emp-payroll-total").textContent = formatCurrency((s.estimated_pay_k || 0) * 1000);
+  document.getElementById("emp-payroll-rate").textContent = `Mức lương: ${s.rate || 0}k/giờ`;
+
+  const regularPay = Math.round((s.regular_hours || 0) * (s.rate || 0) * 1000);
+  const otPay = Math.round((s.overtime_hours || 0) * (s.rate || 0) * 1.5 * 1000);
+  const penalty = (s.late_count || 0) * 20000;
+
+  document.getElementById("emp-breakdown-regular").textContent = formatCurrency(regularPay);
+  document.getElementById("emp-breakdown-ot").textContent = `+${formatCurrency(otPay)}`;
+  document.getElementById("emp-breakdown-penalty").textContent = `-${formatCurrency(penalty)}`;
+
+  // Render recent checkins
+  const container = document.getElementById("emp-checkin-history-list");
+  if (!container) return;
+
+  const checkins = s.recent_checkins || [];
+  if (checkins.length === 0) {
+    container.innerHTML = `<p style="padding: 12px; color: var(--text-dim);">Chưa có bản ghi chấm công nào.</p>`;
+    return;
+  }
+
+  let html = "";
+  checkins.forEach(ci => {
+    html += `
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--bg-card-subtle); border-radius: var(--radius-sm); font-size: 13px;">
+        <div>
+          <strong>${ci.date}</strong> • ${ci.checkin_time} → ${ci.checkout_time}
+          <div style="font-size: 12px; color: var(--text-dim);">${ci.note || 'Ca chính'}</div>
+        </div>
+        <span class="badge badge-primary">${ci.total_hours}h</span>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+}
+
+// ── 6. Common Notifications Tab ──────────────────────────────────────────────
+async function renderNotificationsTab() {
+  const container = document.getElementById("notifications-list");
+  if (!container) return;
+
+  const nick = AppState.user ? (AppState.user.nickname || AppState.user.username) : "";
+  const resp = await apiRequest(`/api/notifications?nickname=${encodeURIComponent(nick)}`);
+  if (resp && resp.success) {
+    AppState.notifications = resp.notifications;
+  }
+
+  const notifs = AppState.notifications || [];
+  if (notifs.length === 0) {
+    container.innerHTML = `<div class="empty-state card"><p>Hộp thư rỗng.</p></div>`;
+    return;
+  }
+
+  let html = "";
+  notifs.forEach(n => {
+    html += `
+      <div class="card" style="padding: 14px; background: ${n.is_read ? 'var(--bg-card)' : 'var(--primary-subtle)'};" onclick="markNotifRead('${n.id}')">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <strong style="color: var(--text-main); font-size: 14px;">${escapeHtml(n.title)}</strong>
+          <span style="font-size: 11px; color: var(--text-dim);">${escapeHtml(n.created_at)}</span>
+        </div>
+        <p style="margin: 0; font-size: 13px;">${escapeHtml(n.message)}</p>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+  updateBadgeCounts();
+}
+
+async function markNotifRead(id) {
+  const nick = AppState.user ? (AppState.user.nickname || AppState.user.username) : "";
+  await apiRequest("/api/notifications/mark-read", {
+    method: "POST",
+    body: { id, nickname: nick }
+  });
+  renderNotificationsTab();
+}
+
+// ============================================================================
+// ADMIN MODULES (QUẢN LÝ)
+// ============================================================================
+
+// ── 1. Admin Dashboard ───────────────────────────────────────────────────────
+async function loadAdminDashboardData() {
+  const ovResp = await apiRequest("/api/admin/overview");
+  if (!ovResp || !ovResp.success) return;
+
+  // Active staff count
+  const activeStaff = ovResp.checkin_today ? ovResp.checkin_today.filter(c => !c.checkout_time || c.checkout_time === '—') : [];
+  document.getElementById("kpi-active-staff").textContent = `${activeStaff.length} người`;
+  const badgeEl = document.getElementById("active-staff-count-badge");
+  if (badgeEl) badgeEl.textContent = `${activeStaff.length} người`;
+
+  // Swaps pending count
+  const pendingSwaps = (ovResp.leave_requests || []).filter(r => r.type === 'swap' && r.status === 'pending');
+  // Also check swaps store
+  const allSwapsResp = await apiRequest("/api/swaps?status=pending");
+  const pendingStoreSwaps = (allSwapsResp && allSwapsResp.success) ? allSwapsResp.swaps : [];
+  const totalPending = pendingStoreSwaps.length || pendingSwaps.length;
+
+  document.getElementById("kpi-pending-swaps").textContent = totalPending;
+  AppState.swaps = (allSwapsResp && allSwapsResp.success) ? allSwapsResp.swaps : [];
+  updateBadgeCounts();
+
+  // Render pending swaps preview on dashboard
+  renderAdminDashSwapsList(pendingStoreSwaps);
+
+  // Render active working staff list
+  renderAdminDashActiveStaff(activeStaff);
+
+  // Check low stock materials
+  const matResp = await apiRequest("/api/inventory");
+  if (matResp && matResp.success && Array.isArray(matResp.materials)) {
+    const lowStock = matResp.materials.filter(m => m.min_stock > 0 && m.stock <= m.min_stock);
+    document.getElementById("kpi-low-stock").textContent = `${lowStock.length} món`;
+  }
+}
+
+function renderAdminDashSwapsList(swaps) {
+  const container = document.getElementById("admin-dash-swaps-list");
+  if (!container) return;
+
+  if (swaps.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding: 16px;"><p>Không có yêu cầu đổi ca nào cần duyệt.</p></div>`;
+    return;
+  }
+
+  let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+  swaps.slice(0, 4).forEach(sw => {
+    const reqS = sw.requester_shift || {};
+    const tgtS = sw.target_shift || {};
+    html += `
+      <div style="background: var(--bg-card-subtle); border-radius: var(--radius-md); padding: 12px 14px; border: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <div style="font-size: 14px; font-weight: 700;">${escapeHtml(sw.requester)} ⇄ ${escapeHtml(sw.target)}</div>
+          <div style="font-size: 12px; color: var(--text-muted);">${reqS.day || ''} Ca ${reqS.ca || ''} đổi lấy ${tgtS.day || ''} Ca ${tgtS.ca || ''}</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary btn-sm" onclick="handleAdminSwapDecide('${sw.id}', false)">Từ chối</button>
+          <button class="btn btn-primary btn-sm" onclick="handleAdminSwapDecide('${sw.id}', true)">Duyệt đổi ca</button>
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function renderAdminDashActiveStaff(active) {
+  const container = document.getElementById("admin-dash-active-staff");
+  if (!container) return;
+
+  if (active.length === 0) {
+    container.innerHTML = `<p style="padding: 12px; color: var(--text-dim);">Hiện tại không có nhân viên nào đang trong ca.</p>`;
+    return;
+  }
+
+  let html = "";
+  active.forEach(st => {
+    html += `
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--bg-card-subtle); border-radius: var(--radius-sm); font-size: 13px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--success);"></span>
+          <strong>${escapeHtml(st.nickname)}</strong>
+        </div>
+        <span style="font-size: 12px; color: var(--text-muted);">Vào ca lúc: ${st.checkin_time}</span>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+}
+
+// ── 2. Admin Schedule Planning (70/30 Grid & Contextual Drawer) ──────────────
+async function loadAdminRosterData() {
+  const weekInfo = AppState.weekInfo || {};
+  const weekKey = weekInfo.week_key;
+
+  const resp = await apiRequest(`/api/roster?offset=${AppState.weekOffset}`);
+  if (resp && resp.success && resp.roster) {
+    AppState.currentRoster = resp.roster;
+    AppState.weekInfo = resp.week_info;
+
+    // Header label & status
+    const labelEl = document.getElementById("admin-roster-week-label");
+    const rangeEl = document.getElementById("roster-calendar-range");
+    const badgeEl = document.getElementById("roster-status-badge");
+
+    if (labelEl) labelEl.textContent = resp.roster.week_label || "Tuần làm việc";
+    if (rangeEl) rangeEl.textContent = resp.week_info ? `${resp.week_info.monday_date} – ${resp.week_info.sunday_date}` : "Tuần này";
+    if (badgeEl) {
+      const isPub = resp.roster.status === "published";
+      badgeEl.className = `badge ${isPub ? 'badge-success' : 'badge-warning'}`;
+      badgeEl.textContent = isPub ? "Chính thức (Published)" : "Bản nháp (Draft)";
     }
 
-    listEl.innerHTML = items
-      .map(
-        (item) => `
-      <div class="list-row">
-        <div>
-          <strong>👤 ${esc(item.display_name)}</strong>
-          <div class="text-xs">⏳ ${item.hours}h × ${item.rate}k = ${item.base_pay}k</div>
-          <div class="text-xs">🎁 Thưởng: +${item.bonus}k | 💸 Ứng: -${item.advance}k</div>
-        </div>
-        <div style="text-align:right;">
-          <strong style="color:#fbbf24; font-size:15px;">${item.total}k</strong>
-          <div class="text-xs">Thực nhận</div>
-        </div>
-      </div>`
-      )
-      .join("");
-  },
+    renderDesktopRosterGrid();
+    renderMobileAdminSchedule();
+  }
+}
 
-  setSalaryModType(type) {
-    this.state.salaryModType = type;
-    document.querySelectorAll("#adm-sal-mod-type .seg-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.val === type);
+function navigateRosterWeek(step) {
+  AppState.weekOffset += step;
+  loadAdminRosterData();
+}
+
+function renderDesktopRosterGrid() {
+  const tbody = document.getElementById("desktop-roster-tbody");
+  if (!tbody || !AppState.currentRoster) return;
+
+  const roster = AppState.currentRoster;
+  const shifts = roster.shifts || {};
+  const targets = roster.targets || {};
+  const days = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+  const cas = [
+    { code: "Sáng", time: "07:00-12:00", defaultNeed: 2 },
+    { code: "Chiều", time: "13:00-17:00", defaultNeed: 2 },
+    { code: "Tối", time: "18:00-22:30", defaultNeed: 3 },
+  ];
+
+  // Update table headers with dates
+  if (AppState.weekInfo && AppState.weekInfo.days) {
+    AppState.weekInfo.days.forEach(d => {
+      const th = document.getElementById(`th-${d.code}`);
+      if (th) th.innerHTML = `<div>${d.code}</div><div style="font-size: 11px; font-weight: normal; color: var(--text-dim);">${d.date_str}</div>`;
     });
-  },
+  }
 
-  async submitSalaryModifier() {
-    const nickname = document.getElementById("adm-sal-mod-emp").value;
-    const amount = document.getElementById("adm-sal-mod-amount").value.trim();
-    const sal = this.state.salaryData || {};
-    if (!nickname || !amount) {
-      this.toast("⚠️ Vui lòng chọn nhân viên và nhập số tiền!");
-      return;
-    }
-    try {
-      const res = await this.api("/api/admin/salary/modifier", {
-        method: "POST",
-        body: {
-          nickname,
-          type: this.state.salaryModType,
-          amount,
-          month: sal.month,
-          year: sal.year,
-        },
-      });
-      haptic("success");
-      document.getElementById("adm-sal-mod-amount").value = "";
-      this.state.salaryData = res.salary || this.state.salaryData;
-      this.renderAdminSalary();
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
+  let html = "";
+  cas.forEach(ca => {
+    html += `<tr>`;
+    html += `
+      <td style="background: var(--bg-card-subtle); padding: 10px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 700; color: var(--text-main);">
+        <div>Ca ${ca.code}</div>
+        <div style="font-size: 10px; color: var(--text-dim); font-weight: normal;">${ca.time}</div>
+      </td>
+    `;
 
-  async submitAddOvertime() {
-    const nickname = document.getElementById("adm-ot-emp").value;
-    const hours = document.getElementById("adm-ot-hours").value.trim();
-    if (!nickname || !hours) {
-      this.toast("⚠️ Vui lòng chọn nhân viên và nhập số giờ!");
-      return;
-    }
-    try {
-      const res = await this.api("/api/admin/overtime/add", {
-        method: "POST",
-        body: { nickname, hours },
-      });
-      haptic("success");
-      document.getElementById("adm-ot-hours").value = "";
-      if (this.state.adminOverview) {
-        this.state.adminOverview.overtime = res.overtime;
-        this.renderAdminOverview();
+    days.forEach(d => {
+      const slotKey = `${d}_${ca.code}`;
+      const staffList = shifts[slotKey] || [];
+      const needed = targets[slotKey] || ca.defaultNeed;
+      const assigned = staffList.length;
+
+      // Status indicator class
+      let statusClass = "status-ok";
+      if (assigned === 0 || assigned < needed - 1) {
+        statusClass = "status-danger";
+      } else if (assigned < needed) {
+        statusClass = "status-warning";
       }
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
 
-  // ── Staff & Revenue Reports ──
+      const isSelected = AppState.selectedSlot && AppState.selectedSlot.slotKey === slotKey;
 
-  renderAdminEmployees() {
-    const el = document.getElementById("adm-employees-list");
-    if (!el) return;
-    if (!this.state.employees.length) {
-      el.innerHTML = `<p class="empty-text">Chưa có nhân viên nào.</p>`;
-      return;
+      html += `
+        <td>
+          <div class="schedule-shift-cell ${statusClass} ${isSelected ? 'selected' : ''}" onclick="selectAdminRosterSlot('${d}', '${ca.code}', '${slotKey}')">
+            <div class="shift-cell-header">
+              <span class="shift-ratio-badge">${assigned}/${needed} người</span>
+              <button type="button" class="btn btn-icon btn-ghost btn-sm" style="width: 22px; height: 22px; min-height: 22px;" title="Xếp người">+</button>
+            </div>
+            <div class="shift-staff-chips">
+              ${staffList.map(name => `<span class="shift-assigned-chip">${escapeHtml(name)}</span>`).join("")}
+            </div>
+          </div>
+        </td>
+      `;
+    });
+    html += `</tr>`;
+  });
+
+  tbody.innerHTML = html;
+}
+
+function selectAdminRosterSlot(day, ca, slotKey) {
+  AppState.selectedSlot = { day, ca, slotKey };
+  renderDesktopRosterGrid();
+  renderContextualAssignmentDrawer();
+}
+
+function renderContextualAssignmentDrawer() {
+  const drawer = document.getElementById("assignment-drawer-card");
+  const titleEl = document.getElementById("drawer-slot-title");
+  const subtitleEl = document.getElementById("drawer-slot-subtitle");
+  const bodyEl = document.getElementById("drawer-content-body");
+
+  if (!drawer || !AppState.selectedSlot || !AppState.currentRoster) return;
+
+  const { day, ca, slotKey } = AppState.selectedSlot;
+  const roster = AppState.currentRoster;
+  const shifts = roster.shifts || {};
+  const targets = roster.targets || {};
+  const assignedStaff = shifts[slotKey] || [];
+  const needed = targets[slotKey] || 2;
+
+  const dayLabels = { T2: "Thứ Hai", T3: "Thứ Ba", T4: "Thứ Tư", T5: "Thứ Năm", T6: "Thứ Sáu", T7: "Thứ Bảy", CN: "Chủ Nhật" };
+  const caTimes = { Sáng: "07:00 – 12:00", Chiều: "13:00 – 17:00", Tối: "18:00 – 22:30" };
+
+  titleEl.textContent = `${dayLabels[day]} • Ca ${ca}`;
+  subtitleEl.textContent = `${caTimes[ca]} | Cần: ${needed} • Đã xếp: ${assignedStaff.length}/${needed}`;
+
+  // Candidates list logic:
+  // Split into 2 tabs: 'Đã đăng ký ca này' vs 'Không đăng ký ca này'
+  const employees = (AppState.bootstrapData && AppState.bootstrapData.employees) ? AppState.bootstrapData.employees : [];
+  const schedules = AppState.shiftSchedules || {};
+
+  const registeredCandidates = [];
+  const unregisteredCandidates = [];
+
+  employees.forEach(emp => {
+    const nick = emp.nickname || emp.full_name;
+    const reg = schedules[nick] || {};
+    const regSlots = reg.slots || {};
+    const daySlots = regSlots[day] || [];
+    const isAssignedHere = assignedStaff.includes(nick);
+
+    // Calculate weekly assigned shifts count for fair distribution
+    let weeklyAssignedCount = 0;
+    Object.values(shifts).forEach(list => {
+      if (list.includes(nick)) weeklyAssignedCount++;
+    });
+
+    // Check conflict (working another ca on the same day)
+    const worksOtherCaToday = ["Sáng", "Chiều", "Tối"].some(c => c !== ca && (shifts[`${day}_${c}`] || []).includes(nick));
+    const targetShifts = reg.target_shifts || 5;
+
+    const candData = {
+      nickname: nick,
+      role: emp.role || reg.role || "Barista",
+      isAssignedHere,
+      weeklyAssignedCount,
+      targetShifts,
+      worksOtherCaToday,
+    };
+
+    if (daySlots.includes(ca)) {
+      registeredCandidates.push(candData);
+    } else {
+      unregisteredCandidates.push(candData);
     }
-    el.innerHTML = this.state.employees
-      .map(
-        (e) => `
-      <div class="list-row">
+  });
+
+  // Render Subtabs & Filters
+  let html = `
+    <div class="drawer-subtabs">
+      <button class="drawer-subtab-btn ${AppState.drawerTab === 'registered' ? 'active' : ''}" onclick="setDrawerTab('registered')">
+        Đã đăng ký (${registeredCandidates.length})
+      </button>
+      <button class="drawer-subtab-btn ${AppState.drawerTab === 'unregistered' ? 'active' : ''}" onclick="setDrawerTab('unregistered')">
+        Không đăng ký (${unregisteredCandidates.length})
+      </button>
+    </div>
+  `;
+
+  // Currently assigned staff chips with unassign button
+  if (assignedStaff.length > 0) {
+    html += `
+      <div style="margin-bottom: 16px;">
+        <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">Đang trong ca (${assignedStaff.length}):</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+          ${assignedStaff.map(name => `
+            <span class="badge badge-primary" style="padding: 6px 10px;">
+              ${escapeHtml(name)}
+              <button type="button" onclick="handleUnassignStaff('${name}')" style="margin-left: 4px; color: inherit;" title="Bỏ khỏi ca">✕</button>
+            </span>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  // Active candidate list based on drawer tab
+  const activeCandidates = AppState.drawerTab === "registered" ? registeredCandidates : unregisteredCandidates;
+
+  if (activeCandidates.length === 0) {
+    html += `<div class="empty-state" style="padding: 16px;"><p>Không có nhân sự nào trong mục này.</p></div>`;
+  } else {
+    html += `<div class="candidate-list">`;
+    activeCandidates.forEach(c => {
+      const reachedTarget = c.weeklyAssignedCount >= c.targetShifts;
+
+      html += `
+        <div class="candidate-card ${c.worksOtherCaToday ? 'disabled' : ''}">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="user-avatar" style="width: 32px; height: 32px; font-size: 13px;">${c.nickname.charAt(0).toUpperCase()}</div>
+            <div class="candidate-meta">
+              <span class="candidate-name">${escapeHtml(c.nickname)} <small style="color: var(--text-dim);">(${c.role})</small></span>
+              <span class="candidate-stats">Tuần này: ${c.weeklyAssignedCount}/${c.targetShifts} ca</span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            ${c.worksOtherCaToday ? '<span class="badge badge-danger">Trùng lịch</span>' : ''}
+            ${(!c.worksOtherCaToday && reachedTarget) ? '<span class="badge badge-warning">Đã đủ ca</span>' : ''}
+            ${c.isAssignedHere ?
+              `<button class="btn btn-danger btn-sm" onclick="handleUnassignStaff('${c.nickname}')">Bỏ ca</button>` :
+              `<button class="btn btn-primary btn-sm" ${c.worksOtherCaToday ? 'disabled' : ''} onclick="handleAssignStaff('${c.nickname}')">+ Xếp vào ca</button>`
+            }
+          </div>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  }
+
+  bodyEl.innerHTML = html;
+}
+
+function setDrawerTab(tab) {
+  AppState.drawerTab = tab;
+  renderContextualAssignmentDrawer();
+}
+
+async function handleAssignStaff(nickname) {
+  if (!AppState.selectedSlot || !AppState.currentRoster) return;
+  const { slotKey } = AppState.selectedSlot;
+  const weekKey = AppState.currentRoster.week_key;
+
+  const resp = await apiRequest("/api/admin/roster/assign", {
+    method: "POST",
+    body: {
+      week_key: weekKey,
+      day_ca: slotKey,
+      nickname,
+    }
+  });
+
+  if (resp && resp.success && resp.roster) {
+    AppState.currentRoster = resp.roster;
+    renderDesktopRosterGrid();
+    renderContextualAssignmentDrawer();
+    showToast(`Đã xếp ${nickname} vào ca!`, "success");
+  } else {
+    showToast(resp.message || "Lỗi khi xếp nhân sự", "error");
+  }
+}
+
+async function handleUnassignStaff(nickname) {
+  if (!AppState.selectedSlot || !AppState.currentRoster) return;
+  const { slotKey } = AppState.selectedSlot;
+  const weekKey = AppState.currentRoster.week_key;
+
+  const resp = await apiRequest("/api/admin/roster/unassign", {
+    method: "POST",
+    body: {
+      week_key: weekKey,
+      day_ca: slotKey,
+      nickname,
+    }
+  });
+
+  if (resp && resp.success && resp.roster) {
+    AppState.currentRoster = resp.roster;
+    renderDesktopRosterGrid();
+    renderContextualAssignmentDrawer();
+    showToast(`Đã bỏ ${nickname} khỏi ca`, "info");
+  } else {
+    showToast(resp.message || "Lỗi khi bỏ nhân sự", "error");
+  }
+}
+
+async function handleSuggestRosterDraft() {
+  if (!AppState.currentRoster) return;
+  const weekKey = AppState.currentRoster.week_key;
+
+  const resp = await apiRequest("/api/admin/roster/suggest", {
+    method: "POST",
+    body: { week_key: weekKey }
+  });
+
+  if (resp && resp.success && resp.roster) {
+    AppState.currentRoster = resp.roster;
+    renderDesktopRosterGrid();
+    renderContextualAssignmentDrawer();
+    showToast("Đã tạo bản nháp gợi ý phân bổ ca tự động!", "success");
+  } else {
+    showToast(resp.message || "Không thể tạo gợi ý", "error");
+  }
+}
+
+function handlePublishRosterConfirm() {
+  if (!AppState.currentRoster) return;
+  openModal(
+    "Xác nhận chốt lịch tuần",
+    `<p>Sau khi chốt, lịch sẽ trở thành <strong>chính thức</strong> và tự động gửi thông báo đến toàn bộ nhân viên có ca làm trong tuần.</p>`,
+    `
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">Hủy</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmPublishRoster()">Chốt & Phát hành ngay</button>
+    `
+  );
+}
+
+async function confirmPublishRoster() {
+  closeModal();
+  if (!AppState.currentRoster) return;
+  const weekKey = AppState.currentRoster.week_key;
+
+  const resp = await apiRequest("/api/admin/roster/publish", {
+    method: "POST",
+    body: { week_key: weekKey }
+  });
+
+  if (resp && resp.success && resp.roster) {
+    AppState.currentRoster = resp.roster;
+    renderDesktopRosterGrid();
+    const badgeEl = document.getElementById("roster-status-badge");
+    if (badgeEl) {
+      badgeEl.className = "badge badge-success";
+      badgeEl.textContent = "Chính thức (Published)";
+    }
+    showToast(resp.message || "Đã chốt và phát hành lịch tuần!", "success");
+  } else {
+    showToast(resp.message || "Không thể chốt lịch", "error");
+  }
+}
+
+// ── Mobile Responsive Admin Schedule ─────────────────────────────────────────
+function renderMobileAdminSchedule() {
+  const dayPicker = document.getElementById("admin-mobile-day-picker");
+  const shiftsList = document.getElementById("mobile-roster-shifts-list");
+  if (!dayPicker || !shiftsList || !AppState.currentRoster) return;
+
+  if (window.innerWidth >= 1024) {
+    dayPicker.style.display = "none";
+    shiftsList.style.display = "none";
+    document.getElementById("desktop-roster-table").style.display = "table";
+    return;
+  }
+
+  // Display mobile view
+  dayPicker.style.display = "flex";
+  shiftsList.style.display = "block";
+  document.getElementById("desktop-roster-table").style.display = "none";
+
+  const days = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+  const selectedDay = AppState.adminSelectedDay || "T2";
+
+  let dayPills = "";
+  days.forEach(d => {
+    dayPills += `
+      <button class="mobile-day-pill ${d === selectedDay ? 'active' : ''}" onclick="selectAdminMobileDay('${d}')">
+        ${d}
+      </button>
+    `;
+  });
+  dayPicker.innerHTML = dayPills;
+
+  // Render 3 shift cards for selected day
+  const roster = AppState.currentRoster;
+  const shifts = roster.shifts || {};
+  const targets = roster.targets || {};
+  const cas = [
+    { code: "Sáng", time: "07:00 – 12:00", defaultNeed: 2 },
+    { code: "Chiều", time: "13:00 – 17:00", defaultNeed: 2 },
+    { code: "Tối", time: "18:00 – 22:30", defaultNeed: 3 },
+  ];
+
+  let cardsHtml = "";
+  cas.forEach(ca => {
+    const slotKey = `${selectedDay}_${ca.code}`;
+    const staffList = shifts[slotKey] || [];
+    const needed = targets[slotKey] || ca.defaultNeed;
+
+    cardsHtml += `
+      <div class="mobile-shift-card" onclick="selectAdminRosterSlot('${selectedDay}', '${ca.code}', '${slotKey}')">
         <div>
-          <strong>👤 ${esc(e.nickname)}</strong>
-          <div class="text-xs">💵 ${e.rate}k/giờ • 🎁 ${e.balance} ly</div>
+          <strong style="font-size: 15px; color: var(--text-main);">Ca ${ca.code}</strong>
+          <div style="font-size: 12px; color: var(--text-muted);">${ca.time}</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">
+            ${staffList.map(name => `<span class="badge badge-primary">${escapeHtml(name)}</span>`).join("")}
+          </div>
         </div>
-        <div class="row-gap" style="flex:0;">
-          <button class="btn btn-ghost btn-sm" onclick="App.openEditSalaryRateModal('${esc(e.nickname)}', ${e.rate})">💵 Lương</button>
-          <button class="btn btn-ghost btn-sm" onclick="App.openRenameEmpModal('${esc(e.nickname)}')">✏️ Tên</button>
-          <button class="btn btn-ghost btn-sm" onclick="App.openRewardHistoryModal('${esc(e.nickname)}')">📜 Thưởng</button>
-          <button class="btn btn-danger btn-sm" onclick="App.confirmRemoveEmployee('${esc(e.nickname)}')">🗑</button>
+        <div style="text-align: right;">
+          <span class="badge ${staffList.length >= needed ? 'badge-success' : 'badge-warning'}">${staffList.length}/${needed}</span>
+          <div style="margin-top: 6px;">
+            <button class="btn btn-secondary btn-sm">Điều phối</button>
+          </div>
         </div>
-      </div>`
-      )
-      .join("");
-  },
+      </div>
+    `;
+  });
 
-  async submitAddEmployee() {
-    const input = document.getElementById("adm-new-emp-name");
-    const nickname = input.value.trim();
-    if (!nickname) {
-      this.toast("⚠️ Vui lòng nhập tên nhân viên!");
-      return;
-    }
-    try {
-      const res = await this.api("/api/admin/employee/add", {
-        method: "POST",
-        body: { nickname },
-      });
-      haptic("success");
-      input.value = "";
-      this.state.employees = res.employees || [];
-      this.renderAll();
-      this.renderAdminEmployees();
-      this.populateLoginUsers();
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
+  shiftsList.innerHTML = cardsHtml;
+}
 
-  openRenameEmpModal(oldNick) {
-    this.openModal(
-      `✏️ Đổi tên: ${oldNick}`,
-      `
-      <input type="text" id="modal-new-nick" class="input mb-12" value="${esc(oldNick)}" placeholder="Nhập tên mới..." />
-      <button class="btn btn-primary btn-block" onclick="App.submitRenameEmployee('${esc(oldNick)}')">💾 Lưu Tên Mới</button>`
-    );
-  },
+function selectAdminMobileDay(day) {
+  AppState.adminSelectedDay = day;
+  renderMobileAdminSchedule();
+}
 
-  async submitRenameEmployee(oldNickname) {
-    const newNickname = document.getElementById("modal-new-nick").value.trim();
-    if (!newNickname) return;
-    this.closeModal();
-    try {
-      const res = await this.api("/api/admin/employee/rename", {
-        method: "POST",
-        body: { old_nickname: oldNickname, new_nickname: newNickname },
-      });
-      haptic("success");
-      this.state.employees = res.employees || [];
-      this.renderAll();
-      this.renderAdminEmployees();
-      this.populateLoginUsers();
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
+// ── 3. Admin Availability Matrix ─────────────────────────────────────────────
+function renderAdminAvailabilityMatrix() {
+  const tbody = document.getElementById("admin-matrix-tbody");
+  if (!tbody) return;
 
-  openEditSalaryRateModal(nickname, currentRate) {
-    this.openModal(
-      `💵 Mức lương/giờ: ${nickname}`,
-      `
-      <input type="number" step="0.5" id="modal-new-rate" class="input mb-12" value="${currentRate}" placeholder="VD: 16, 18.5..." />
-      <button class="btn btn-primary btn-block" onclick="App.submitEditSalaryRate('${esc(nickname)}')">💾 Cập Nhật Mức Lương</button>`
-    );
-  },
+  const employees = (AppState.bootstrapData && AppState.bootstrapData.employees) ? AppState.bootstrapData.employees : [];
+  const schedules = AppState.shiftSchedules || {};
+  const days = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
-  async submitEditSalaryRate(nickname) {
-    const rate = document.getElementById("modal-new-rate").value.trim();
-    this.closeModal();
-    try {
-      const res = await this.api("/api/admin/employee/salary-rate", {
-        method: "POST",
-        body: { nickname, rate },
-      });
-      haptic("success");
-      this.state.employees = res.employees || [];
-      this.renderAll();
-      this.renderAdminEmployees();
-      this.populateLoginUsers();
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
+  if (employees.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 20px; color: var(--text-dim);">Chưa có nhân sự nào</td></tr>`;
+    return;
+  }
 
-  async openRewardHistoryModal(nickname) {
-    try {
-      const res = await this.api(`/api/admin/employee/reward-history?nickname=${encodeURIComponent(nickname)}`);
-      const records = res.records || [];
-      this.openModal(
-        `🎁 Lịch sử thưởng: ${nickname}`,
-        records.length
-          ? records
-              .map(
-                (r) => `
-              <div class="list-row">
-                <span>📅 ${esc(r.date)} — Ca ${esc(r.ca)}</span>
-                <span class="text-xs">${esc(r.revenue ? Number(r.revenue).toLocaleString() + "đ" : "")}</span>
-              </div>`
-              )
-              .join("")
-          : `<p class="empty-text">Chưa có lịch sử báo cáo thưởng.</p>`
-      );
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
+  let html = "";
+  employees.forEach(emp => {
+    const nick = emp.nickname || emp.full_name;
+    const reg = schedules[nick] || {};
+    const slots = reg.slots || {};
 
-  confirmRemoveEmployee(nickname) {
-    this.openModal(
-      "⚠️ Xác nhận xóa nhân viên",
-      `
-      <p class="mb-12">Bạn có chắc chắn muốn xóa <b>${esc(nickname)}</b> khỏi hệ thống?</p>
-      <div class="row-gap">
-        <button class="btn btn-ghost" onclick="App.closeModal()">Hủy</button>
-        <button class="btn btn-danger" onclick="App.submitRemoveEmployee('${esc(nickname)}')">✅ Xóa</button>
-      </div>`
-    );
-  },
+    html += `<tr>`;
+    html += `<td style="padding: 10px 14px; font-weight: 700;">${escapeHtml(nick)}</td>`;
+    html += `<td>${emp.role || 'Barista'}</td>`;
 
-  async submitRemoveEmployee(nickname) {
-    this.closeModal();
-    try {
-      const res = await this.api("/api/admin/employee/remove", {
-        method: "POST",
-        body: { nickname },
-      });
-      haptic("success");
-      this.state.employees = res.employees || [];
-      this.renderAll();
-      this.renderAdminEmployees();
-      this.populateLoginUsers();
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
+    days.forEach(d => {
+      const daySlots = slots[d] || [];
+      const hasMorning = daySlots.includes("Sáng");
+      const hasAfternoon = daySlots.includes("Chiều");
+      const hasEvening = daySlots.includes("Tối");
 
-  renderAdminRecentReports(reports) {
-    const el = document.getElementById("adm-recent-reports-list");
-    if (!el) return;
-    if (!reports.length) {
-      el.innerHTML = `<p class="empty-text">Chưa có báo cáo doanh thu nào.</p>`;
-      return;
-    }
-    this._cachedRecentReports = reports;
-    el.innerHTML = reports
-      .map(
-        (r, idx) => `
-      <div class="list-row">
-        <div>
-          <strong>📅 ${esc(r.date)} — Ca ${esc(r.ca)}</strong>
-          <div class="text-xs">👥 ${esc((r.employees || []).join(", "))}</div>
-          <div class="text-xs">💰 Doanh thu: <b>${r.revenue ? Number(r.revenue).toLocaleString() + "đ" : "(chưa có)"}</b></div>
+      html += `<td style="text-align: center; font-size: 11px;">`;
+      if (hasMorning || hasAfternoon || hasEvening) {
+        html += `<span style="color: var(--primary); font-weight: 700;">`;
+        if (hasMorning) html += `S `;
+        if (hasAfternoon) html += `C `;
+        if (hasEvening) html += `T`;
+        html += `</span>`;
+      } else {
+        html += `<span style="color: var(--text-dim);">—</span>`;
+      }
+      html += `</td>`;
+    });
+
+    html += `<td style="text-align: center; font-weight: 600;">${reg.target_shifts || 5} ca</td>`;
+    html += `</tr>`;
+  });
+
+  tbody.innerHTML = html;
+}
+
+// ── 4. Admin Shift Swap Approvals ────────────────────────────────────────────
+async function renderAdminSwapsTab() {
+  const container = document.getElementById("admin-swaps-container");
+  if (!container) return;
+
+  const resp = await apiRequest("/api/swaps");
+  if (resp && resp.success) {
+    AppState.swaps = resp.swaps;
+  }
+
+  const swaps = AppState.swaps || [];
+  if (swaps.length === 0) {
+    container.innerHTML = `<div class="empty-state card"><p>Không có yêu cầu đổi ca nào trong hệ thống.</p></div>`;
+    return;
+  }
+
+  let html = "";
+  swaps.forEach(sw => {
+    const reqS = sw.requester_shift || {};
+    const tgtS = sw.target_shift || {};
+    const isPending = sw.status === "pending";
+
+    html += `
+      <div class="card" style="padding: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+          <span style="font-size: 12px; color: var(--text-dim);">${sw.created_at}</span>
+          <span class="badge ${isPending ? 'badge-warning' : (sw.status === 'approved' ? 'badge-success' : 'badge-danger')}">
+            ${isPending ? 'Chờ duyệt' : (sw.status === 'approved' ? 'Đã duyệt' : 'Đã từ chối')}
+          </span>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="App.openEditRevenueModal(${idx})">✏️ Sửa DT</button>
-      </div>`
-      )
-      .join("");
-  },
 
-  openEditRevenueModal(idx) {
-    const r = (this._cachedRecentReports || [])[idx];
-    if (!r) return;
-    this.openModal(
-      `✏️ Sửa Doanh Thu (${r.date} Ca ${r.ca})`,
-      `
-      <p class="text-xs mb-8">Nhân viên: ${esc((r.employees || []).join(", "))}</p>
-      <input type="text" id="modal-new-rev" class="input mb-12" value="${esc(r.revenue || "")}" placeholder="VD: 1500k, 2M..." />
-      <button class="btn btn-primary btn-block" onclick="App.submitEditRevenue(${idx})">💾 Cập Nhật Doanh Thu</button>`
-    );
-  },
+        <div class="swap-comparison-card" style="margin-bottom: 14px; background: var(--bg-card-subtle);">
+          <div class="swap-side">
+            <span class="swap-side-tag">Người yêu cầu</span>
+            <span class="swap-side-name">${escapeHtml(sw.requester)}</span>
+            <span class="swap-side-shift">${reqS.day || ''} • Ca ${reqS.ca || ''} (${reqS.time || ''})</span>
+          </div>
+          <div class="swap-arrow-icon">⇄</div>
+          <div class="swap-side">
+            <span class="swap-side-tag">Người nhận</span>
+            <span class="swap-side-name">${escapeHtml(sw.target)}</span>
+            <span class="swap-side-shift">${tgtS.day || ''} • Ca ${tgtS.ca || ''} (${tgtS.time || ''})</span>
+          </div>
+        </div>
 
-  async submitEditRevenue(idx) {
-    const session = (this._cachedRecentReports || [])[idx];
-    const newRevenue = document.getElementById("modal-new-rev").value.trim();
-    this.closeModal();
-    try {
-      const res = await this.api("/api/admin/report/update-revenue", {
-        method: "POST",
-        body: { session, new_revenue: newRevenue },
-      });
-      haptic("success");
-      this.renderAdminRecentReports(res.recent_reports || []);
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
+        ${sw.reason ? `<div style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;"><strong>Lý do:</strong> "${escapeHtml(sw.reason)}"</div>` : ''}
+
+        ${isPending ? `
+          <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button class="btn btn-secondary btn-sm" onclick="handleAdminSwapDecide('${sw.id}', false)">Từ chối</button>
+            <button class="btn btn-primary btn-sm" onclick="handleAdminSwapDecide('${sw.id}', true)">Duyệt hoán đổi ca</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  updateBadgeCounts();
+}
+
+async function handleAdminSwapDecide(swapId, approve) {
+  const resp = await apiRequest("/api/admin/swaps/decide", {
+    method: "POST",
+    body: { swap_id: swapId, approve }
+  });
+
+  if (resp && resp.success) {
+    showToast(resp.message || "Đã xử lý yêu cầu đổi ca!", "success");
+    if (resp.roster) {
+      AppState.currentRoster = resp.roster;
     }
-  },
+    renderAdminSwapsTab();
+  } else {
+    showToast(resp.message || "Không thể xử lý yêu cầu", "error");
+  }
+}
 
-  // ── Admin Inventory ──
+// ── 5. Admin Employees Tab ───────────────────────────────────────────────────
+function renderAdminEmployeesTab() {
+  const tbody = document.getElementById("admin-employees-tbody");
+  if (!tbody || !AppState.bootstrapData) return;
 
-  async loadAdminInventory() {
-    try {
-      const res = await this.api("/api/inventory");
-      this.state.materials = res.materials || [];
-      this.populateAdminSelects();
+  const employees = AppState.bootstrapData.employees || [];
+  if (employees.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-dim);">Chưa có nhân viên</td></tr>`;
+    return;
+  }
 
-      const alertsEl = document.getElementById("adm-inv-alerts-list");
-      const alerts = [...(res.zero_stock || []), ...(res.low_stock || [])];
-      const seen = new Set();
-      const uniqueAlerts = alerts.filter((m) => {
-        if (seen.has(m.name)) return false;
-        seen.add(m.name);
-        return true;
-      });
+  let html = "";
+  employees.forEach(emp => {
+    const nick = emp.nickname || emp.full_name;
+    html += `
+      <tr>
+        <td style="padding: 12px 14px; font-weight: 700;">${escapeHtml(nick)}</td>
+        <td style="text-align: center;">${emp.rate || 18}k/giờ</td>
+        <td style="text-align: center;">${emp.balance || 0} ly</td>
+        <td style="text-align: right; padding-right: 14px;">
+          <button class="btn btn-secondary btn-sm" onclick="showEditRateModal('${escapeHtml(nick)}', ${emp.rate || 18})">Mức lương</button>
+        </td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+}
 
-      alertsEl.innerHTML = this.state.materials
-        .map((m) => {
-          const isAlert = m.stock <= 0 || (m.min_stock > 0 && m.stock <= m.min_stock);
-          return `
-          <div class="list-row">
-            <div>
-              <strong>${isAlert ? "🔴" : "✅"} ${esc(m.name)}</strong>
-              <div class="text-xs">${esc(m.group)} • Tồn: <b>${m.stock} ${esc(m.unit || "")}</b> (Min: ${m.min_stock})</div>
-            </div>
-            <div class="row-gap" style="flex:0;">
-              <button class="btn btn-ghost btn-sm" onclick="App.openEditMaterialModal('${esc(m.name)}')">✏️</button>
-              <button class="btn btn-danger btn-sm" onclick="App.submitDeleteMaterial('${esc(m.name)}')">🗑</button>
-            </div>
-          </div>`;
-        })
-        .join("");
+function showAddEmployeeModal() {
+  openModal(
+    "Thêm nhân viên mới",
+    `
+      <div class="form-group">
+        <label class="form-label" for="new-emp-name">Tên / Nickname nhân viên</label>
+        <input type="text" id="new-emp-name" class="form-input" placeholder="VD: Hoàng, Lan, Tuấn...">
+        <div class="form-hint">Mật khẩu đăng nhập mặc định sẽ là 123456789.</div>
+      </div>
+    `,
+    `
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">Hủy</button>
+      <button class="btn btn-primary btn-sm" onclick="submitAddEmployee()">Lưu nhân viên</button>
+    `
+  );
+}
 
-      const histEl = document.getElementById("adm-inv-history-list");
-      const hist = res.history || [];
-      histEl.innerHTML = hist.length
-        ? hist
-            .map(
-              (h) => `
-          <div class="list-row">
-            <div>
-              <strong>${h.type === "Nhập" ? "📥 +" : "📤 -"}${h.qty} ${esc(h.name)}</strong>
-              <div class="text-xs">${esc(h.date)} • Bởi: ${esc(h.user)}</div>
-            </div>
-          </div>`
-            )
-            .join("")
-        : `<p class="empty-text">Chưa có lịch sử xuất/nhập kho.</p>`;
-    } catch (err) {
-      this.toast(err.message);
+async function submitAddEmployee() {
+  const name = document.getElementById("new-emp-name").value.trim();
+  if (!name) return;
+
+  const resp = await apiRequest("/api/admin/employee/add", {
+    method: "POST",
+    body: { nickname: name }
+  });
+
+  if (resp && resp.success) {
+    showToast(`Đã thêm nhân viên ${name}!`, "success");
+    closeModal();
+    if (resp.employees) {
+      AppState.bootstrapData.employees = resp.employees;
+      renderAdminEmployeesTab();
     }
-  },
+  } else {
+    showToast(resp.message || "Không thể thêm nhân viên", "error");
+  }
+}
 
-  async submitImportStock() {
-    const name = document.getElementById("adm-inv-import-name").value;
-    const qty = document.getElementById("adm-inv-import-qty").value.trim();
-    const note = document.getElementById("adm-inv-import-note").value.trim();
-    if (!name || !qty) {
-      this.toast("⚠️ Vui lòng chọn món và nhập số lượng!");
-      return;
-    }
-    try {
-      const res = await this.api("/api/inventory/import", {
-        method: "POST",
-        body: { name, qty, note },
-      });
-      haptic("success");
-      document.getElementById("adm-inv-import-qty").value = "";
-      document.getElementById("adm-inv-import-note").value = "";
-      this.state.materials = res.materials || [];
-      this.renderAll();
-      await this.loadAdminInventory();
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
+function showEditRateModal(nickname, currentRate) {
+  openModal(
+    `Cập nhật mức lương: ${nickname}`,
+    `
+      <div class="form-group">
+        <label class="form-label" for="edit-emp-rate">Mức lương nghìn đồng/giờ (k/h)</label>
+        <input type="number" id="edit-emp-rate" class="form-input" value="${currentRate}" step="0.5" min="10" max="100">
+      </div>
+    `,
+    `
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">Hủy</button>
+      <button class="btn btn-primary btn-sm" onclick="submitEditRate('${nickname}')">Lưu mức lương</button>
+    `
+  );
+}
 
-  async submitAddMaterial() {
-    const name = document.getElementById("adm-mat-name").value.trim();
-    const unit = document.getElementById("adm-mat-unit").value.trim();
-    const min_stock = document.getElementById("adm-mat-min").value.trim() || "0";
-    const price = document.getElementById("adm-mat-price").value.trim() || "0";
-    const group = document.getElementById("adm-mat-group").value.trim() || "Khác";
-    if (!name || !unit) {
-      this.toast("⚠️ Vui lòng nhập Tên NVL và Đơn vị!");
-      return;
-    }
-    try {
-      const res = await this.api("/api/inventory/material/add", {
-        method: "POST",
-        body: { name, unit, min_stock, price, group },
-      });
-      haptic("success");
-      document.getElementById("adm-mat-name").value = "";
-      document.getElementById("adm-mat-unit").value = "";
-      this.state.materials = res.materials || [];
-      this.renderAll();
-      await this.loadAdminInventory();
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
+async function submitEditRate(nickname) {
+  const rate = parseFloat(document.getElementById("edit-emp-rate").value);
+  if (!rate || rate <= 0) return;
 
-  openEditMaterialModal(name) {
-    const m = this.state.materials.find((x) => x.name === name);
-    if (!m) return;
-    this.openModal(
-      `✏️ Sửa NVL: ${m.name}`,
-      `
-      <label class="field-label">Đơn vị</label>
-      <input type="text" id="modal-mat-unit" class="input" value="${esc(m.unit)}" />
-      <label class="field-label">Tồn tối thiểu</label>
-      <input type="number" step="any" id="modal-mat-min" class="input" value="${m.min_stock}" />
-      <label class="field-label">Giá nhập</label>
-      <input type="number" step="any" id="modal-mat-price" class="input mb-12" value="${m.price}" />
-      <button class="btn btn-primary btn-block" onclick="App.submitUpdateMaterial('${esc(m.name)}')">💾 Lưu Thay Đổi</button>`
-    );
-  },
+  const resp = await apiRequest("/api/admin/employee/salary-rate", {
+    method: "POST",
+    body: { nickname, rate }
+  });
 
-  async submitUpdateMaterial(name) {
-    const unit = document.getElementById("modal-mat-unit").value.trim();
-    const min_stock = document.getElementById("modal-mat-min").value.trim();
-    const price = document.getElementById("modal-mat-price").value.trim();
-    this.closeModal();
-    try {
-      const res = await this.api("/api/inventory/material/update", {
-        method: "POST",
-        body: { name, unit, min_stock, price },
-      });
-      haptic("success");
-      this.state.materials = res.materials || [];
-      this.renderAll();
-      await this.loadAdminInventory();
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
+  if (resp && resp.success) {
+    showToast("Đã cập nhật mức lương!", "success");
+    closeModal();
+    if (resp.employees) {
+      AppState.bootstrapData.employees = resp.employees;
+      renderAdminEmployeesTab();
     }
-  },
+  } else {
+    showToast(resp.message || "Lỗi cập nhật", "error");
+  }
+}
 
-  async submitDeleteMaterial(name) {
-    try {
-      const res = await this.api("/api/inventory/material/delete", {
-        method: "POST",
-        body: { name },
-      });
-      haptic("success");
-      this.state.materials = res.materials || [];
-      this.renderAll();
-      await this.loadAdminInventory();
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
+// ── 6. Admin Payroll Management ──────────────────────────────────────────────
+async function loadAdminSalaryData() {
+  const select = document.getElementById("admin-salary-month-select");
+  const tbody = document.getElementById("admin-salary-tbody");
+  if (!tbody) return;
 
-  async submitGrantAdmin() {
-    const input = document.getElementById("adm-grant-id-input");
-    const telegram_id = input.value.trim();
-    if (!telegram_id) {
-      this.toast("⚠️ Vui lòng nhập Telegram ID!");
-      return;
-    }
-    try {
-      const res = await this.api("/api/admin/grant-admin", {
-        method: "POST",
-        body: { telegram_id },
-      });
-      haptic("success");
-      input.value = "";
-      await this.loadAdminOverview();
-      this.toast(res.message);
-    } catch (err) {
-      this.toast(err.message);
-    }
-  },
-};
+  const resp = await apiRequest("/api/admin/salary");
+  if (!resp || !resp.success || !resp.salary) return;
 
-window.addEventListener("DOMContentLoaded", () => App.init());
+  const rows = resp.salary.rows || [];
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-dim);">Chưa có dữ liệu lương tháng này</td></tr>`;
+    return;
+  }
+
+  let html = "";
+  rows.forEach(r => {
+    html += `
+      <tr>
+        <td style="padding: 10px 14px; font-weight: 700;">${escapeHtml(r.nickname)}</td>
+        <td style="text-align: center;">${r.total_hours || 0}h</td>
+        <td style="text-align: center;">${r.rate || 0}k/h</td>
+        <td style="text-align: center;">${formatCurrency(r.bonus || 0)}</td>
+        <td style="text-align: center; font-weight: 700; color: var(--primary);">${formatCurrency(r.net_salary || 0)}</td>
+        <td style="text-align: right; padding-right: 14px;">
+          <button class="btn btn-secondary btn-sm" onclick="showSalaryModifierModal('${escapeHtml(r.nickname)}')">+ Thưởng/Ứng</button>
+        </td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = html;
+}
+
+function showSalaryModifierModal(nickname) {
+  openModal(
+    `Thưởng / Ứng lương: ${nickname}`,
+    `
+      <div class="form-group">
+        <label class="form-label">Loại điều chỉnh</label>
+        <select id="mod-type" class="form-select">
+          <option value="bonus">Thưởng tiền (+)</option>
+          <option value="advance">Ứng lương (-)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="mod-amount">Số tiền (VD: 50k, 100k, 200k)</label>
+        <input type="text" id="mod-amount" class="form-input" placeholder="VD: 50k hoặc 50000">
+      </div>
+    `,
+    `
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">Hủy</button>
+      <button class="btn btn-primary btn-sm" onclick="submitSalaryModifier('${nickname}')">Áp dụng</button>
+    `
+  );
+}
+
+async function submitSalaryModifier(nickname) {
+  const type = document.getElementById("mod-type").value;
+  const amount = document.getElementById("mod-amount").value.trim();
+  if (!amount) return;
+
+  const resp = await apiRequest("/api/admin/salary/modifier", {
+    method: "POST",
+    body: { nickname, type, amount }
+  });
+
+  if (resp && resp.success) {
+    showToast("Đã cập nhật bảng lương!", "success");
+    closeModal();
+    loadAdminSalaryData();
+  } else {
+    showToast(resp.message || "Lỗi cập nhật", "error");
+  }
+}
+
+// ── 7. Admin Inventory Tab ───────────────────────────────────────────────────
+async function renderAdminInventoryTab() {
+  const tbody = document.getElementById("admin-inventory-tbody");
+  if (!tbody) return;
+
+  const resp = await apiRequest("/api/inventory");
+  if (!resp || !resp.success || !Array.isArray(resp.materials)) return;
+
+  let html = "";
+  resp.materials.forEach(m => {
+    const isLow = m.min_stock > 0 && m.stock <= m.min_stock;
+    html += `
+      <tr>
+        <td style="padding: 10px 14px; font-weight: 600;">${escapeHtml(m.name)}</td>
+        <td>${escapeHtml(m.group || 'Khác')}</td>
+        <td style="text-align: center; font-weight: 700; color: ${isLow ? 'var(--danger)' : 'var(--text-main)'};">${m.stock} ${m.unit}</td>
+        <td style="text-align: center;">${m.min_stock} ${m.unit}</td>
+        <td style="text-align: center;">
+          <span class="badge ${isLow ? 'badge-danger' : 'badge-success'}">${isLow ? 'Sắp hết' : 'Đủ hàng'}</span>
+        </td>
+        <td style="text-align: right; padding-right: 14px;">
+          <button class="btn btn-secondary btn-sm" onclick="showQuickImportModal('${escapeHtml(m.name)}')">+ Nhập</button>
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
+}
+
+function showQuickImportModal(name) {
+  openModal(
+    `Nhập kho: ${name}`,
+    `
+      <div class="form-group">
+        <label class="form-label" for="quick-imp-qty">Số lượng nhập thêm</label>
+        <input type="number" id="quick-imp-qty" class="form-input" min="0.1" step="0.5" placeholder="VD: 5">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="quick-imp-note">Ghi chú</label>
+        <input type="text" id="quick-imp-note" class="form-input" placeholder="VD: Nhập buổi sáng">
+      </div>
+    `,
+    `
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">Hủy</button>
+      <button class="btn btn-primary btn-sm" onclick="submitQuickImport('${name}')">Xác nhận nhập kho</button>
+    `
+  );
+}
+
+async function submitQuickImport(name) {
+  const qty = parseFloat(document.getElementById("quick-imp-qty").value);
+  const note = document.getElementById("quick-imp-note").value.trim();
+  if (!qty || qty <= 0) return;
+
+  const resp = await apiRequest("/api/inventory/import", {
+    method: "POST",
+    body: { name, qty, note }
+  });
+
+  if (resp && resp.success) {
+    showToast(`Đã nhập thêm ${qty} ${name}!`, "success");
+    closeModal();
+    renderAdminInventoryTab();
+  } else {
+    showToast(resp.message || "Lỗi nhập kho", "error");
+  }
+}
+
+function showAddMaterialModal() {
+  openModal(
+    "Thêm nguyên vật liệu mới",
+    `
+      <div class="form-group">
+        <label class="form-label" for="new-mat-name">Tên NVL</label>
+        <input type="text" id="new-mat-name" class="form-input" placeholder="VD: Syrup Đào, Trà Lục...">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="new-mat-unit">Đơn vị tính</label>
+        <input type="text" id="new-mat-unit" class="form-input" placeholder="VD: chai, hộp, kg...">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="new-mat-min">Tồn kho tối thiểu (Cảnh báo)</label>
+        <input type="number" id="new-mat-min" class="form-input" value="2" min="0">
+      </div>
+    `,
+    `
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">Hủy</button>
+      <button class="btn btn-primary btn-sm" onclick="submitAddMaterial()">Lưu NVL</button>
+    `
+  );
+}
+
+async function submitAddMaterial() {
+  const name = document.getElementById("new-mat-name").value.trim();
+  const unit = document.getElementById("new-mat-unit").value.trim();
+  const minStock = parseFloat(document.getElementById("new-mat-min").value) || 0;
+
+  if (!name || !unit) return;
+
+  const resp = await apiRequest("/api/inventory/material/add", {
+    method: "POST",
+    body: { name, unit, min_stock: minStock, price: 0 }
+  });
+
+  if (resp && resp.success) {
+    showToast(`Đã thêm ${name}!`, "success");
+    closeModal();
+    renderAdminInventoryTab();
+  } else {
+    showToast(resp.message || "Lỗi khi thêm", "error");
+  }
+}
+
+// ── 8. Admin Announcements ───────────────────────────────────────────────────
+async function submitAdminAnnouncement() {
+  const msg = document.getElementById("admin-announce-msg").value.trim();
+  if (!msg) {
+    showToast("Vui lòng nhập nội dung thông báo", "error");
+    return;
+  }
+
+  const resp = await apiRequest("/api/admin/announce", {
+    method: "POST",
+    body: { message: msg }
+  });
+
+  if (resp && resp.success) {
+    showToast("Đã gửi thông báo vào nhóm chung!", "success");
+    document.getElementById("admin-announce-msg").value = "";
+  } else {
+    showToast(resp.message || "Không thể gửi thông báo", "error");
+  }
+}
+
+// ── 9. Password Management ───────────────────────────────────────────────────
+async function submitChangePassword(target) {
+  let oldPwd = "";
+  let newPwd = "";
+
+  if (target === "admin") {
+    oldPwd = document.getElementById("admin-old-pass").value.trim();
+    newPwd = document.getElementById("admin-new-pass").value.trim();
+  } else {
+    oldPwd = document.getElementById("user-old-pwd").value.trim();
+    newPwd = document.getElementById("user-new-pwd").value.trim();
+  }
+
+  if (!oldPwd || !newPwd) {
+    showToast("Vui lòng nhập đầy đủ mật khẩu cũ và mới", "error");
+    return;
+  }
+
+  const resp = await apiRequest("/api/auth/change-password", {
+    method: "POST",
+    body: { old_password: oldPwd, new_password: newPwd }
+  });
+
+  if (resp && resp.success) {
+    showToast("✅ Đã đổi mật khẩu thành công!", "success");
+    if (target === "admin") {
+      document.getElementById("admin-old-pass").value = "";
+      document.getElementById("admin-new-pass").value = "";
+    } else {
+      document.getElementById("user-old-pwd").value = "";
+      document.getElementById("user-new-pwd").value = "";
+    }
+  } else {
+    showToast(resp.message || "Mật khẩu cũ không chính xác", "error");
+  }
+}

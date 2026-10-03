@@ -23,7 +23,7 @@ from utils.validators import (
     validate_nickname,
 )
 from webapp.auth import create_auth_token, resolve_request_user, verify_auth_token
-from webapp.store import WebAppStore
+from webapp.store import WebAppStore, get_week_info
 
 logger = logging.getLogger(__name__)
 
@@ -362,6 +362,13 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
             emp_dict["balance"] = None
         filtered_employees.append(emp_dict)
 
+    w_info = get_week_info(0)
+    current_roster = store.get_roster(w_info["week_key"])
+    user_nick = user.get("nickname") or user.get("username") or ""
+    my_notifs = store.get_notifications(user_nick) if user_nick else []
+    my_swaps = store.get_swap_requests(nickname=user_nick) if user_nick else []
+    pending_swaps_count = len(store.get_swap_requests(status="pending")) if is_user_admin else 0
+
     return web.json_response({
         "success": True,
         "user": user,
@@ -370,16 +377,21 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
             "time": now.strftime("%H:%M"),
             "inferred_ca": _infer_ca(now),
         },
+        "week_info": w_info,
+        "current_roster": current_roster,
         "employees": filtered_employees,
         "open_sessions": open_sessions,
         "materials": materials,
         "material_groups": group_items,
         "pending_rewards_count": pending_rewards,
+        "pending_swaps_count": pending_swaps_count,
         "checklists": store.get_checklists(),
         "recipes": store.get_recipes(),
         "shift_schedules": store.get_shift_schedules(),
         "petty_expenses": store.get_petty_expenses(15),
         "leave_requests": store.get_leave_requests(limit=20),
+        "notifications": my_notifs,
+        "swaps": my_swaps,
     })
 
 
@@ -1677,17 +1689,18 @@ async def handle_api_schedule_register(request: web.Request) -> web.Response:
     slots = data.get("slots") if isinstance(data.get("slots"), dict) else {}
     note = str(data.get("note") or "").strip()
     week_label = str(data.get("week_label") or "Tuần tới").strip()
+    target_shifts = int(data.get("target_shifts") or 5)
 
     if not nickname:
         return web.json_response({"success": False, "message": "Vui lòng chọn tên nhân viên."}, status=400)
 
-    entry = store.save_shift_schedule(nickname, role, slots, note, week_label)
+    entry = store.save_shift_schedule(nickname, role, slots, note, week_label, target_shifts)
     total_shifts = sum(len(v) for v in slots.values() if isinstance(v, list))
 
     await _safe_send_admin(
         bot,
         f"📅 **ĐĂNG KÝ LỊCH CA ({week_label})**\n"
-        f"👤 **{nickname}** ({role}) — Đăng ký **{total_shifts} ca**"
+        f"👤 **{nickname}** ({role}) — Đăng ký **{total_shifts} ca** (Mong muốn: {target_shifts} ca)"
         + (f"\n📝 Ghi chú: {note}" if note else ""),
     )
 
@@ -1697,6 +1710,269 @@ async def handle_api_schedule_register(request: web.Request) -> web.Response:
         "entry": entry,
         "shift_schedules": store.get_shift_schedules(),
     })
+
+
+# ── 6. Weekly Roster, Shift Swaps & Notifications ────────────────────────────
+
+async def handle_api_roster_get(request: web.Request) -> web.Response:
+    store: WebAppStore = request.app[STORE_KEY]
+    week_key = request.query.get("week") or None
+    try:
+        offset = int(request.query.get("offset") or 0)
+    except (TypeError, ValueError):
+        offset = 0
+    w_info = get_week_info(offset_weeks=offset)
+    target_key = week_key or w_info["week_key"]
+    roster = store.get_roster(target_key)
+    return web.json_response({
+        "success": True,
+        "week_info": w_info,
+        "roster": roster,
+    })
+
+
+async def handle_api_admin_roster_save_draft(request: web.Request) -> web.Response:
+    if resp := _require_admin(request):
+        return resp
+    store: WebAppStore = request.app[STORE_KEY]
+    data = await request.json()
+    week_key = str(data.get("week_key") or "").strip()
+    shifts = data.get("shifts") or {}
+    targets = data.get("targets") or None
+    week_label = str(data.get("week_label") or "").strip()
+
+    if not week_key:
+        return web.json_response({"success": False, "message": "Thiếu mã tuần (week_key)."}, status=400)
+
+    updated = store.save_roster_draft(week_key, shifts, targets, week_label)
+    return web.json_response({
+        "success": True,
+        "message": "✅ Đã lưu bản nháp xếp lịch tuần!",
+        "roster": updated,
+    })
+
+
+async def handle_api_admin_roster_publish(request: web.Request) -> web.Response:
+    if resp := _require_admin(request):
+        return resp
+    bot = request.app.get(BOT_KEY)
+    store: WebAppStore = request.app[STORE_KEY]
+    data = await request.json()
+    week_key = str(data.get("week_key") or "").strip()
+    if not week_key:
+        return web.json_response({"success": False, "message": "Thiếu mã tuần (week_key)."}, status=400)
+
+    published = store.publish_roster(week_key)
+    week_lbl = published.get("week_label") or "tuần mới"
+
+    await _safe_send_group(
+        bot,
+        f"📅 **THÔNG BÁO LỊCH TUẦN CHÍNH THỨC**\n\n"
+        f"Quản lý đã chốt lịch làm việc **{week_lbl}**!\n"
+        f"Toàn bộ nhân sự vui lòng vào Web App kiểm tra ca làm và đăng ký đổi ca (nếu có nhu cầu) sớm nhất.",
+        parse_mode="Markdown",
+    )
+
+    return web.json_response({
+        "success": True,
+        "message": f"🎉 Đã chốt và phát hành chính thức lịch {week_lbl}!",
+        "roster": published,
+    })
+
+
+async def handle_api_admin_roster_assign(request: web.Request) -> web.Response:
+    if resp := _require_admin(request):
+        return resp
+    store: WebAppStore = request.app[STORE_KEY]
+    data = await request.json()
+    week_key = str(data.get("week_key") or "").strip()
+    day_ca = str(data.get("day_ca") or "").strip()
+    nickname = str(data.get("nickname") or "").strip()
+
+    if not week_key or not day_ca or not nickname:
+        return web.json_response({"success": False, "message": "Thiếu thông tin tuần, ca hoặc nhân viên."}, status=400)
+
+    updated = store.assign_shift(week_key, day_ca, nickname)
+    return web.json_response({
+        "success": True,
+        "message": f"✅ Đã xếp {nickname} vào ca {day_ca}!",
+        "roster": updated,
+    })
+
+
+async def handle_api_admin_roster_unassign(request: web.Request) -> web.Response:
+    if resp := _require_admin(request):
+        return resp
+    store: WebAppStore = request.app[STORE_KEY]
+    data = await request.json()
+    week_key = str(data.get("week_key") or "").strip()
+    day_ca = str(data.get("day_ca") or "").strip()
+    nickname = str(data.get("nickname") or "").strip()
+
+    if not week_key or not day_ca or not nickname:
+        return web.json_response({"success": False, "message": "Thiếu thông tin tuần, ca hoặc nhân viên."}, status=400)
+
+    updated = store.unassign_shift(week_key, day_ca, nickname)
+    return web.json_response({
+        "success": True,
+        "message": f"✅ Đã bỏ {nickname} khỏi ca {day_ca}!",
+        "roster": updated,
+    })
+
+
+async def handle_api_admin_roster_suggest(request: web.Request) -> web.Response:
+    if resp := _require_admin(request):
+        return resp
+    sheets = request.app[SHEETS_KEY]
+    store: WebAppStore = request.app[STORE_KEY]
+    data = await request.json()
+    week_key = str(data.get("week_key") or "").strip()
+    if not week_key:
+        week_key = get_week_info(0)["week_key"]
+
+    employees = await asyncio.to_thread(_get_employees_list, sheets)
+    suggested = store.suggest_roster(week_key, employees)
+    return web.json_response({
+        "success": True,
+        "message": "💡 Đã tạo bản nháp gợi ý phân bổ ca cân bằng!",
+        "roster": suggested,
+    })
+
+
+async def handle_api_swaps_get(request: web.Request) -> web.Response:
+    store: WebAppStore = request.app[STORE_KEY]
+    user = request[USER_KEY]
+    status_filter = request.query.get("status") or None
+    user_filter = request.query.get("nickname") or None
+
+    if not user.get("is_admin") and not user_filter:
+        user_filter = user.get("nickname") or user.get("username") or ""
+
+    swaps = store.get_swap_requests(nickname=user_filter, status=status_filter)
+    return web.json_response({
+        "success": True,
+        "swaps": swaps,
+    })
+
+
+async def handle_api_swaps_create(request: web.Request) -> web.Response:
+    bot = request.app.get(BOT_KEY)
+    store: WebAppStore = request.app[STORE_KEY]
+    user = request[USER_KEY]
+    data = await request.json()
+
+    week_key = str(data.get("week_key") or "").strip()
+    requester = str(data.get("requester") or user.get("nickname") or user.get("username") or "").strip()
+    requester_role = str(data.get("requester_role") or user.get("role") or "Pha Chế").strip()
+    requester_shift = data.get("requester_shift") or {}
+    target = str(data.get("target") or "").strip()
+    target_role = str(data.get("target_role") or "Pha Chế").strip()
+    target_shift = data.get("target_shift") or {}
+    reason = str(data.get("reason") or "").strip()
+
+    if not requester or not target:
+        return web.json_response({"success": False, "message": "Vui lòng chọn đầy đủ người đổi và người nhận."}, status=400)
+    if not requester_shift or not target_shift:
+        return web.json_response({"success": False, "message": "Vui lòng chọn ca của bạn và ca muốn đổi."}, status=400)
+    if normalize_name(requester) == normalize_name(target):
+        return web.json_response({"success": False, "message": "Không thể tự đổi ca với chính mình."}, status=400)
+
+    item = store.create_swap_request(
+        week_key=week_key,
+        requester=requester,
+        requester_role=requester_role,
+        requester_shift=requester_shift,
+        target=target,
+        target_role=target_role,
+        target_shift=target_shift,
+        reason=reason,
+    )
+
+    swap_kb = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Duyệt Đổi Ca", callback_data=f"swap_appr_{item['id']}"),
+            InlineKeyboardButton("❌ Từ Chối", callback_data=f"swap_rejc_{item['id']}"),
+        ]
+    ])
+    await _safe_send_admin(
+        bot,
+        f"🔄 *YÊU CẦU ĐỔI CA MỚI*\n\n"
+        f"👤 *{requester}* ({requester_shift.get('day')} • Ca {requester_shift.get('ca')})\n"
+        f"      ⇅\n"
+        f"👤 *{target}* ({target_shift.get('day')} • Ca {target_shift.get('ca')})\n"
+        + (f"💬 Lý do: {reason}\n" if reason else "")
+        + f"👉 Quản lý vui lòng duyệt trên Web App.",
+        reply_markup=swap_kb,
+    )
+
+    return web.json_response({
+        "success": True,
+        "message": f"✅ Đã gửi yêu cầu đổi ca với {target}! Đang chờ Quản lý duyệt.",
+        "swap": item,
+    })
+
+
+async def handle_api_admin_swaps_decide(request: web.Request) -> web.Response:
+    if resp := _require_admin(request):
+        return resp
+    bot = request.app.get(BOT_KEY)
+    store: WebAppStore = request.app[STORE_KEY]
+    data = await request.json()
+
+    swap_id = str(data.get("swap_id") or data.get("id") or "").strip()
+    approve = bool(data.get("approve"))
+
+    if not swap_id:
+        return web.json_response({"success": False, "message": "Thiếu mã yêu cầu đổi ca."}, status=400)
+
+    decided = store.decide_swap_request(swap_id, approve)
+    if not decided:
+        return web.json_response({"success": False, "message": "Không tìm thấy yêu cầu đổi ca này."}, status=404)
+
+    req_nick = decided.get("requester", "")
+    tgt_nick = decided.get("target", "")
+    req_s = decided.get("requester_shift", {})
+    tgt_s = decided.get("target_shift", {})
+
+    status_lbl = "✅ ĐÃ DUYỆT" if approve else "❌ ĐÃ TỪ CHỐI"
+    await _safe_send_group(
+        bot,
+        f"{status_lbl} **ĐỔI CA**: **{req_nick}** ({req_s.get('day')} Ca {req_s.get('ca')}) ⇄ **{tgt_nick}** ({tgt_s.get('day')} Ca {tgt_s.get('ca')})!",
+    )
+
+    return web.json_response({
+        "success": True,
+        "message": f"{status_lbl}: Đổi ca giữa {req_nick} và {tgt_nick}!",
+        "swap": decided,
+        "roster": store.get_roster(decided.get("week_key")),
+    })
+
+
+async def handle_api_notifications_get(request: web.Request) -> web.Response:
+    store: WebAppStore = request.app[STORE_KEY]
+    user = request[USER_KEY]
+    target_nick = request.query.get("nickname") or user.get("nickname") or user.get("username") or ""
+    unread_only = request.query.get("unread_only") == "true"
+    notifs = store.get_notifications(target_nick, unread_only)
+    return web.json_response({
+        "success": True,
+        "notifications": notifs,
+    })
+
+
+async def handle_api_notifications_mark_read(request: web.Request) -> web.Response:
+    store: WebAppStore = request.app[STORE_KEY]
+    user = request[USER_KEY]
+    data = await request.json()
+    notif_id = str(data.get("id") or "").strip()
+    target_nick = str(data.get("nickname") or user.get("nickname") or user.get("username") or "").strip()
+
+    ok = store.mark_notification_read(notif_id, target_nick)
+    return web.json_response({
+        "success": ok,
+        "message": "Đã đánh dấu đã đọc" if ok else "Không tìm thấy thông báo",
+    })
+
 
 
 async def handle_api_expenses_add(request: web.Request) -> web.Response:
@@ -1880,6 +2156,23 @@ def create_webapp(sheets, bot=None, bot_data: dict | None = None, store: WebAppS
     app.router.add_post("/api/auth/login", handle_auth_login)
     app.router.add_get("/api/auth/public-users", handle_auth_public_users)
     app.router.add_post("/api/auth/change-password", handle_auth_change_password)
+
+    # Weekly Roster & Schedule Planning
+    app.router.add_get("/api/roster", handle_api_roster_get)
+    app.router.add_post("/api/admin/roster/save-draft", handle_api_admin_roster_save_draft)
+    app.router.add_post("/api/admin/roster/publish", handle_api_admin_roster_publish)
+    app.router.add_post("/api/admin/roster/assign", handle_api_admin_roster_assign)
+    app.router.add_post("/api/admin/roster/unassign", handle_api_admin_roster_unassign)
+    app.router.add_post("/api/admin/roster/suggest", handle_api_admin_roster_suggest)
+
+    # Shift Swaps
+    app.router.add_get("/api/swaps", handle_api_swaps_get)
+    app.router.add_post("/api/swaps/create", handle_api_swaps_create)
+    app.router.add_post("/api/admin/swaps/decide", handle_api_admin_swaps_decide)
+
+    # Notifications
+    app.router.add_get("/api/notifications", handle_api_notifications_get)
+    app.router.add_post("/api/notifications/mark-read", handle_api_notifications_mark_read)
 
     if STATIC_DIR.exists():
         app.router.add_static("/static", STATIC_DIR, show_index=False)

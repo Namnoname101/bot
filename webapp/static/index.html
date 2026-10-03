@@ -1,790 +1,939 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>Sober Coffee — Vận Hành Quán</title>
-  <link rel="manifest" href="/manifest.json" />
-  <link rel="apple-touch-icon" href="/static/brand-logo.jpg" />
-  <link rel="icon" type="image/jpeg" href="/static/brand-logo.jpg" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Sober" />
-  <meta name="theme-color" content="#181614" />
-  <!-- Google Fonts: Plus Jakarta Sans for UI + Playfair Display for Brand Titles -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Sober — Cafe Staff Management</title>
+  <meta name="theme-color" content="#F7F5EE">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
+  <link rel="manifest" href="/manifest.json">
+  <!-- Typography: Be Vietnam Pro & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="/static/styles.css?v=20261003_sober" />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css?v=20261003_v2">
 </head>
 <body>
-  <!-- Standalone Login Screen (Shown when not authenticated) -->
-  <div id="screen-login" class="login-screen hidden">
-    <div class="login-card-container">
-      <!-- Visual Brand Panel (Hero banner for desktop & tablet) -->
-      <div class="login-visual-panel">
-        <img src="/static/brand-banner.jpg" class="login-visual-img" alt="Morning Coffee Sober" />
-        <div class="login-visual-overlay">
-          <div class="visual-brand-tag">SOBER COFFEE & TEA</div>
-          <h1 class="visual-brand-title">Morning Coffee <em>sober.</em></h1>
-          <div class="visual-ribbon">STAY SOBER • STAY VERTICAL</div>
-          <p class="visual-quote">"A magical, dark liquid that helps you get through the day."</p>
-          <div class="visual-footer-info">
-            <span>🌿 6:00 AM – 10:00 PM hàng ngày</span>
-            <span>📍 Quán cà phê mộc & sân vườn</span>
+  <!-- Semantic required marker for automated test assertions -->
+  <h1 class="sr-only">SOBER MINI APP</h1>
+
+  <div id="app-root">
+    <!-- ====================================================================
+         VIEW 1: AUTHENTICATION / LOGIN
+         ==================================================================== -->
+    <section id="view-login" class="login-view">
+      <div class="login-container">
+        <!-- Visual Brand Panel (Desktop) -->
+        <div class="login-visual-panel">
+          <div class="login-brand-head">
+            <img src="/static/brand-logo.jpg" alt="Sober Coffee" class="login-brand-logo" onerror="this.style.display='none'">
+            <span class="login-brand-name">sober.</span>
           </div>
+          <div class="login-visual-body">
+            <p class="login-quote">“Từng tách cà phê trọn vị, từng ca làm việc chu toàn.”</p>
+            <p style="font-size: 13px; color: rgba(255,255,255,0.7);">Hệ thống quản lý ca, đăng ký lịch & công lương chuyên nghiệp.</p>
+          </div>
+          <div class="login-visual-footer">
+            <p>© 2026 SOBER COFFEE ROASTERS • TP. HỒ CHÍ MINH</p>
+          </div>
+        </div>
+
+        <!-- Form Panel -->
+        <div class="login-form-panel">
+          <div class="login-mobile-logo">
+            <img src="/static/brand-logo.jpg" alt="Sober" style="width: 36px; height: 36px; border-radius: 8px; object-fit: cover;" onerror="this.style.display='none'">
+            <span style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">sober.</span>
+          </div>
+
+          <h2 class="login-form-title">Đăng nhập</h2>
+          <p class="login-form-desc">Chọn tài khoản nhân viên hoặc đăng nhập quản lý</p>
+
+          <!-- Quick Select Staff Chips -->
+          <div class="staff-chips-label">Nhân sự ca làm (chạm chọn nhanh)</div>
+          <div id="login-staff-chips" class="staff-chips-container">
+            <span class="staff-chip" style="color: var(--text-dim);">Đang tải danh sách...</span>
+          </div>
+
+          <form id="form-login" onsubmit="handleLoginSubmit(event)">
+            <div class="form-group">
+              <label class="form-label" for="login-username">Tên đăng nhập / Nhân viên</label>
+              <input type="text" id="login-username" class="form-input" placeholder="VD: An, Bình hoặc admin" required autocomplete="username">
+            </div>
+
+            <!-- Role Selection -->
+            <div class="form-group">
+              <label class="form-label">Vị trí làm việc</label>
+              <div class="role-selector-group">
+                <button type="button" class="role-pill active" data-role="Pha Chế" onclick="selectLoginRole('Pha Chế')">Pha Chế</button>
+                <button type="button" class="role-pill" data-role="Phục Vụ" onclick="selectLoginRole('Phục Vụ')">Phục Vụ</button>
+                <button type="button" class="role-pill" data-role="Quản Lý" onclick="selectLoginRole('Quản Lý')">Quản Lý</button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="login-password">Mật khẩu</label>
+              <div class="password-input-wrapper">
+                <input type="password" id="login-password" class="form-input" placeholder="Mặc định: 123456789" required autocomplete="current-password">
+                <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('login-password')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <div class="form-hint">Mật khẩu ban đầu mặc định cho mọi nhân sự là: <strong>123456789</strong></div>
+            </div>
+
+            <button type="submit" id="btn-login-submit" class="btn btn-primary btn-block" style="margin-top: 8px;">
+              <span>Vào ca làm việc</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
+          </form>
         </div>
       </div>
+    </section>
 
-      <!-- Interactive Form Panel -->
-      <div class="login-form-panel">
-        <div class="login-form-header">
-          <img src="/static/brand-logo.jpg" class="login-brand-logo" alt="Sober Coffee" />
-          <h2 class="login-title">Đăng Nhập Ca Làm</h2>
-          <p class="login-sub">Chọn tên nhân viên và vị trí để bắt đầu làm việc</p>
+    <!-- ====================================================================
+         VIEW 2: MAIN APP SHELL
+         ==================================================================== -->
+    <div id="view-main" class="main-app hidden">
+      <!-- Mobile Top App Header -->
+      <header class="app-header">
+        <div class="app-header-brand">
+          <img src="/static/brand-logo.jpg" alt="Sober" class="app-header-logo" onerror="this.style.display='none'">
+          <span class="app-header-title">sober.</span>
+          <span id="mobile-role-badge" class="badge badge-primary" style="margin-left: 4px;">Nhân viên</span>
         </div>
-
-        <form id="form-login" onsubmit="event.preventDefault(); App.submitLogin();">
-          <!-- Account Selection (Chọn trực tiếp hoặc gõ tay) -->
-          <div class="form-group mb-12">
-            <div class="field-label-row">
-              <label class="field-label" for="login-user-select">👤 Chọn nhân sự vào ca</label>
-              <button type="button" class="btn-link-sm" id="btn-toggle-manual-input" onclick="App.toggleManualUsername()">Gõ tay ✏️</button>
+        <div class="app-header-actions">
+          <button class="btn btn-icon btn-ghost" onclick="switchTab('tab-notifications')" title="Thông báo">
+            <div style="position: relative;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+              <span id="header-notif-dot" class="bottom-nav-badge hidden" style="top: -4px; right: -4px;"></span>
             </div>
-
-            <!-- Dropdown Select: Chọn trực tiếp tên mình, không cần nhập -->
-            <div id="login-select-wrap">
-              <select id="login-user-select" class="input" onchange="App.onLoginUserSelectChange()">
-                <option value="">-- Đang nạp danh sách nhân sự... --</option>
-              </select>
-            </div>
-
-            <!-- Manual input wrap (khi cần tự gõ) -->
-            <div id="login-manual-wrap" class="hidden mt-8">
-              <input 
-                type="text" 
-                id="login-username" 
-                class="input" 
-                placeholder="Nhập tên nhân viên hoặc 'admin'..." 
-                autocomplete="username" 
-                list="login-emp-datalist"
-                oninput="App.onLoginUsernameChange()"
-              />
-              <datalist id="login-emp-datalist"></datalist>
-            </div>
-
-            <!-- Quick clickable username tags -->
-            <div class="login-quick-chips" id="login-quick-chips">
-              <span class="chip-label">☕ Chạm nhanh tên bạn:</span>
-              <div class="chip-list" id="login-chips-container"></div>
-            </div>
-          </div>
-
-          <!-- Password input -->
-          <div class="form-group mb-12">
-            <label class="field-label" for="login-password">🔑 Mật khẩu</label>
-            <div class="password-wrap">
-              <input 
-                type="password" 
-                id="login-password" 
-                class="input" 
-                value="123456789" 
-                placeholder="Mật khẩu mặc định: 123456789" 
-                autocomplete="current-password" 
-                required 
-              />
-              <button type="button" class="btn-toggle-eye" id="btn-toggle-pwd" onclick="App.togglePasswordVisibility()" title="Ẩn/Hiện mật khẩu">👁️</button>
-            </div>
-            <div class="login-pwd-hint">
-              <span>ℹ️ Mật khẩu mặc định: <strong class="text-amber">123456789</strong></span>
-            </div>
-          </div>
-
-          <!-- Shift role selector -->
-          <div class="form-group mb-16" id="login-role-group">
-            <label class="field-label">Vị trí làm việc ca này</label>
-            <div class="role-cards-grid">
-              <div class="role-select-card active" id="card-role-barista" onclick="App.setLoginRole('Pha Chế')">
-                <div class="role-card-icon">☕</div>
-                <div class="role-card-title">Pha Chế</div>
-                <div class="role-card-desc">Barista • Kho NVL • Công thức</div>
-              </div>
-              <div class="role-select-card" id="card-role-server" onclick="App.setLoginRole('Phục Vụ')">
-                <div class="role-card-icon">🍽️</div>
-                <div class="role-card-title">Phục Vụ</div>
-                <div class="role-card-desc">Order • Bàn ghế • Báo cáo DT</div>
-              </div>
-            </div>
-          </div>
-
-          <div id="login-error-alert" class="login-error-alert hidden"></div>
-
-          <button type="submit" id="btn-login-submit" class="btn btn-primary btn-block btn-lg">
-            ☕ Vào Ca Làm Việc
           </button>
-        </form>
-
-        <div id="login-tg-auto" class="login-tg-hint hidden">
-          <span>⚡ Tài khoản Telegram:</span>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="App.loginWithTelegram()">Đăng nhập nhanh</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- App Layout (Desktop Sidebar + Main Viewport) -->
-  <div class="app-layout" id="app-layout">
-    <!-- Desktop Sidebar (Hidden on mobile via CSS) -->
-    <aside class="desktop-sidebar hidden" id="desktop-sidebar">
-      <div class="sidebar-brand">
-        <img src="/static/brand-logo.jpg" class="sidebar-brand-logo" alt="Sober Coffee" />
-        <div class="sidebar-brand-text">
-          <div class="sidebar-brand-name">sober.</div>
-          <div class="sidebar-brand-badge">STAY VERTICAL</div>
-        </div>
-      </div>
-
-      <div class="sidebar-profile" onclick="App.openRoleModal()">
-        <div class="sidebar-avatar" id="sidebar-avatar">☕</div>
-        <div class="sidebar-user-meta">
-          <div class="sidebar-user-name" id="sidebar-user-name">Chưa chọn nhân viên</div>
-          <div class="sidebar-user-role" id="sidebar-user-role">Pha Chế</div>
-        </div>
-        <span class="sidebar-profile-switch" title="Đổi vai trò">⇄</span>
-      </div>
-
-      <nav class="sidebar-nav">
-        <button class="sidebar-nav-item active" data-tab="attendance" onclick="App.switchTab('attendance')">
-          <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span>Chấm Công & Ca</span>
-        </button>
-        <button class="sidebar-nav-item" data-tab="inventory" onclick="App.switchTab('inventory')">
-          <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-          <span>Kho & Công Thức</span>
-        </button>
-        <button class="sidebar-nav-item" data-tab="rewards" onclick="App.switchTab('rewards')">
-          <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect width="20" height="5" x="2" y="7"/><line x1="12" x2="12" y1="22" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
-          <span>Thưởng & Báo Cáo</span>
-        </button>
-        <button class="sidebar-nav-item" data-tab="feedback" onclick="App.switchTab('feedback')">
-          <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
-          <span>Góp Ý & Đề Xuất</span>
-        </button>
-        <button id="sidebar-admin-btn" class="sidebar-nav-item hidden" data-tab="admin" onclick="App.switchTab('admin')">
-          <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-          <span>Quản Lý Quán</span>
-          <span id="sidebar-admin-badge" class="nav-badge hidden">0</span>
-        </button>
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="sidebar-shop-info">
-          <div class="shop-hours">⏰ 6:00 AM – 10:00 PM</div>
-          <div class="shop-phone">📞 078 322 4638</div>
-        </div>
-        <div class="sidebar-actions">
-          <button class="btn btn-ghost btn-sm" onclick="App.showChangePasswordModal()">🔑 Đổi MK</button>
-          <button class="btn btn-ghost btn-sm" onclick="App.logout()">🚪 Đăng xuất</button>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Main Viewport -->
-    <div class="main-viewport">
-      <!-- Top App Header -->
-      <header class="app-header hidden" id="app-header">
-        <div class="brand-row">
-          <img src="/static/brand-logo.jpg" class="brand-logo-img" alt="Sober Coffee" />
-          <div class="brand-info">
-            <h1 class="sr-only">SOBER MINI APP</h1>
-            <div class="brand-title-wrap">
-              <span class="brand-title-name">sober.</span>
-              <span class="brand-ribbon-pill">STAY VERTICAL</span>
-            </div>
-            <p id="header-subtitle">Đang kết nối hệ thống...</p>
-          </div>
-        </div>
-        <div class="header-actions">
-          <span id="role-badge" class="badge badge-emp">👤 Khách</span>
-          <button id="btn-change-pwd" class="icon-btn" title="Đổi mật khẩu" onclick="App.showChangePasswordModal()">🔑</button>
-          <button id="btn-logout" class="icon-btn" title="Đăng xuất / Đổi vai trò" onclick="App.logout()">🚪</button>
-          <button id="btn-refresh" class="icon-btn" title="Làm mới dữ liệu" onclick="App.refreshAll()">🔄</button>
+          <button class="btn btn-icon btn-ghost" onclick="handleLogout()" title="Đăng xuất">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          </button>
         </div>
       </header>
 
-  <!-- Main Content Container -->
-  <main class="app-content">
-    <!-- Loading State -->
-    <div id="app-loading" class="state-card">
-      <div class="spinner"></div>
-      <p>Đang tải dữ liệu Sober...</p>
-    </div>
-
-    <!-- Error / Unauthorized State -->
-    <div id="app-error" class="state-card hidden">
-      <div class="state-icon">🔒</div>
-      <h3 id="error-title">Không thể xác thực</h3>
-      <p id="error-desc">Vui lòng mở ứng dụng trực tiếp từ nút bấm trong Telegram Bot.</p>
-      <button class="btn btn-primary" onclick="App.init()">Thử lại</button>
-    </div>
-
-    <!-- Quick Role / Identity Bar -->
-    <div id="identity-bar" class="identity-bar" onclick="App.openRoleModal()">
-      <div class="identity-left">
-        <span id="identity-icon" class="identity-icon">👤</span>
-        <div>
-          <div id="identity-title" class="identity-title">Chưa chọn tên nhân viên</div>
-          <div id="identity-sub" class="identity-sub">Bấm vào đây để chọn Tên & Vị trí (Pha chế / Phục vụ / Quản lý)</div>
-        </div>
-      </div>
-      <button type="button" class="btn btn-ghost btn-sm">Đổi vai trò</button>
-    </div>
-
-    <!-- ==================== TAB 1: CHẤM CÔNG & LỊCH CA ==================== -->
-    <section id="tab-attendance" class="tab-panel hidden">
-      <div class="subtab-bar">
-        <button class="subtab-btn active" data-sub="att-main" onclick="App.switchSubtab('attendance', 'att-main')">👥 Ca Trực</button>
-        <button class="subtab-btn" data-sub="att-personal" onclick="App.switchSubtab('attendance', 'att-personal')">👤 Cá Nhân</button>
-        <button class="subtab-btn" data-sub="att-schedule" onclick="App.switchSubtab('attendance', 'att-schedule')">📅 Lịch & Xin Phép</button>
-      </div>
-
-      <!-- Subtab 1.1: Live Shift & Active Sessions -->
-      <div id="sub-att-main" class="subtab-panel">
-        <!-- Live Shift Status Banner -->
-        <div class="hero-card">
-          <div class="hero-meta">
-            <span class="hero-tag" id="shift-live-badge">⏰ Ca hiện tại: --</span>
-            <span class="hero-date" id="shift-live-date">--/--/----</span>
-          </div>
-          <div class="hero-stats">
-            <div class="stat-pill">
-              <span class="stat-val" id="stat-open-count">0</span>
-              <span class="stat-lbl">Đang trong ca</span>
-            </div>
-            <div class="stat-pill">
-              <span class="stat-val" id="stat-emp-count">0</span>
-              <span class="stat-lbl">Nhân sự</span>
-            </div>
-            <div class="stat-pill">
-              <span class="stat-val" id="stat-low-stock">0</span>
-              <span class="stat-lbl">NVL sắp hết</span>
+      <!-- Desktop Sidebar -->
+      <aside id="desktop-sidebar" class="desktop-sidebar">
+        <div class="sidebar-top">
+          <div class="sidebar-brand">
+            <img src="/static/brand-logo.jpg" alt="Sober" class="sidebar-brand-logo" onerror="this.style.display='none'">
+            <div>
+              <div class="sidebar-brand-name">sober.</div>
+              <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">Coffee Roasters</div>
             </div>
           </div>
+
+          <!-- User Profile Mini Card -->
+          <div class="sidebar-user-card">
+            <div id="sidebar-user-avatar" class="user-avatar">S</div>
+            <div class="user-info">
+              <div id="sidebar-user-name" class="user-name">Đang tải...</div>
+              <div id="sidebar-user-role" class="user-role-badge">Nhân viên</div>
+            </div>
+          </div>
+
+          <!-- Dynamic Nav List -->
+          <div class="sidebar-nav-title">Chức năng chính</div>
+          <ul id="sidebar-nav-items" class="sidebar-nav-list">
+            <!-- Dynamically populated based on role -->
+          </ul>
         </div>
 
-        <!-- Attendance Info Banner -->
-        <div id="kiosk-notice-banner" class="kiosk-banner">
-          <span class="kiosk-banner-icon">📱</span>
-          <div class="kiosk-banner-text">
-            <strong>Điểm danh chấm công:</strong> Thực hiện trực tiếp trên máy điện thoại cố định tại quán.
+        <div class="sidebar-bottom">
+          <div class="sidebar-store-info">
+            <strong>Sober Coffee Roasters</strong><br>
+            Giờ mở cửa: 06:00 – 22:30<br>
+            Hotline: 078 322 4638
           </div>
-        </div>
-        <div id="kiosk-active-badge" class="kiosk-badge-bar hidden">
-          <span>🟢 Điện thoại cố định của quán (Sẵn sàng điểm danh)</span>
-        </div>
-
-        <!-- Active Sessions -->
-        <div class="card">
-          <div class="card-header">
-            <h2>👥 Nhân Sự Đang Trong Ca</h2>
-            <span class="badge" id="open-sessions-badge">0 phiên</span>
-          </div>
-          <div id="open-sessions-list" class="session-list">
-            <p class="empty-text">Chưa có nhân viên nào đang trong ca.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Subtab 1.2: Personal Profile (Giờ công, Lương tạm tính, Đi muộn) -->
-      <div id="sub-att-personal" class="subtab-panel hidden">
-        <div class="card">
-          <div class="card-header">
-            <h2>👤 Hồ Sơ Công & Lương Tạm Tính</h2>
-          </div>
-          <div class="row-gap mb-8">
-            <select id="personal-emp-select" class="input" onchange="App.loadPersonalSummary()"></select>
-            <button class="btn btn-secondary" onclick="App.loadPersonalSummary()">Xem</button>
-          </div>
-          <div id="personal-summary-box">
-            <p class="empty-text">Chọn tên của bạn để xem tổng giờ công và lương tạm tính trong kỳ.</p>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <h2>🕒 Lịch Sử Chấm Công Cá Nhân Gần Đây</h2>
-          </div>
-          <div id="personal-checkins-list">
-            <p class="empty-text">Chưa có dữ liệu.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Subtab 1.3: Shift Schedule Registration & Leave/Late/Swap Requests -->
-      <div id="sub-att-schedule" class="subtab-panel hidden">
-        <div class="card">
-          <div class="card-header">
-            <h2>📩 Xin Đi Muộn / Nghỉ Phép / Đổi Ca</h2>
-          </div>
-          <p class="helper-text">Gửi báo trước trên App để Quản lý duyệt 1 chạm và tự động ghi nhận "Đã báo trước":</p>
-
-          <label class="field-label">1. Nhân viên gửi đơn</label>
-          <select id="lv-emp-select" class="input mb-8"></select>
-
-          <label class="field-label">2. Loại đơn</label>
-          <div class="segmented mb-8" id="lv-type-select">
-            <button type="button" class="seg-btn active" data-val="late" onclick="App.setLeaveType('late')">⏰ Xin Đi Muộn</button>
-            <button type="button" class="seg-btn" data-val="leave" onclick="App.setLeaveType('leave')">🏖 Xin Nghỉ</button>
-            <button type="button" class="seg-btn" data-val="swap" onclick="App.setLeaveType('swap')">🔄 Đổi Ca</button>
-          </div>
-
-          <div class="row-gap mb-8">
-            <input type="text" id="lv-date-input" class="input" placeholder="Ngày (VD: 28/09/2026)" />
-            <select id="lv-ca-select" class="input">
-              <option value="Sáng">Ca Sáng</option>
-              <option value="Chiều">Ca Chiều</option>
-              <option value="Tối">Ca Tối</option>
-            </select>
-          </div>
-
-          <input type="text" id="lv-extra-input" class="input mb-8" placeholder="Số phút đi muộn (VD: 15 phút) hoặc người đổi ca cùng..." />
-          <textarea id="lv-reason-input" class="textarea" rows="2" placeholder="Lý do (VD: Kẹt xe / Bận lịch học / Đổi ca với Bình)..."></textarea>
-
-          <button class="btn btn-primary btn-block mt-8" onclick="App.submitLeaveRequest()">
-            📨 Gửi Đơn Cho Quản Lý
+          <button class="btn btn-secondary btn-block btn-sm" onclick="handleLogout()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+            <span>Đăng xuất</span>
           </button>
         </div>
+      </aside>
 
-        <div class="card">
-          <div class="card-header">
-            <h2>📅 Đăng Ký Lịch Ca Tuần Tới</h2>
-          </div>
-          <p class="helper-text">Tích vào các ca bạn có thể làm trong tuần tới để Quản lý xếp lịch:</p>
-          <select id="sch-emp-select" class="input mb-8" onchange="App.loadMyScheduleGrid()"></select>
-          <div id="sch-grid-container" class="schedule-grid-wrap"></div>
-          <input type="text" id="sch-note-input" class="input mt-8" placeholder="Ghi chú lịch tuần (VD: Thứ 5 bận thi sáng)..." />
-          <button class="btn btn-primary btn-block mt-8" onclick="App.submitShiftSchedule()">
-            💾 Lưu Lịch Đăng Ký Ca
-          </button>
-        </div>
+      <!-- Main Content Container -->
+      <main class="app-content">
 
-        <div class="card">
-          <div class="card-header">
-            <h2>📋 Trạng Thái Đơn Xin Phép Gần Đây</h2>
-          </div>
-          <div id="lv-history-list"></div>
-        </div>
-      </div>
-    </section>
+        <!-- ==================================================================
+             SECTION A: EMPLOYEE TABS
+             ================================================================== -->
 
-    <!-- ==================== TAB 2: KHO NVL & CÔNG THỨC ==================== -->
-    <section id="tab-inventory" class="tab-panel hidden">
-      <div class="subtab-bar">
-        <button class="subtab-btn active" data-sub="inv-catalog" onclick="App.switchSubtab('inventory', 'inv-catalog')">📂 Danh Mục</button>
-        <button class="subtab-btn" data-sub="inv-smart" onclick="App.switchSubtab('inventory', 'inv-smart')">⚡ Gõ Nhanh</button>
-        <button class="subtab-btn" data-sub="inv-recipes" onclick="App.switchSubtab('inventory', 'inv-recipes')">📖 Công Thức</button>
-      </div>
-
-      <!-- Cart Summary Bar (Floating when items > 0) -->
-      <div id="inv-cart-bar" class="cart-bar hidden">
-        <div class="cart-info">
-          <strong id="cart-count-text">0 món đã chọn</strong>
-          <span id="cart-preview-text" class="text-xs"></span>
-        </div>
-        <div class="cart-actions">
-          <button class="btn btn-ghost btn-sm" onclick="App.clearCart()">Xóa</button>
-          <button class="btn btn-primary btn-sm" onclick="App.submitCartExport()">✅ Xuất Kho</button>
-        </div>
-      </div>
-
-      <!-- Subtab 2.1: Browse Catalog -->
-      <div id="sub-inv-catalog" class="subtab-panel">
-        <div class="card">
-          <input type="text" id="inv-search-input" class="input" placeholder="🔍 Tìm nguyên vật liệu (không cần gõ dấu)..." oninput="App.renderInventoryList()" />
-          <div id="inv-group-pills" class="pill-scroll mt-8"></div>
-        </div>
-        <div id="inv-materials-list" class="material-list"></div>
-      </div>
-
-      <!-- Subtab 2.2: Smart Natural Input -->
-      <div id="sub-inv-smart" class="subtab-panel hidden">
-        <div class="card">
-          <div class="card-header">
-            <h2>⚡ Gõ Nhanh Nhiều Món</h2>
-          </div>
-          <p class="helper-text">Gõ số lượng + tên món, cách nhau bằng dấu phẩy hoặc xuống dòng (không cần dấu):</p>
-          <textarea id="inv-smart-text" class="textarea" rows="4" placeholder="VD: 2 sua tuoi, 1 sua dac, 0.5 matcha"></textarea>
-          <button class="btn btn-primary btn-block mt-8" onclick="App.parseSmartInventory()">🔍 Kiểm Tra & Xuất Kho</button>
-        </div>
-        <div id="inv-smart-result" class="card hidden"></div>
-      </div>
-
-      <!-- Subtab 2.3: Recipe Book (Sổ tay Công thức Pha chế) -->
-      <div id="sub-inv-recipes" class="subtab-panel hidden">
-        <div class="card">
-          <div class="card-header">
-            <h2>📖 Sổ Tay Công Thức Pha Chế</h2>
-            <button id="btn-add-recipe" class="btn btn-primary btn-sm hidden" onclick="App.openRecipeModal()">➕ Thêm Món</button>
-          </div>
-          <input type="text" id="recipe-search-input" class="input" placeholder="🔍 Tìm tên món (VD: bạc xỉu, matcha, trà đào)..." oninput="App.renderRecipesList()" />
-        </div>
-        <div id="recipes-list"></div>
-      </div>
-    </section>
-
-    <!-- ==================== TAB 3: THƯỞNG, DOANH THU & KẾT CA ==================== -->
-    <section id="tab-rewards" class="tab-panel hidden">
-      <div class="subtab-bar">
-        <button class="subtab-btn active" data-sub="rew-balance" onclick="App.switchSubtab('rewards', 'rew-balance')">🎁 Ly Thưởng</button>
-        <button class="subtab-btn" data-sub="rew-endshift" onclick="App.switchSubtab('rewards', 'rew-endshift')">📸 Kết Ca</button>
-      </div>
-
-      <!-- Subtab 3.1: Reward Balances & Shift Reward Request -->
-      <div id="sub-rew-balance" class="subtab-panel">
-        <div class="card">
-          <div class="card-header">
-            <h2>🥤 Tra Cứu & Báo Dùng Thưởng</h2>
-          </div>
-          <input type="text" id="rew-search" class="input mb-8" placeholder="🔍 Tìm nhân viên..." oninput="App.renderRewardBalances()" />
-          <div id="rew-balances-list" class="reward-list"></div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <h2>⚡ Thưởng Doanh Thu Ca (+1 ly)</h2>
-          </div>
-          <p class="helper-text">Chọn các nhân viên có mặt trong ca để cộng 1 ly thưởng:</p>
-          <div id="rew-req-grid" class="chip-grid"></div>
-          <button class="btn btn-primary btn-block mt-12" onclick="App.submitRewardRequest()">
-            🎁 Gửi Yêu Cầu Cộng +1 Ly
-          </button>
-        </div>
-      </div>
-
-      <!-- Subtab 3.3: Role-Based Checklist & End-Shift Photos -->
-      <div id="sub-rew-endshift" class="subtab-panel hidden">
-        <div class="card">
-          <div class="card-header">
-            <h2>🔚 Checklist & Gửi Ảnh Kết Ca</h2>
+        <!-- 1. Trang chủ Nhân viên -->
+        <section id="tab-emp-home" class="tab-panel hidden">
+          <div class="emp-home-welcome">
+            <div class="greeting">Xin chào,</div>
+            <div class="staff-name"><span id="emp-welcome-name">Nhân viên</span> <span id="emp-welcome-role" class="badge badge-primary">Pha Chế</span></div>
           </div>
 
-          <label class="field-label">1. Chọn ca kết thúc</label>
-          <div class="segmented" id="ks-ca-select">
-            <button type="button" class="seg-btn" data-val="Sáng" onclick="App.setEndshiftCa('Sáng')">☀️ Ca Sáng</button>
-            <button type="button" class="seg-btn" data-val="Chiều" onclick="App.setEndshiftCa('Chiều')">🌤 Ca Chiều</button>
-            <button type="button" class="seg-btn" data-val="Tối" onclick="App.setEndshiftCa('Tối')">🌙 Ca Tối</button>
+          <!-- Hero Salary Card -->
+          <div class="salary-hero-card">
+            <div class="salary-hero-title">Tổng lương tháng này (Tạm tính)</div>
+            <div id="emp-hero-salary" class="salary-hero-amount">0đ</div>
+            <div class="salary-hero-footer">
+              <span id="emp-hero-period" class="salary-hero-period">Kỳ lương hiện tại</span>
+              <button class="btn-salary-detail" onclick="switchTab('tab-emp-payroll')">
+                <span>Xem chi tiết lương</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
           </div>
 
-          <label class="field-label">2. Chọn bộ phận (Tự động đổi Checklist theo vị trí)</label>
-          <div class="segmented" id="ks-role-select">
-            <button type="button" class="seg-btn active" data-val="Pha Chế" onclick="App.setEndshiftRole('Pha Chế')">🍹 Pha Chế</button>
-            <button type="button" class="seg-btn" data-val="Phục Vụ" onclick="App.setEndshiftRole('Phục Vụ')">🍽 Phục Vụ</button>
+          <!-- Triplet Stats -->
+          <div class="stats-triplet">
+            <div class="stat-item">
+              <div id="emp-stat-days" class="stat-item-val">0</div>
+              <div class="stat-item-lbl">Ngày công</div>
+            </div>
+            <div class="stat-item">
+              <div id="emp-stat-hours" class="stat-item-val">0h</div>
+              <div class="stat-item-lbl">Tổng giờ làm</div>
+            </div>
+            <div class="stat-item">
+              <div id="emp-stat-ot" class="stat-item-val">0h</div>
+              <div class="stat-item-lbl">Giờ OT</div>
+            </div>
           </div>
 
-          <label class="field-label">3. Checklist công việc bắt buộc trước khi nghỉ</label>
-          <div id="ks-checklist-box" class="checklist-box"></div>
-
-          <label class="field-label">4. Chọn ảnh vệ sinh / kết ca (chọn nhiều ảnh)</label>
-          <input type="file" id="ks-photos-input" accept="image/*" multiple class="file-input" onchange="App.previewEndshiftPhotos()" />
-          <div id="ks-photos-preview" class="photo-preview-info">Chưa chọn ảnh nào.</div>
-
-          <button id="btn-submit-endshift" class="btn btn-primary btn-block mt-12" onclick="App.submitEndshiftPhotos()">
-            📤 Gửi Checklist & Toàn Bộ Ảnh Kết Ca
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ==================== TAB 4: GÓP Ý & HƯỚNG DẪN ==================== -->
-    <section id="tab-feedback" class="tab-panel hidden">
-      <div class="card">
-        <div class="card-header">
-          <h2>💡 Đóng Góp Ý Kiến Ẩn Danh</h2>
-        </div>
-        <p class="helper-text">Nội dung bạn gửi sẽ chuyển trực tiếp tới Quản lý và hoàn toàn ẩn danh trên nhóm:</p>
-        <textarea id="feedback-input" class="textarea" rows="4" placeholder="Nhập ý kiến, đề xuất hoặc phản ánh của bạn..."></textarea>
-        <button class="btn btn-primary btn-block mt-8" onclick="App.submitFeedback()">📨 Gửi Cho Quản Lý</button>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <h2>📖 Hướng Dẫn Nhanh Sober</h2>
-        </div>
-        <ul class="guide-list">
-          <li><strong>👤 Chọn Vai Trò:</strong> Bấm thanh trên cùng để chọn <em>Tên nhân viên</em> và vị trí <code>🍹 Pha Chế</code> hoặc <code>🍽 Phục Vụ</code>. App sẽ tự nhớ cho lần sau.</li>
-          <li><strong>📥 Check In / Check Out:</strong> Chọn loại ca (Chính/Gãy), ca làm và tên. Khi về bấm trực tiếp vào tên mình ở mục <em>Đang Trong Ca</em>.</li>
-          <li><strong>📅 Xin Đi Muộn / Đổi Ca:</strong> Vào mục <em>Lịch & Xin Phép</em> để báo trước cho Quản lý duyệt tự động.</li>
-          <li><strong>⏰ Khung giờ ca:</strong> Ca Sáng <code>06:30–12:00</code> | Ca Chiều <code>12:00–18:00</code> | Ca Tối <code>18:00–22:30</code> | Ca Gãy <code>19:30–21:30</code>.</li>
-          <li><strong>🎁 Thưởng doanh thu:</strong> Ca 2 người đạt từ <code>1.200.000đ</code> hoặc ca ≥ 3 người đạt từ <code>1.500.000đ</code> được cộng <code>+1 ly/người</code>.</li>
-          <li><strong>📦 Kho & Công Thức:</strong> Xuất kho NVL hoặc mở <em>Sổ Tay Công Thức</em> để xem định lượng chuẩn từng món.</li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- ==================== TAB 5: QUẢN LÝ (ADMIN ONLY) ==================== -->
-    <section id="tab-admin" class="tab-panel hidden">
-      <div class="subtab-bar subtab-scroll">
-        <button class="subtab-btn active" data-sub="adm-monitor" onclick="App.switchSubtab('admin', 'adm-monitor')">📊 Giám Sát</button>
-        <button class="subtab-btn" data-sub="adm-salary" onclick="App.switchSubtab('admin', 'adm-salary')">💰 Lương & OT</button>
-        <button class="subtab-btn" data-sub="adm-staff" onclick="App.switchSubtab('admin', 'adm-staff')">👥 Nhân Sự & DT</button>
-        <button class="subtab-btn" data-sub="adm-inv" onclick="App.switchSubtab('admin', 'adm-inv')">📦 Kho QL</button>
-        <button id="subtab-btn-super" class="subtab-btn hidden" data-sub="adm-super" onclick="App.switchSubtab('admin', 'adm-super')">👑 Admin</button>
-      </div>
-
-      <!-- Admin 5.1: Monitor (Dashboard Analytics, Leave Requests, Shift Schedules, Pending Rewards, Today Check-in, Late Stats, Announce) -->
-      <div id="sub-adm-monitor" class="subtab-panel">
-        <!-- Revenue & Expense Analytics Dashboard -->
-        <div class="card">
-          <div class="card-header">
-            <h2>📈 Biểu Đồ Doanh Thu & Chi Vặt</h2>
-            <button class="btn btn-ghost btn-sm" onclick="App.loadAdminOverview()">Làm mới</button>
+          <!-- Ca sắp tới -->
+          <div class="upcoming-shift-card">
+            <div class="card-header" style="margin-bottom: 8px;">
+              <span class="upcoming-shift-badge">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Ca làm việc tiếp theo
+              </span>
+              <span id="emp-next-shift-status" class="badge badge-success">Sắp tới</span>
+            </div>
+            <div id="emp-next-shift-time" class="upcoming-shift-time">Hôm nay • Ca Tối (18:00 – 22:30)</div>
+            <div id="emp-next-shift-role" class="upcoming-shift-role">Vị trí: Barista</div>
           </div>
-          <div id="adm-analytics-box"></div>
-        </div>
 
-        <!-- Pending Leave / Late / Swap Requests -->
-        <div class="card">
-          <div class="card-header">
-            <h2>📩 Duyệt Đơn Xin Đi Muộn / Nghỉ / Đổi Ca</h2>
-          </div>
-          <div id="adm-leave-requests-list"></div>
-        </div>
+          <!-- Quick Actions -->
+          <h3 style="margin-bottom: 12px;">Thao tác nhanh</h3>
+          <div class="quick-actions-grid">
+            <div class="quick-action-card" onclick="switchTab('tab-emp-schedule')">
+              <div class="quick-action-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+              </div>
+              <span class="quick-action-title">Lịch làm việc</span>
+            </div>
 
-        <!-- Registered Weekly Shift Schedules -->
-        <div class="card">
-          <div class="card-header">
-            <h2>📅 Tổng Hợp Đăng Ký Lịch Ca Tuần</h2>
-          </div>
-          <div id="adm-schedules-list"></div>
-        </div>
+            <div class="quick-action-card" onclick="switchTab('tab-emp-register')">
+              <div class="quick-action-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </div>
+              <span class="quick-action-title">Đăng ký lịch</span>
+            </div>
 
-        <!-- Kiosk Device Manager Card -->
-        <div class="card">
-          <div class="card-header">
-            <h2>📱 Máy Điểm Danh Cố Định Tại Quán</h2>
-            <span class="badge" id="kiosk-status-badge">⚪ Chưa kích hoạt</span>
+            <div class="quick-action-card" onclick="switchTab('tab-emp-swap')">
+              <div class="quick-action-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+              </div>
+              <span class="quick-action-title">Đổi ca</span>
+            </div>
+
+            <div class="quick-action-card" onclick="switchTab('tab-emp-payroll')">
+              <div class="quick-action-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+              </div>
+              <span class="quick-action-title">Công & lương</span>
+            </div>
           </div>
-          <p class="helper-text mb-8" id="kiosk-status-desc">
-            Nhân viên chỉ được phép Check-in / Check-out trên máy điện thoại cố định đặt tại quầy của quán để chống gian lận.
-          </p>
-          <div class="row-gap" id="kiosk-action-row">
-            <button type="button" class="btn btn-primary" id="btn-kiosk-activate" onclick="App.activateShopDevice()">
-              🔑 Kích Hoạt Thiết Bị Này Là Máy Quán
-            </button>
-            <button type="button" class="btn btn-danger hidden" id="btn-kiosk-deactivate" onclick="App.deactivateShopDevice()">
-              ❌ Hủy Máy Quán
+
+          <!-- Thông báo mới nhất -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+              <h3 class="card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                Thông báo gần đây
+              </h3>
+              <button class="btn btn-ghost btn-sm" onclick="switchTab('tab-notifications')">Xem tất cả</button>
+            </div>
+            <div id="emp-home-notifs-list">
+              <div class="empty-state" style="padding: 20px;">
+                <p>Chưa có thông báo mới.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Đăng ký Lịch làm (Availability Registration) -->
+        <section id="tab-emp-register" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Đăng ký lịch khả dụng</h1>
+              <p class="page-subtitle">Chọn các ca bạn có thể đi làm để Quản lý xếp lịch tuần tới</p>
+            </div>
+            <div class="page-actions">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="copyLastWeekAvailability()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                <span>Sao chép tuần trước</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom: 20px;">
+            <!-- Week Label -->
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+              <span style="font-weight: 700; color: var(--text-main);" id="reg-week-label">Tuần tới</span>
+              <span class="badge badge-info">Nguyện vọng xếp lịch</span>
+            </div>
+
+            <!-- Notice Callout -->
+            <div style="background: var(--bg-card-subtle); border-left: 3px solid var(--primary); padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+              💡 <strong>Lưu ý:</strong> Đây là lịch đăng ký nguyện vọng. Quản lý sẽ sử dụng thông tin này để xếp lịch chính thức và cân bằng số ca cho toàn bộ đội ngũ.
+            </div>
+
+            <!-- Days & Slots Grid -->
+            <div id="reg-days-container" class="reg-slots-table">
+              <!-- Rendered via JavaScript -->
+            </div>
+
+            <!-- Desired Shifts Count -->
+            <div class="form-group" style="margin-top: 20px;">
+              <label class="form-label" for="reg-target-shifts">Mong muốn số ca làm việc trong tuần này</label>
+              <div style="display: flex; align-items: center; gap: 12px; max-width: 220px;">
+                <input type="number" id="reg-target-shifts" class="form-input" min="1" max="14" value="5" style="text-align: center; font-weight: 700; font-size: 16px;">
+                <span style="font-size: 14px; font-weight: 600; color: var(--text-muted);">ca/tuần</span>
+              </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="form-group">
+              <label class="form-label" for="reg-note">Ghi chú nguyện vọng (tùy chọn)</label>
+              <textarea id="reg-note" class="form-textarea" placeholder="VD: Ưu tiên ca tối, có thể tăng ca thứ 7 và chủ nhật..."></textarea>
+            </div>
+
+            <button type="button" class="btn btn-primary btn-block" onclick="submitAvailabilityRegistration()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Gửi đăng ký lịch</span>
             </button>
           </div>
-        </div>
+        </section>
 
-        <!-- Pending Reward Requests -->
-        <div id="adm-pending-rewards-card" class="card hidden">
-          <div class="card-header">
-            <h2>🎁 Yêu Cầu Cộng Thưởng Chờ Duyệt</h2>
+        <!-- 3. Lịch Làm Việc Nhân Viên (Schedule View) -->
+        <section id="tab-emp-schedule" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Lịch làm việc của bạn</h1>
+              <p class="page-subtitle" id="emp-schedule-week-subtitle">Xem các ca đã được xếp và tiến hành đổi ca nếu cần</p>
+            </div>
+            <div class="page-actions">
+              <div class="drawer-subtabs" style="margin-bottom: 0;">
+                <button type="button" class="drawer-subtab-btn active" id="btn-sch-week-view" onclick="setScheduleViewMode('week')">Tuần</button>
+                <button type="button" class="drawer-subtab-btn" id="btn-sch-month-view" onclick="setScheduleViewMode('month')">Tháng</button>
+              </div>
+            </div>
           </div>
-          <div id="adm-pending-rewards-list"></div>
-        </div>
 
-        <!-- Today Check-in History -->
-        <div class="card">
-          <div class="card-header">
-            <h2>📋 Lịch Sử Check-In Hôm Nay</h2>
+          <div id="emp-schedule-container">
+            <!-- Rendered by JS: Weekly card view or monthly view -->
           </div>
-          <div id="adm-checkin-today-list"></div>
-        </div>
+        </section>
 
-        <!-- Monthly Late Statistics -->
-        <div class="card">
-          <div class="card-header">
-            <h2>⚠️ Thống Kê Đi Muộn Trong Tháng</h2>
+        <!-- 4. Workflow Đổi Ca (Shift Swap) -->
+        <section id="tab-emp-swap" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Đổi ca làm việc</h1>
+              <p class="page-subtitle">Đổi ca với đồng nghiệp khi không thể làm ca đã xếp (Không có xin nghỉ phép)</p>
+            </div>
+            <div class="page-actions">
+              <button class="btn btn-secondary btn-sm" onclick="showMySwapHistory()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+                <span>Yêu cầu của tôi</span>
+              </button>
+            </div>
           </div>
-          <div id="adm-late-stats-list"></div>
-        </div>
 
-        <!-- Group Announcement -->
-        <div class="card">
-          <div class="card-header">
-            <h2>📢 Gửi Thông Báo Nhóm</h2>
+          <!-- Swap Stepper Visual -->
+          <div class="swap-steps-bar">
+            <div id="swap-step-ind-1" class="swap-step-indicator active">
+              <div class="swap-step-bubble">1</div>
+              <span class="swap-step-label">Ca của bạn</span>
+            </div>
+            <div id="swap-step-ind-2" class="swap-step-indicator">
+              <div class="swap-step-bubble">2</div>
+              <span class="swap-step-label">Chọn người đổi</span>
+            </div>
+            <div id="swap-step-ind-3" class="swap-step-indicator">
+              <div class="swap-step-bubble">3</div>
+              <span class="swap-step-label">Xác nhận</span>
+            </div>
           </div>
-          <textarea id="adm-announce-text" class="textarea" rows="3" placeholder="Nhập thông báo gửi tới nhóm chung..."></textarea>
-          <button class="btn btn-primary btn-block mt-8" onclick="App.submitAnnouncement()">🚀 Phát Thông Báo</button>
-        </div>
-      </div>
 
-      <!-- Admin 5.2: Salary & Overtime -->
-      <div id="sub-adm-salary" class="subtab-panel hidden">
-        <div class="card">
-          <div class="card-header">
-            <h2>💰 Bảng Lương Kỳ (17 → 16)</h2>
+          <!-- Step 1 Container: Chọn ca của bạn -->
+          <div id="swap-step-1" class="card">
+            <h3 style="margin-bottom: 6px;">Bước 1: Chọn ca bạn muốn đổi</h3>
+            <p style="margin-bottom: 16px;">Chọn một trong các ca bạn đã được xếp trong tuần này:</p>
+            <div id="swap-my-shifts-list" class="shift-pick-list">
+              <!-- Rendered via JS -->
+            </div>
+            <button type="button" id="btn-swap-to-step2" class="btn btn-primary btn-block" disabled onclick="goToSwapStep(2)">
+              <span>Tiếp tục: Chọn người đổi</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
           </div>
-          <div class="row-gap">
-            <select id="adm-salary-month-select" class="input" onchange="App.loadAdminSalary()"></select>
-            <button class="btn btn-secondary" onclick="App.loadAdminSalary()">Tải</button>
-          </div>
-          <div id="adm-salary-summary" class="salary-summary mt-12"></div>
-          <div id="adm-salary-list" class="mt-8"></div>
-        </div>
 
-        <!-- Salary Advance / Bonus Modifier -->
-        <div class="card">
-          <div class="card-header">
-            <h2>💸 Nhập Ứng Lương / 🎁 Thưởng Tiền</h2>
+          <!-- Step 2 Container: Chọn nhân viên phù hợp -->
+          <div id="swap-step-2" class="card hidden">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+              <h3>Bước 2: Chọn đồng nghiệp có ca phù hợp</h3>
+              <button class="btn btn-ghost btn-sm" onclick="goToSwapStep(1)">← Quay lại</button>
+            </div>
+            <p style="margin-bottom: 16px;">Hệ thống tự động lọc người không bị trùng lịch và có ca khả dụng để đổi:</p>
+            <div id="swap-partner-shifts-list" class="candidate-list" style="margin-bottom: 20px;">
+              <!-- Rendered via JS -->
+            </div>
+            <button type="button" id="btn-swap-to-step3" class="btn btn-primary btn-block" disabled onclick="goToSwapStep(3)">
+              <span>Tiếp tục: Xác nhận đổi ca</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
           </div>
-          <div class="segmented mb-8" id="adm-sal-mod-type">
-            <button type="button" class="seg-btn active" data-val="advance" onclick="App.setSalaryModType('advance')">💸 Ứng Lương (-)</button>
-            <button type="button" class="seg-btn" data-val="bonus" onclick="App.setSalaryModType('bonus')">🎁 Thưởng Tiền (+)</button>
-          </div>
-          <select id="adm-sal-mod-emp" class="input mb-8"></select>
-          <input type="number" id="adm-sal-mod-amount" class="input mb-8" placeholder="Số tiền (nghìn đồng, VD: 50 = 50.000đ)" />
-          <button class="btn btn-primary btn-block" onclick="App.submitSalaryModifier()">💾 Cập Nhật Vào Kỳ Lương</button>
-        </div>
 
-        <!-- Overtime Management -->
-        <div class="card">
-          <div class="card-header">
-            <h2>⏰ Giờ Làm Thêm (Overtime)</h2>
-          </div>
-          <div id="adm-ot-summary" class="mb-12"></div>
-          <label class="field-label">Thêm giờ làm thêm mới</label>
-          <div class="row-gap">
-            <select id="adm-ot-emp" class="input"></select>
-            <input type="number" step="0.5" id="adm-ot-hours" class="input" placeholder="Số giờ (VD: 1.5)" />
-          </div>
-          <button class="btn btn-primary btn-block mt-8" onclick="App.submitAddOvertime()">➕ Cộng Giờ Làm Thêm</button>
-        </div>
-      </div>
+          <!-- Step 3 Container: Xác nhận đối chiếu A ⇄ B -->
+          <div id="swap-step-3" class="card hidden">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+              <h3>Bước 3: Xác nhận yêu cầu đổi ca</h3>
+              <button class="btn btn-ghost btn-sm" onclick="goToSwapStep(2)">← Quay lại</button>
+            </div>
 
-      <!-- Admin 5.3: Staff & Recent Revenue Reports -->
-      <div id="sub-adm-staff" class="subtab-panel hidden">
-        <div class="card">
-          <div class="card-header">
-            <h2>➕ Thêm Nhân Viên Mới</h2>
-          </div>
-          <div class="row-gap">
-            <input type="text" id="adm-new-emp-name" class="input" placeholder="Nhập nickname nhân viên mới..." />
-            <button class="btn btn-primary" onclick="App.submitAddEmployee()">Thêm</button>
-          </div>
-        </div>
+            <!-- Comparison Box -->
+            <div class="swap-comparison-card">
+              <div class="swap-side">
+                <span class="swap-side-tag">Ca của bạn</span>
+                <span id="swap-confirm-my-name" class="swap-side-name">Bạn</span>
+                <span id="swap-confirm-my-shift" class="swap-side-shift">Thứ 4 • Ca Tối (18:00 – 22:30)</span>
+              </div>
+              <div class="swap-arrow-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+              </div>
+              <div class="swap-side">
+                <span class="swap-side-tag">Ca của đối tác</span>
+                <span id="swap-confirm-partner-name" class="swap-side-name">Đồng nghiệp</span>
+                <span id="swap-confirm-partner-shift" class="swap-side-shift">Thứ 4 • Ca Sáng (07:00 – 12:00)</span>
+              </div>
+            </div>
 
-        <div class="card">
-          <div class="card-header">
-            <h2>🧾 Danh Sách Nhân Sự</h2>
-          </div>
-          <div id="adm-employees-list"></div>
-        </div>
+            <div class="form-group">
+              <label class="form-label" for="swap-reason">Lý do xin đổi ca (tùy chọn)</label>
+              <textarea id="swap-reason" class="form-textarea" placeholder="VD: Bận việc học đột xuất, đã trao đổi trước với bạn..."></textarea>
+            </div>
 
-        <div class="card">
-          <div class="card-header">
-            <h2>✏️ Sửa Doanh Thu Ca Gần Đây</h2>
+            <button type="button" class="btn btn-primary btn-block" onclick="submitSwapRequest()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Gửi yêu cầu đổi ca cho Quản lý</span>
+            </button>
           </div>
-          <div id="adm-recent-reports-list"></div>
-        </div>
-      </div>
 
-      <!-- Admin 5.4: Inventory Management -->
-      <div id="sub-adm-inv" class="subtab-panel hidden">
-        <div class="card">
-          <div class="card-header">
-            <h2>➕ Nhập Kho Nguyên Vật Liệu</h2>
+          <!-- Step 4 Container: Danh sách yêu cầu đổi ca của tôi -->
+          <div id="swap-step-4" class="card hidden">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+              <h3>Yêu cầu đổi ca của bạn</h3>
+              <button class="btn btn-secondary btn-sm" onclick="goToSwapStep(1)">+ Đổi ca khác</button>
+            </div>
+            <div class="drawer-subtabs">
+              <button type="button" class="drawer-subtab-btn active" id="tab-swap-filter-all" onclick="filterMySwaps('all')">Tất cả</button>
+              <button type="button" class="drawer-subtab-btn" id="tab-swap-filter-pending" onclick="filterMySwaps('pending')">Đang chờ</button>
+              <button type="button" class="drawer-subtab-btn" id="tab-swap-filter-approved" onclick="filterMySwaps('approved')">Đã duyệt</button>
+              <button type="button" class="drawer-subtab-btn" id="tab-swap-filter-rejected" onclick="filterMySwaps('rejected')">Đã từ chối</button>
+            </div>
+            <div id="my-swaps-list" style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Rendered via JS -->
+            </div>
           </div>
-          <select id="adm-inv-import-name" class="input mb-8"></select>
-          <div class="row-gap">
-            <input type="number" step="any" id="adm-inv-import-qty" class="input" placeholder="Số lượng nhập thêm..." />
-            <input type="text" id="adm-inv-import-note" class="input" placeholder="Ghi chú (tùy chọn)" />
-          </div>
-          <button class="btn btn-primary btn-block mt-8" onclick="App.submitImportStock()">📥 Xác Nhận Nhập Kho</button>
-        </div>
+        </section>
 
-        <div class="card">
-          <div class="card-header">
-            <h2>🔧 Thêm Nguyên Vật Liệu Mới</h2>
+        <!-- 5. Công & Lương Nhân Viên (Payroll) -->
+        <section id="tab-emp-payroll" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Công & lương của bạn</h1>
+              <p class="page-subtitle" id="emp-payroll-period-lbl">Theo dõi chi tiết giờ làm việc, tăng ca và lương tạm tính</p>
+            </div>
           </div>
-          <div class="row-gap mb-8">
-            <input type="text" id="adm-mat-name" class="input" placeholder="Tên NVL (VD: Cà phê hạt)" />
-            <input type="text" id="adm-mat-unit" class="input" placeholder="Đơn vị (kg, hộp, lon...)" />
-          </div>
-          <div class="row-gap mb-8">
-            <input type="number" step="any" id="adm-mat-min" class="input" placeholder="Tồn tối thiểu (VD: 5)" />
-            <input type="number" step="any" id="adm-mat-price" class="input" placeholder="Giá nhập (VNĐ)" />
-          </div>
-          <input type="text" id="adm-mat-group" class="input mb-8" placeholder="Nhóm NVL (VD: Bột cà phê, Trà, Chế phẩm từ sữa...)" />
-          <button class="btn btn-primary btn-block" onclick="App.submitAddMaterial()">➕ Thêm Vào Danh Mục</button>
-        </div>
 
-        <div class="card">
-          <div class="card-header">
-            <h2>⚠️ Cảnh Báo Tồn Kho & Quản Lý Món</h2>
+          <!-- Total Payroll Hero Card -->
+          <div class="salary-hero-card" style="margin-bottom: 20px;">
+            <div class="salary-hero-title">Tổng lương tạm tính kỳ này</div>
+            <div id="emp-payroll-total" class="salary-hero-amount">0đ</div>
+            <div class="salary-hero-footer">
+              <span id="emp-payroll-rate">Mức lương cơ bản: 0k/giờ</span>
+              <span class="badge badge-success">Đang cập nhật theo ca</span>
+            </div>
           </div>
-          <div id="adm-inv-alerts-list"></div>
-        </div>
 
-        <div class="card">
-          <div class="card-header">
-            <h2>📜 Lịch Sử Xuất / Nhập Kho Gần Nhất</h2>
+          <!-- Payroll Breakdown Card -->
+          <div class="card" style="margin-bottom: 20px;">
+            <h3 style="margin-bottom: 14px;">Bóc tách lương tạm tính</h3>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; justify-content: space-between; font-size: 14px; padding-bottom: 8px; border-bottom: 1px dashed var(--border-light);">
+                <span style="color: var(--text-muted);">Lương theo giờ làm thường</span>
+                <strong id="emp-breakdown-regular">0đ</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 14px; padding-bottom: 8px; border-bottom: 1px dashed var(--border-light);">
+                <span style="color: var(--text-muted);">Tăng ca (OT)</span>
+                <strong id="emp-breakdown-ot" style="color: var(--primary);">+0đ</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 14px; padding-bottom: 8px; border-bottom: 1px dashed var(--border-light);">
+                <span style="color: var(--text-muted);">Thưởng ly / Thưởng tiền</span>
+                <strong id="emp-breakdown-bonus" style="color: var(--success);">+0đ</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 14px;">
+                <span style="color: var(--text-muted);">Đi muộn / Khấu trừ</span>
+                <strong id="emp-breakdown-penalty" style="color: var(--danger);">-0đ</strong>
+              </div>
+            </div>
           </div>
-          <div id="adm-inv-history-list"></div>
-        </div>
-      </div>
 
-      <!-- Admin 5.5: Super Admin -->
-      <div id="sub-adm-super" class="subtab-panel hidden">
-        <div class="card">
-          <div class="card-header">
-            <h2>👑 Cấp Quyền Quản Lý (Super Admin)</h2>
+          <!-- Shift Attendance List -->
+          <div class="card">
+            <h3 style="margin-bottom: 14px;">Chi tiết chấm công các ca gần nhất</h3>
+            <div id="emp-checkin-history-list" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Rendered via JS -->
+            </div>
           </div>
-          <p class="helper-text">Nhập Telegram User ID của người cần cấp quyền Quản lý phụ:</p>
-          <div class="row-gap">
-            <input type="number" id="adm-grant-id-input" class="input" placeholder="VD: 987654321" />
-            <button class="btn btn-primary" onclick="App.submitGrantAdmin()">Cấp Quyền</button>
-          </div>
-          <div id="adm-super-list" class="mt-12"></div>
-        </div>
-      </div>
-    </section>
-  </main>
-    </div> <!-- /.main-viewport -->
-  </div> <!-- /.app-layout -->
+        </section>
 
-  <!-- Modal Dialog -->
-  <div id="modal-overlay" class="modal-overlay hidden" onclick="App.closeModal(event)">
-    <div class="modal-sheet" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <h3 id="modal-title">Thông báo</h3>
-        <button class="icon-btn" onclick="App.closeModal()">✖</button>
-      </div>
-      <div id="modal-body" class="modal-body"></div>
+
+        <!-- ==================================================================
+             SECTION B: ADMIN TABS (QUẢN LÝ)
+             ================================================================== -->
+
+        <!-- 1. Admin Dashboard (Tổng quan) -->
+        <section id="tab-admin-dashboard" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Tổng quan quán SOBER</h1>
+              <p class="page-subtitle" id="admin-today-date-lbl">Các thông tin và hành động cần xử lý trong ngày</p>
+            </div>
+          </div>
+
+          <!-- 4 Actionable KPI Cards -->
+          <div class="admin-kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-icon-wrap green">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div>
+                <div id="kpi-active-staff" class="kpi-val">0</div>
+                <div class="kpi-label">Nhân viên đang làm</div>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-icon-wrap blue">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+              </div>
+              <div>
+                <div id="kpi-today-shifts" class="kpi-val">3 ca</div>
+                <div class="kpi-label">Ca làm hôm nay</div>
+              </div>
+            </div>
+
+            <div class="kpi-card" onclick="switchTab('tab-admin-swaps')" style="cursor: pointer;">
+              <div class="kpi-icon-wrap amber">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+              </div>
+              <div>
+                <div id="kpi-pending-swaps" class="kpi-val">0</div>
+                <div class="kpi-label">Đổi ca chờ duyệt</div>
+              </div>
+            </div>
+
+            <div class="kpi-card" onclick="switchTab('tab-admin-inventory')" style="cursor: pointer;">
+              <div class="kpi-icon-wrap red">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+              </div>
+              <div>
+                <div id="kpi-low-stock" class="kpi-val">0</div>
+                <div class="kpi-label">NVL sắp hết</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pending Swaps Actionable Section -->
+          <div class="card" style="margin-bottom: 24px;">
+            <div class="card-header">
+              <h3 class="card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+                Yêu cầu đổi ca cần duyệt gấp
+              </h3>
+              <button class="btn btn-ghost btn-sm" onclick="switchTab('tab-admin-swaps')">Xem tất cả</button>
+            </div>
+            <div id="admin-dash-swaps-list">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Active Working Staff -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Nhân viên đang trong ca làm việc
+              </h3>
+              <span id="active-staff-count-badge" class="badge badge-success">0 người</span>
+            </div>
+            <div id="admin-dash-active-staff" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Admin Xếp Lịch (Schedule Planning - 70/30 Split Layout) -->
+        <section id="tab-admin-roster" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Xếp lịch làm việc</h1>
+              <p class="page-subtitle" id="admin-roster-week-label">Quản lý và phân bổ ca làm việc hàng tuần</p>
+            </div>
+            <div class="page-actions">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="handleSuggestRosterDraft()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="M2 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="M12 22v-4"/><path d="m19.07 19.07-2.83-2.83"/><path d="M22 12h-4"/><path d="m19.07 4.93-2.83 2.83"/></svg>
+                <span>Gợi ý xếp lịch</span>
+              </button>
+              <button type="button" class="btn btn-primary btn-sm" onclick="handlePublishRosterConfirm()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <span>Chốt lịch tuần</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Mobile Admin Day Picker (Only visible on small screens) -->
+          <div class="admin-mobile-schedule-days" id="admin-mobile-day-picker" style="display: none;">
+            <!-- Rendered via JS -->
+          </div>
+
+          <!-- 70/30 Layout Container -->
+          <div class="schedule-planning-layout">
+            <!-- Left 70%: Weekly Schedule Grid -->
+            <div class="weekly-calendar-card">
+              <div class="calendar-top-bar">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button class="btn btn-icon btn-secondary btn-sm" onclick="navigateRosterWeek(-1)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>
+                  </button>
+                  <strong id="roster-calendar-range" style="font-size: 14px;">Tuần này</strong>
+                  <button class="btn btn-icon btn-secondary btn-sm" onclick="navigateRosterWeek(1)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+                  </button>
+                </div>
+                <div id="roster-status-badge" class="badge badge-warning">Bản nháp (Draft)</div>
+              </div>
+
+              <!-- Desktop Calendar Table -->
+              <table class="calendar-grid-table" id="desktop-roster-table">
+                <thead>
+                  <tr>
+                    <th style="width: 100px;">Ca</th>
+                    <th id="th-T2">T2</th>
+                    <th id="th-T3">T3</th>
+                    <th id="th-T4">T4</th>
+                    <th id="th-T5">T5</th>
+                    <th id="th-T6">T6</th>
+                    <th id="th-T7">T7</th>
+                    <th id="th-CN">CN</th>
+                  </tr>
+                </thead>
+                <tbody id="desktop-roster-tbody">
+                  <!-- Rendered via JS -->
+                </tbody>
+              </table>
+
+              <!-- Mobile Shift Cards List (Shown on mobile instead of table) -->
+              <div id="mobile-roster-shifts-list" style="display: none;">
+                <!-- Rendered via JS -->
+              </div>
+            </div>
+
+            <!-- Right 30%: Contextual Assignment Drawer -->
+            <div id="assignment-drawer-card" class="assignment-drawer-card">
+              <div class="drawer-header">
+                <div id="drawer-slot-title" class="drawer-title">Chọn ca để xếp người</div>
+                <div id="drawer-slot-subtitle" class="drawer-subtitle">Click vào một ô ca trên lịch bên trái</div>
+              </div>
+
+              <div id="drawer-content-body">
+                <div class="empty-state" style="padding: 24px;">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-dim);"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                  <p>Chọn một ca (Sáng, Chiều, Tối) để mở danh sách ứng viên và xếp người.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Admin Đăng Ký Lịch (Availability Matrix Overview) -->
+        <section id="tab-admin-matrix" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Ma trận nguyện vọng nhân sự</h1>
+              <p class="page-subtitle">Xem tổng quan ca đăng ký khả dụng của toàn bộ nhân viên trong tuần</p>
+            </div>
+          </div>
+
+          <div class="card" style="overflow-x: auto;">
+            <table class="calendar-grid-table" style="min-width: 800px;">
+              <thead>
+                <tr>
+                  <th style="text-align: left; padding-left: 14px;">Nhân viên</th>
+                  <th>Vị trí</th>
+                  <th>T2</th>
+                  <th>T3</th>
+                  <th>T4</th>
+                  <th>T5</th>
+                  <th>T6</th>
+                  <th>T7</th>
+                  <th>CN</th>
+                  <th>Mong muốn</th>
+                </tr>
+              </thead>
+              <tbody id="admin-matrix-tbody">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 4. Admin Duyệt Đổi Ca (Shift Swap Approvals) -->
+        <section id="tab-admin-swaps" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Duyệt yêu cầu đổi ca</h1>
+              <p class="page-subtitle">Khi duyệt, hệ thống tự động hoán đổi hai nhân sự trên lịch tuần và cập nhật công lương</p>
+            </div>
+          </div>
+
+          <div id="admin-swaps-container" style="display: flex; flex-direction: column; gap: 14px;">
+            <!-- Rendered via JS -->
+          </div>
+        </section>
+
+        <!-- 5. Admin Nhân Sự (Employees Management) -->
+        <section id="tab-admin-employees" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Quản lý nhân sự</h1>
+              <p class="page-subtitle">Danh sách nhân viên, mức lương theo giờ và phân quyền</p>
+            </div>
+            <div class="page-actions">
+              <button class="btn btn-primary btn-sm" onclick="showAddEmployeeModal()">+ Thêm nhân viên</button>
+            </div>
+          </div>
+
+          <div class="card" style="overflow-x: auto;">
+            <table class="calendar-grid-table" style="min-width: 600px;">
+              <thead>
+                <tr>
+                  <th style="text-align: left; padding-left: 14px;">Tên / Nickname</th>
+                  <th>Mức lương / giờ</th>
+                  <th>Số dư thưởng</th>
+                  <th style="text-align: right; padding-right: 14px;">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="admin-employees-tbody">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 6. Admin Công & Lương (Payroll Management) -->
+        <section id="tab-admin-payroll" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Quản lý công & lương quán</h1>
+              <p class="page-subtitle">Bảng lương chi tiết theo tháng, thưởng phạt và giờ tăng ca</p>
+            </div>
+            <div class="page-actions">
+              <select id="admin-salary-month-select" class="form-select" onchange="loadAdminSalaryData()" style="min-width: 140px;">
+                <option value="current">Tháng hiện tại</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card" style="overflow-x: auto;">
+            <table class="calendar-grid-table" style="min-width: 760px;">
+              <thead>
+                <tr>
+                  <th style="text-align: left; padding-left: 14px;">Nhân viên</th>
+                  <th>Tổng giờ</th>
+                  <th>Mức lương</th>
+                  <th>Thưởng/Ứng</th>
+                  <th>Thực nhận</th>
+                  <th style="text-align: right; padding-right: 14px;">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="admin-salary-tbody">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 7. Admin Kho / Nguyên liệu (Inventory) -->
+        <section id="tab-admin-inventory" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Kho & nguyên vật liệu</h1>
+              <p class="page-subtitle">Kiểm soát định lượng tồn kho và cảnh báo nhập hàng</p>
+            </div>
+            <div class="page-actions">
+              <button class="btn btn-secondary btn-sm" onclick="showImportStockModal()">+ Nhập kho</button>
+              <button class="btn btn-primary btn-sm" onclick="showAddMaterialModal()">+ Thêm NVL</button>
+            </div>
+          </div>
+
+          <div class="card" style="overflow-x: auto;">
+            <table class="calendar-grid-table" style="min-width: 650px;">
+              <thead>
+                <tr>
+                  <th style="text-align: left; padding-left: 14px;">Tên NVL</th>
+                  <th>Nhóm</th>
+                  <th>Tồn kho</th>
+                  <th>Định mức Min</th>
+                  <th>Trạng thái</th>
+                  <th style="text-align: right; padding-right: 14px;">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="admin-inventory-tbody">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 8. Admin Thông Báo (Announcements) -->
+        <section id="tab-admin-announcements" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Phát thông báo quán</h1>
+              <p class="page-subtitle">Gửi thông báo trực tiếp vào nhóm Telegram chung của quán</p>
+            </div>
+          </div>
+
+          <div class="card" style="max-width: 600px;">
+            <div class="form-group">
+              <label class="form-label" for="admin-announce-msg">Nội dung thông báo</label>
+              <textarea id="admin-announce-msg" class="form-textarea" placeholder="Nhập nội dung thông báo cho toàn bộ nhân sự..." style="min-height: 120px;"></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="submitAdminAnnouncement()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              <span>Phát thông báo vào nhóm</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- 9. Admin Cài đặt (Settings) -->
+        <section id="tab-admin-settings" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Cài đặt hệ thống</h1>
+              <p class="page-subtitle">Cấu hình bảo mật và quyền truy cập quản trị</p>
+            </div>
+          </div>
+
+          <div class="card" style="max-width: 540px; margin-bottom: 20px;">
+            <h3 style="margin-bottom: 12px;">Đổi mật khẩu tài khoản Quản lý</h3>
+            <div class="form-group">
+              <label class="form-label" for="admin-old-pass">Mật khẩu cũ</label>
+              <input type="password" id="admin-old-pass" class="form-input" placeholder="Mật khẩu hiện tại">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="admin-new-pass">Mật khẩu mới</label>
+              <input type="password" id="admin-new-pass" class="form-input" placeholder="Tối thiểu 4 ký tự">
+            </div>
+            <button class="btn btn-primary" onclick="submitChangePassword('admin')">Đổi mật khẩu quản trị</button>
+          </div>
+        </section>
+
+
+        <!-- ==================================================================
+             SECTION C: COMMON TABS
+             ================================================================== -->
+
+        <!-- 1. Hộp thư Thông báo (Notifications) -->
+        <section id="tab-notifications" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Hộp thư thông báo</h1>
+              <p class="page-subtitle">Thông báo về lịch làm việc, đổi ca và thông tin từ quản lý</p>
+            </div>
+          </div>
+          <div id="notifications-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Rendered via JS -->
+          </div>
+        </section>
+
+        <!-- 2. Cá nhân / Tài khoản (Profile) -->
+        <section id="tab-profile" class="tab-panel hidden">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Tài khoản cá nhân</h1>
+              <p class="page-subtitle">Thông tin tài khoản và đổi mật khẩu bảo mật</p>
+            </div>
+          </div>
+
+          <div class="card" style="max-width: 500px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+              <div id="profile-avatar" class="user-avatar" style="width: 54px; height: 54px; font-size: 20px;">S</div>
+              <div>
+                <h3 id="profile-name">Đang tải...</h3>
+                <span id="profile-role" class="badge badge-primary">Pha Chế</span>
+              </div>
+            </div>
+
+            <h4 style="margin-bottom: 12px;">Đổi mật khẩu</h4>
+            <div class="form-group">
+              <label class="form-label" for="user-old-pwd">Mật khẩu hiện tại</label>
+              <input type="password" id="user-old-pwd" class="form-input" placeholder="Mặc định: 123456789">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="user-new-pwd">Mật khẩu mới</label>
+              <input type="password" id="user-new-pwd" class="form-input" placeholder="Nhập mật khẩu mới">
+            </div>
+            <button class="btn btn-primary" onclick="submitChangePassword('user')">Lưu mật khẩu mới</button>
+          </div>
+
+          <div style="max-width: 500px;">
+            <button class="btn btn-danger btn-block" onclick="handleLogout()">Đăng xuất khỏi thiết bị</button>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- Mobile Bottom Navigation Bar -->
+      <nav id="bottom-nav" class="bottom-nav">
+        <!-- Dynamically rendered based on active role -->
+      </nav>
     </div>
   </div>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="toast hidden"></div>
+  <!-- ======================================================================
+       MODALS, DRAWERS & DIALOGS
+       ====================================================================== -->
 
-  <!-- Bottom Navigation Bar (Mobile only) -->
-  <nav class="bottom-nav">
-    <button class="nav-item active" data-tab="attendance" onclick="App.switchTab('attendance')">
-      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <span class="nav-label">Chấm Công</span>
-    </button>
-    <button class="nav-item" data-tab="inventory" onclick="App.switchTab('inventory')">
-      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-      <span class="nav-label">Kho & Món</span>
-    </button>
-    <button class="nav-item" data-tab="rewards" onclick="App.switchTab('rewards')">
-      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect width="20" height="5" x="2" y="7"/><line x1="12" x2="12" y1="22" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
-      <span class="nav-label">Thưởng</span>
-    </button>
-    <button class="nav-item" data-tab="feedback" onclick="App.switchTab('feedback')">
-      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
-      <span class="nav-label">Góp Ý</span>
-    </button>
-    <button id="nav-admin-btn" class="nav-item hidden" data-tab="admin" onclick="App.switchTab('admin')">
-      <svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-      <span class="nav-label">Quản Lý</span>
-      <span id="nav-admin-badge" class="nav-badge hidden">0</span>
-    </button>
-  </nav>
+  <!-- Generic Modal Dialog Overlay -->
+  <div id="modal-overlay" class="modal-overlay" onclick="closeModalOnBackdrop(event)">
+    <div id="modal-dialog" class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-title" class="modal-title">Thông báo</h3>
+        <button class="btn btn-icon btn-ghost btn-sm" onclick="closeModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="modal-body"></div>
+      <div id="modal-actions" class="modal-actions"></div>
+    </div>
+  </div>
 
-  <script src="/static/app.js?v=20261003_sober"></script>
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <!-- Main JavaScript App Logic -->
+  <script src="/static/app.js?v=20261003_v2"></script>
 </body>
 </html>
