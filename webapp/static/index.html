@@ -2,25 +2,35 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Sober — Mini App Tổng Hợp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Sober Coffee — Vận Hành Quán</title>
   <link rel="manifest" href="/manifest.json" />
-  <link rel="apple-touch-icon" href="/static/icon-192.png" />
+  <link rel="apple-touch-icon" href="/static/brand-logo.jpg" />
+  <link rel="icon" type="image/jpeg" href="/static/brand-logo.jpg" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Sober" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#181614" />
+  <!-- Google Fonts: Plus Jakarta Sans for UI + Playfair Display for Brand Titles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/styles.css?v=20261003_sober" />
 </head>
 <body>
   <!-- Standalone Login Screen (Shown when not authenticated) -->
   <div id="screen-login" class="login-screen hidden">
     <div class="login-card">
+      <div class="login-banner-wrap">
+        <img src="/static/brand-banner.jpg" class="login-banner-img" alt="Morning Coffee Sober" />
+        <div class="login-banner-overlay"></div>
+      </div>
       <div class="login-header">
-        <div class="login-logo">☕</div>
-        <h2 class="login-title">SOBER COFFEE & TEA</h2>
-        <p class="login-sub">Đăng Nhập Vận Hành Quán</p>
+        <img src="/static/brand-logo.jpg" class="login-brand-logo" alt="Sober Coffee" />
+        <h2 class="login-title">Morning Coffee <em>sober.</em></h2>
+        <div class="brand-ribbon-badge">STAY SOBER • STAY VERTICAL</div>
+        <p class="login-sub">Ứng dụng điểm danh & vận hành quán</p>
       </div>
 
       <form id="form-login" onsubmit="event.preventDefault(); App.submitLogin();">
@@ -54,14 +64,14 @@
 
           <!-- Quick clickable username tags -->
           <div class="login-quick-chips" id="login-quick-chips">
-            <span class="chip-label">Chạm nhanh tên bạn:</span>
+            <span class="chip-label">☕ Chạm nhanh tên bạn:</span>
             <div class="chip-list" id="login-chips-container"></div>
           </div>
         </div>
 
         <!-- Password input -->
         <div class="form-group mb-12">
-          <label class="field-label" for="login-password">🔑 Mật khẩu (Password)</label>
+          <label class="field-label" for="login-password">🔑 Mật khẩu</label>
           <div class="password-wrap">
             <input 
               type="password" 
@@ -84,12 +94,12 @@
           <label class="field-label">Vị trí làm việc ca này</label>
           <div class="role-cards-grid">
             <div class="role-select-card active" id="card-role-barista" onclick="App.setLoginRole('Pha Chế')">
-              <div class="role-card-icon">🍹</div>
+              <div class="role-card-icon">☕</div>
               <div class="role-card-title">Pha Chế</div>
               <div class="role-card-desc">Barista • Kho NVL • Công thức</div>
             </div>
             <div class="role-select-card" id="card-role-server" onclick="App.setLoginRole('Phục Vụ')">
-              <div class="role-card-icon">🍽</div>
+              <div class="role-card-icon">🍽️</div>
               <div class="role-card-title">Phục Vụ</div>
               <div class="role-card-desc">Order • Bàn ghế • Báo cáo DT</div>
             </div>
@@ -99,7 +109,7 @@
         <div id="login-error-alert" class="login-error-alert hidden"></div>
 
         <button type="submit" id="btn-login-submit" class="btn btn-primary btn-block btn-lg">
-          🚀 Đăng Nhập
+          ☕ Vào Ca Làm Việc
         </button>
       </form>
 
@@ -113,9 +123,13 @@
   <!-- Top App Header -->
   <header class="app-header hidden" id="app-header">
     <div class="brand-row">
-      <div class="brand-logo">☕</div>
+      <img src="/static/brand-logo.jpg" class="brand-logo-img" alt="Sober Coffee" />
       <div class="brand-info">
-        <h1>SOBER MINI APP</h1>
+        <h1 class="sr-only">SOBER MINI APP</h1>
+        <div class="brand-title-wrap">
+          <span class="brand-title-name">sober.</span>
+          <span class="brand-ribbon-pill">STAY VERTICAL</span>
+        </div>
         <p id="header-subtitle">Đang kết nối hệ thống...</p>
       </div>
     </div>
@@ -697,6 +711,6 @@
     </button>
   </nav>
 
-  <script src="/static/app.js?v=20261003_2"></script>
+  <script src="/static/app.js?v=20261003_sober"></script>
 </body>
 </html>
