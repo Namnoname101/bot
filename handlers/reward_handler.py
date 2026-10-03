@@ -10,7 +10,7 @@ from utils.validators import (
     normalize_name,
     parse_report_text,
 )
-from utils.auto_delete import GUIDE_MESSAGE, get_main_keyboard, get_admin_keyboard, delete_tracked_messages, track_message
+from utils.auto_delete import GUIDE_MESSAGE, get_main_keyboard, get_admin_keyboard, delete_tracked_messages, track_message, safe_edit_message, safe_edit_reply_markup
 from config import Config
 from handlers.checkin_handler import (
     handle_checkin_button, handle_checkout_button,
@@ -662,12 +662,12 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
         if 'report_selection' in context.user_data:
             context.user_data['report_selection'][nickname] = not context.user_data['report_selection'].get(nickname, False)
             reply_markup = build_multi_select_keyboard(context.user_data['report_selection'])
-            await query.edit_message_reply_markup(reply_markup=reply_markup)
+            await safe_edit_reply_markup(query, reply_markup=reply_markup)
             
     elif data == "confirm_report_emps":
         is_user_admin = is_admin(query.from_user.id, context)
         if 'report_selection' not in context.user_data:
-            await query.edit_message_text("❌ Phiên làm việc đã hết hạn. Vui lòng bấm '⚡ Thưởng Doanh Thu' lại.")
+            await safe_edit_message(query, "❌ Phiên làm việc đã hết hạn. Vui lòng bấm '⚡ Thưởng Doanh Thu' lại.")
             return
 
         selected = [nick for nick, is_sel in context.user_data['report_selection'].items() if is_sel]
@@ -760,7 +760,7 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
         req_data = temp_requests.get(request_id)
         
         if not req_data:
-            await query.edit_message_text("❌ Yêu cầu này đã được xử lý hoặc đã hết hạn.")
+            await safe_edit_message(query, "❌ Yêu cầu này đã được xử lý hoặc đã hết hạn.")
             return
             
         group_chat_id = req_data['group_chat_id']
@@ -772,16 +772,16 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
             success = await asyncio.to_thread(sheets_service.batch_update_balances, selected, 1)
             
             if success:
-                await query.edit_message_text(f"✅ ĐÃ DUYỆT CỘNG THƯỞNG.\nNhân viên: {', '.join(selected)}\nCa: {ca}")
+                await safe_edit_message(query, f"✅ ĐÃ DUYỆT CỘNG THƯỞNG.\nNhân viên: {', '.join(selected)}\nCa: {ca}")
                 await context.bot.send_message(
                     chat_id=group_chat_id,
                     text=f"🎉 **Quản lý đã DUYỆT cộng thưởng!**\n🎁 +1 ly → {', '.join(selected)} (Ca {ca})",
                     parse_mode='Markdown'
                 )
             else:
-                await query.edit_message_text("❌ Lỗi khi cộng thưởng vào Google Sheets.")
+                await safe_edit_message(query, "❌ Lỗi khi cộng thưởng vào Google Sheets.")
         else:
-            await query.edit_message_text(f"❌ ĐÃ TỪ CHỐI CỘNG THƯỞNG.\nNhân viên: {', '.join(selected)}\nCa: {ca}")
+            await safe_edit_message(query, f"❌ ĐÃ TỪ CHỐI CỘNG THƯỞNG.\nNhân viên: {', '.join(selected)}\nCa: {ca}")
             await context.bot.send_message(
                 chat_id=group_chat_id,
                 text=f"❌ **Quản lý đã TỪ CHỐI cộng thưởng!**\nNhân viên: {', '.join(selected)} (Ca {ca})",
@@ -810,11 +810,11 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
         current_balance = await asyncio.to_thread(sheets_service.get_balance, nickname)
 
         if current_balance <= 0:
-            await query.edit_message_text(f"❌ {nickname} không còn ly nào!")
+            await safe_edit_message(query, f"❌ {nickname} không còn ly nào!")
             return
 
         # Hiện confirm trước khi trừ
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"🥤 {nickname} chắc dùng 1 ly thưởng chứ? (Còn {current_balance} ly)",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("✅ Dùng ngay!", callback_data=f"urw_confirm_{nickname}"),
@@ -826,14 +826,14 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
         nickname = data[len("urw_confirm_"):]
         result = await asyncio.to_thread(sheets_service.consume_reward, nickname)
         if result.get('error') == 'insufficient_balance':
-            await query.edit_message_text(f"❌ {nickname} không còn ly nào!")
+            await safe_edit_message(query, f"❌ {nickname} không còn ly nào!")
             return
         if result.get('success'):
-            await query.edit_message_text(
+            await safe_edit_message(query, 
                 f"✅ Đã trừ 1 ly của {nickname}. Còn lại: {result['balance']} ly."
             )
         else:
-            await query.edit_message_text("❌ Lỗi cập nhật. Hãy thử lại.")
+            await safe_edit_message(query, "❌ Lỗi cập nhật. Hãy thử lại.")
 
     elif data == "urw_cancel":
         try:
@@ -895,7 +895,7 @@ async def handle_leave_decision_callback(query, context: ContextTypes.DEFAULT_TY
         if query.message.caption:
             await query.edit_message_caption(caption=new_text, parse_mode="Markdown")
         else:
-            await query.edit_message_text(text=new_text, parse_mode="Markdown")
+            await safe_edit_message(query, text=new_text, parse_mode="Markdown")
     except Exception:
         pass
 

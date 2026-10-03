@@ -192,6 +192,33 @@ class SheetsLogicTests(unittest.TestCase):
         self.assertEqual(len(records), 1)
         self.assertFalse(records[0]['pre_reported'])
 
+    def test_overnight_checkout_finds_yesterday_checkin(self):
+        """Checkout at 00:30 should find yesterday's 18:00 check-in and compute 6.5h."""
+        service = self.service()
+        service.ws_checkin = ValuesWorksheet([
+            ['Ngày', 'Nickname', 'Vào', 'Ra', 'Giờ', 'Ghi chú'],
+            ['02/10/2026', 'an', '18:00:00', '', '', 'Ca Chính - Đúng giờ - Ca Tối'],
+        ])
+        # Now is 00:30 on Oct 3 — the next day
+        with patch('google_sheets.local_now', return_value=datetime(2026, 10, 3, 0, 30, 0)):
+            result = service.checkout('an', 'Ca Chính')
+
+        self.assertTrue(result['success'], f"Overnight checkout should succeed, got: {result}")
+        self.assertEqual(result['total_hours'], '6,5')
+
+    def test_overnight_checkout_diff_across_midnight(self):
+        """Check-in 22:00, checkout 02:00 next day = 4.0h."""
+        service = self.service()
+        service.ws_checkin = ValuesWorksheet([
+            ['Ngày', 'Nickname', 'Vào', 'Ra', 'Giờ', 'Ghi chú'],
+            ['02/10/2026', 'an', '22:00:00', '', '', 'Ca Chính - Đúng giờ - Ca Tối'],
+        ])
+        with patch('google_sheets.local_now', return_value=datetime(2026, 10, 3, 2, 0, 0)):
+            result = service.checkout('an', 'Ca Chính')
+
+        self.assertTrue(result['success'], f"Cross-midnight checkout failed: {result}")
+        self.assertEqual(result['total_hours'], '4,0')
+
 
 if __name__ == '__main__':
     unittest.main()

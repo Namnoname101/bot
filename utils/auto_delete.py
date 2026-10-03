@@ -65,3 +65,24 @@ def track_message(context, msg_id: int):
         chat_data['to_delete'] = set()
     chat_data['to_delete'].add(msg_id)
 
+
+async def safe_edit_message(query, text: str, **kwargs):
+    """Wrapper an toàn cho query.edit_message_text — bắt BadRequest khi nội dung không đổi."""
+    try:
+        return await query.edit_message_text(text, **kwargs)
+    except Exception as e:
+        if "not modified" in str(e).lower():
+            logger.debug("edit_message_text bị bỏ qua (nội dung không đổi)")
+            return None
+        raise
+
+
+async def safe_edit_reply_markup(query, **kwargs):
+    """Wrapper an toàn cho query.edit_message_reply_markup — bắt BadRequest khi markup không đổi."""
+    try:
+        return await query.edit_message_reply_markup(**kwargs)
+    except Exception as e:
+        if "not modified" in str(e).lower():
+            logger.debug("edit_message_reply_markup bị bỏ qua (markup không đổi)")
+            return None
+        raise

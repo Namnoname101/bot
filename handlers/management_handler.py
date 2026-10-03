@@ -4,7 +4,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from config import Config
-from utils.auto_delete import track_message, delete_tracked_messages, get_admin_keyboard
+from utils.auto_delete import track_message, delete_tracked_messages, get_admin_keyboard, safe_edit_message
 from utils.admin import is_admin, is_super_admin
 from utils.validators import _parse_amount_str, validate_nickname
 from utils.time_utils import local_now
@@ -247,7 +247,7 @@ async def _show_edit_list(query, context: ContextTypes.DEFAULT_TYPE):
     balances = await asyncio.to_thread(sheets.get_all_balances)
 
     if not balances:
-        await query.edit_message_text("❌ Chưa có nhân viên nào trong hệ thống.")
+        await safe_edit_message(query, "❌ Chưa có nhân viên nào trong hệ thống.")
         return
 
     keyboard, row = [], []
@@ -259,7 +259,7 @@ async def _show_edit_list(query, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append(row)
     keyboard.append([InlineKeyboardButton("✖ Hủy", callback_data="mgmt_cancel")])
 
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         "✏️ *SỬA TÊN NHÂN VIÊN*\nChọn nhân viên cần sửa tên:",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
@@ -268,7 +268,7 @@ async def _show_edit_list(query, context: ContextTypes.DEFAULT_TYPE):
 
 async def _start_edit_name(query, context: ContextTypes.DEFAULT_TYPE, nickname: str):
     context.user_data['awaiting_edit_emp_name'] = nickname
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         f"✏️ *SỬA TÊN NHÂN VIÊN*\n\n"
         f"Đang sửa tên cho: *{nickname}*\n"
         f"Vui lòng gõ *tên mới* và gửi vào đây:\n"
@@ -410,7 +410,7 @@ async def handle_mgmt_callback(query, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
 
     if data == 'mgmt_cancel':
-        await query.edit_message_text("✖ Đã đóng.")
+        await safe_edit_message(query, "✖ Đã đóng.")
         return
 
     if data == 'mgmt_add_emp':
@@ -461,7 +461,7 @@ async def handle_mgmt_callback(query, context: ContextTypes.DEFAULT_TYPE):
 
 async def _start_add_employee(query, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['awaiting_add_employee_name'] = True
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         "➕ *THÊM NHÂN VIÊN MỚI*\n\n"
         "Vui lòng gõ *nickname* cho nhân viên mới và gửi vào đây:",
         parse_mode='Markdown'
@@ -473,7 +473,7 @@ async def _show_remove_list(query, context: ContextTypes.DEFAULT_TYPE):
     balances = await asyncio.to_thread(sheets.get_all_balances)
 
     if not balances:
-        await query.edit_message_text("❌ Chưa có nhân viên nào trong hệ thống.")
+        await safe_edit_message(query, "❌ Chưa có nhân viên nào trong hệ thống.")
         return
 
     keyboard, row = [], []
@@ -485,7 +485,7 @@ async def _show_remove_list(query, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append(row)
     keyboard.append([InlineKeyboardButton("✖ Hủy", callback_data="mgmt_cancel")])
 
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         "❌ *XÓA NHÂN VIÊN*\nChọn nhân viên cần xóa:",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
@@ -493,7 +493,7 @@ async def _show_remove_list(query, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _confirm_remove(query, context: ContextTypes.DEFAULT_TYPE, nickname: str):
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         f"⚠️ *XÁC NHẬN XÓA*\n\n"
         f"Bạn có chắc muốn xóa *{nickname}* khỏi hệ thống?\n"
         f"_(Thao tác này không thể hoàn tác)_",
@@ -509,13 +509,13 @@ async def _do_remove(query, context: ContextTypes.DEFAULT_TYPE, nickname: str):
     sheets = context.bot_data['sheets']
     success = await asyncio.to_thread(sheets.remove_employee, nickname)
     if success:
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"✅ *ĐÃ XÓA NHÂN VIÊN*\n"
             f"👤 {nickname} đã được xóa khỏi hệ thống.",
             parse_mode='Markdown'
         )
     else:
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"❌ Không tìm thấy *{nickname}* hoặc đã có lỗi xảy ra.",
             parse_mode='Markdown'
         )
@@ -526,7 +526,7 @@ async def _show_reward_history_list(query, context: ContextTypes.DEFAULT_TYPE):
     balances = await asyncio.to_thread(sheets.get_all_balances)
 
     if not balances:
-        await query.edit_message_text("❌ Chưa có nhân viên nào trong hệ thống.")
+        await safe_edit_message(query, "❌ Chưa có nhân viên nào trong hệ thống.")
         return
 
     keyboard, row = [], []
@@ -538,7 +538,7 @@ async def _show_reward_history_list(query, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append(row)
     keyboard.append([InlineKeyboardButton("✖ Đóng", callback_data="mgmt_cancel")])
 
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         "🎁 *LỊCH SỬ THƯỞNG*\nChọn nhân viên:",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
@@ -554,7 +554,7 @@ async def _show_reward_history(query, context: ContextTypes.DEFAULT_TYPE, nickna
     current_balance = balances.get(nickname, 0)
 
     if not records:
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"🎁 *LỊCH SỬ THƯỞNG — {nickname}*\n\n"
             f"💰 Số dư: *{current_balance} ly*\n\n"
             f"Chưa có báo cáo nào liên quan đến {nickname}.",
@@ -574,7 +574,7 @@ async def _show_reward_history(query, context: ContextTypes.DEFAULT_TYPE, nickna
     if len(msg) > 3900:
         msg = msg[:3900] + "\n_…bị cắt_"
 
-    await query.edit_message_text(msg, parse_mode='Markdown')
+    await safe_edit_message(query, msg, parse_mode='Markdown')
 
 
 async def _start_edit_report(query, context: ContextTypes.DEFAULT_TYPE, idx_str: str):
@@ -583,7 +583,7 @@ async def _start_edit_report(query, context: ContextTypes.DEFAULT_TYPE, idx_str:
         sessions = context.user_data.get('edit_report_sessions', [])
         session = sessions[idx]
     except (ValueError, IndexError):
-        await query.edit_message_text("❌ Phiên đã hết hạn. Bấm '✏️ Sửa Doanh Thu' lại.")
+        await safe_edit_message(query, "❌ Phiên đã hết hạn. Bấm '✏️ Sửa Doanh Thu' lại.")
         return
 
     # Lưu state
@@ -592,7 +592,7 @@ async def _start_edit_report(query, context: ContextTypes.DEFAULT_TYPE, idx_str:
     emps = ', '.join(session['employees'])
     old_str = _fmt_revenue(session.get('revenue'))
 
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         f"✏️ *SỬA DOANH THU*\n"
         f"📅 {session['date']} Ca {session['ca']}\n"
         f"👥 {emps}\n"
@@ -608,7 +608,7 @@ async def _show_salary_list(query, context: ContextTypes.DEFAULT_TYPE):
     rates = await asyncio.to_thread(sheets.get_all_salary_rates)
 
     if not rates:
-        await query.edit_message_text("❌ Chưa có nhân viên nào trong hệ thống.")
+        await safe_edit_message(query, "❌ Chưa có nhân viên nào trong hệ thống.")
         return
 
     keyboard, row = [], []
@@ -621,7 +621,7 @@ async def _show_salary_list(query, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append(row)
     keyboard.append([InlineKeyboardButton("✖ Hủy", callback_data="mgmt_cancel")])
 
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         "💵 *MỨC LƯƠNG NHÂN VIÊN*\nChọn nhân viên cần sửa mức lương/giờ:",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
@@ -635,7 +635,7 @@ async def _start_edit_salary_rate(query, context: ContextTypes.DEFAULT_TYPE, nic
     rates = await asyncio.to_thread(sheets.get_all_salary_rates)
     current_rate = rates.get(nickname, 16.0)
     
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         f"💵 *SỬA MỨC LƯƠNG*\n\n"
         f"Nhân viên: *{nickname}*\n"
         f"Mức hiện tại: *{current_rate}k/giờ*\n\n"

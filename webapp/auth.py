@@ -199,7 +199,8 @@ def resolve_request_user(request, bot_data: dict | None = None) -> dict | None:
             "dev_mode": True,
         }
 
-    # Hỗ trợ mở trực tiếp trên trình duyệt web (Chrome / Safari) cho nhân viên không dùng Telegram
+    # Hỗ trợ mở trực tiếp trên trình duyệt web (Chrome / Safari) cho quản lý
+    # CHỈ chấp nhận mã PIN cấu hình, KHÔNG chấp nhận Telegram User ID
     admin_key = (
         request.headers.get("X-Admin-Key")
         or request.query.get("admin_key")
@@ -207,30 +208,19 @@ def resolve_request_user(request, bot_data: dict | None = None) -> dict | None:
     ).strip()
     if admin_key:
         dyn_pin = str((bot_data or {}).get("webapp_admin_pin") or "").strip()
-        valid_super = (
-            admin_key == str(Config.ADMIN_CHAT_ID)
-            or (bool(Config.WEBAPP_ADMIN_PIN) and admin_key == Config.WEBAPP_ADMIN_PIN)
+        valid = (
+            (bool(Config.WEBAPP_ADMIN_PIN) and admin_key == Config.WEBAPP_ADMIN_PIN)
             or (bool(dyn_pin) and admin_key == dyn_pin)
         )
-        valid_sub_admin = False
-        sub_uid = 0
-        if not valid_super:
-            try:
-                sub_uid = int(admin_key)
-                valid_sub_admin = is_admin(sub_uid, context_stub)
-            except (TypeError, ValueError):
-                valid_sub_admin = False
-
-        if valid_super or valid_sub_admin:
-            uid = Config.ADMIN_CHAT_ID if valid_super else sub_uid
+        if valid:
             return {
-                "id": uid,
+                "id": Config.ADMIN_CHAT_ID,
                 "first_name": "Quản lý",
                 "last_name": "",
                 "full_name": "Quản lý (Web)",
                 "username": "admin_web",
                 "is_admin": True,
-                "is_super_admin": valid_super,
+                "is_super_admin": True,
                 "authenticated": True,
                 "web_mode": True,
             }

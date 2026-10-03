@@ -7,7 +7,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from config import Config
-from utils.auto_delete import track_message, delete_tracked_messages, get_admin_keyboard, get_main_keyboard
+from utils.auto_delete import track_message, delete_tracked_messages, get_admin_keyboard, get_main_keyboard, safe_edit_message
 from utils.admin import is_admin, is_super_admin
 
 logger = logging.getLogger(__name__)
@@ -220,7 +220,7 @@ async def _render_smart_export_next_step(update_or_query, context: ContextTypes.
             f"Vui lòng chạm chọn đúng món bạn {action_verb}:"
         )
         if is_callback:
-            await update_or_query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(buttons), parse_mode='Markdown')
+            await safe_edit_message(update_or_query, msg, reply_markup=InlineKeyboardMarkup(buttons), parse_mode='Markdown')
         else:
             reply = await update_or_query.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(buttons), parse_mode='Markdown')
             track_message(context, reply.message_id)
@@ -248,7 +248,7 @@ async def _render_smart_export_next_step(update_or_query, context: ContextTypes.
             ])
         msg = "\n".join(err_lines)
         if is_callback:
-            await update_or_query.edit_message_text(msg, reply_markup=kb, parse_mode='Markdown')
+            await safe_edit_message(update_or_query, msg, reply_markup=kb, parse_mode='Markdown')
         else:
             reply = await update_or_query.message.reply_text(msg, reply_markup=kb, parse_mode='Markdown')
             track_message(context, reply.message_id)
@@ -298,7 +298,7 @@ async def _render_smart_export_next_step(update_or_query, context: ContextTypes.
 
     msg = "\n".join(lines)
     if is_callback:
-        await update_or_query.edit_message_text(msg, reply_markup=kb, parse_mode='Markdown')
+        await safe_edit_message(update_or_query, msg, reply_markup=kb, parse_mode='Markdown')
     else:
         reply = await update_or_query.message.reply_text(msg, reply_markup=kb, parse_mode='Markdown')
         track_message(context, reply.message_id)
@@ -318,7 +318,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.pop('awaiting_material_qty', None)
         context.user_data.pop('awaiting_import_qty', None)
         context.user_data.pop('smart_export_state', None)
-        await query.edit_message_text("✖ Đã đóng.")
+        await safe_edit_message(query, "✖ Đã đóng.")
         return
 
     # ── Mở nhanh báo lấy NVL (từ nút nhắc sau Kết Ca) ──
@@ -329,7 +329,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("📂 Chọn theo danh mục", callback_data="inv_uback"),
              InlineKeyboardButton("✖ Hủy", callback_data="inv_cancel")]
         ])
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             "📦 *BÁO LẤY NGUYÊN VẬT LIỆU*\n\n"
             "✍️ *Gõ trực tiếp số lượng + tên món* (cách nhau bằng dấu phẩy `,` hoặc xuống dòng, không cần dấu):\n"
             "📌 _VD: 2 sua tuoi, 1 sua dac, 0.5 matcha_\n\n"
@@ -343,7 +343,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
     if data.startswith("inv_amb_"):
         state = context.user_data.get('smart_export_state')
         if not state or not state.get('ambiguous'):
-            await query.edit_message_text("❌ Phiên đã hết hạn. Vui lòng thử lại.")
+            await safe_edit_message(query, "❌ Phiên đã hết hạn. Vui lòng thử lại.")
             return
 
         action = data.replace("inv_amb_", "")
@@ -370,7 +370,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.pop('awaiting_material_qty', None)
         context.user_data.pop('awaiting_import_qty', None)
         if not state or not state.get('confirmed'):
-            await query.edit_message_text("❌ Phiên đã hết hạn. Vui lòng thử lại.")
+            await safe_edit_message(query, "❌ Phiên đã hết hạn. Vui lòng thử lại.")
             return
 
         mode = state.get('mode', 'export')
@@ -379,7 +379,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         safe_user = _esc_md(user_display_name)
 
         if mode == 'import':
-            await query.edit_message_text("⏳ Đang cập nhật nhập kho lên Sheet tháng...")
+            await safe_edit_message(query, "⏳ Đang cập nhật nhập kho lên Sheet tháng...")
             result = await asyncio.to_thread(sheets.batch_import_stock, items, user_display_name, '')
             lines = []
             if result.get('imported'):
@@ -394,10 +394,10 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
                 for err in result['errors']:
                     lines.append(f" • {_esc_md(err)}")
             kb = InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Menu kho", callback_data="inv_menu")]])
-            await query.edit_message_text("\n".join(lines) or "❌ Không thể nhập kho.", reply_markup=kb, parse_mode='Markdown')
+            await safe_edit_message(query, "\n".join(lines) or "❌ Không thể nhập kho.", reply_markup=kb, parse_mode='Markdown')
             return
 
-        await query.edit_message_text("⏳ Đang gửi báo cáo lấy NVL...")
+        await safe_edit_message(query, "⏳ Đang gửi báo cáo lấy NVL...")
 
         result = await asyncio.to_thread(sheets.batch_export_stock, items, user_display_name, '')
 
@@ -415,7 +415,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             for err in result['errors']:
                 lines.append(f" • {_esc_md(err)}")
 
-        await query.edit_message_text("\n".join(lines) or "❌ Không thể gửi báo cáo.", parse_mode='Markdown')
+        await safe_edit_message(query, "\n".join(lines) or "❌ Không thể gửi báo cáo.", parse_mode='Markdown')
 
         # Gửi báo cáo + cảnh báo tồn kho về cho Admin
         if result.get('exported'):
@@ -447,13 +447,13 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         idx = int(data.replace("inv_ugrp_", ""))
         groups = context.user_data.get('inv_groups') or await asyncio.to_thread(sheets.get_material_groups)
         if idx >= len(groups):
-            await query.edit_message_text("❌ Nhóm không tồn tại hoặc đã hết hạn.")
+            await safe_edit_message(query, "❌ Nhóm không tồn tại hoặc đã hết hạn.")
             return
         selected_group = groups[idx]
         materials = await asyncio.to_thread(sheets.get_all_materials, selected_group)
 
         if not materials:
-            await query.edit_message_text(f"📦 Không có NVL nào trong nhóm *{selected_group}*.", parse_mode='Markdown')
+            await safe_edit_message(query, f"📦 Không có NVL nào trong nhóm *{selected_group}*.", parse_mode='Markdown')
             return
 
         context.user_data['inv_current_materials'] = materials
@@ -470,7 +470,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("✖ Hủy", callback_data="inv_cancel")
         ])
 
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"📦 *NHÓM: {selected_group}*\nChọn món cần lấy (hoặc gõ trực tiếp tên món):",
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode='Markdown'
@@ -491,7 +491,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         if row:
             buttons.append(row)
         buttons.append([InlineKeyboardButton("✖ Hủy", callback_data="inv_cancel")])
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             "📦 *LẤY NGUYÊN VẬT LIỆU*\nChọn nhóm nguyên vật liệu (hoặc gõ trực tiếp `2 sua tuoi, 1 sua dac`):",
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode='Markdown'
@@ -503,14 +503,14 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         m_idx = int(data.replace("inv_usel_", ""))
         materials = context.user_data.get('inv_current_materials', [])
         if m_idx >= len(materials):
-            await query.edit_message_text("❌ Lựa chọn không hợp lệ hoặc đã hết hạn.")
+            await safe_edit_message(query, "❌ Lựa chọn không hợp lệ hoặc đã hết hạn.")
             return
         m = materials[m_idx]
         name = m['name']
         unit = m.get('unit', '')
         unit_str = f" ({unit})" if unit else ""
         context.user_data['awaiting_material_qty'] = name
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"📦 Nhập số lượng *{name}*{unit_str} cần lấy:\n"
             f"_(Gõ /cancel để hủy)_",
             parse_mode='Markdown'
@@ -523,7 +523,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("⛔ Chỉ quản lý được thao tác.", show_alert=True)
             return
         keyboard = _get_inventory_menu_keyboard()
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             "📦 *QUẢN LÝ KHO NGUYÊN VẬT LIỆU*\nChọn chức năng:",
             reply_markup=keyboard,
             parse_mode='Markdown'
@@ -537,7 +537,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             return
         groups = await asyncio.to_thread(sheets.get_material_groups)
         if not groups:
-            await query.edit_message_text("📦 Kho chưa có NVL nào. Hãy thêm NVL trước.")
+            await safe_edit_message(query, "📦 Kho chưa có NVL nào. Hãy thêm NVL trước.")
             return
 
         context.user_data['inv_import_groups'] = groups
@@ -554,7 +554,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             buttons.append(row)
         buttons.append([InlineKeyboardButton("◀ Quay lại", callback_data="inv_menu")])
 
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             "➕ *NHẬP KHO NGUYÊN VẬT LIỆU*\n\n"
             "✍️ *Gõ trực tiếp danh sách hàng nhập* (cách nhau bằng dấu phẩy `,` hoặc xuống dòng):\n"
             "📌 _VD: 36 sua dac, 72 sua tuoi, 40 richs_\n\n"
@@ -572,7 +572,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         idx = int(data.replace("inv_imgrp_", ""))
         groups = context.user_data.get('inv_import_groups') or await asyncio.to_thread(sheets.get_material_groups)
         if idx >= len(groups):
-            await query.edit_message_text("❌ Nhóm không tồn tại.")
+            await safe_edit_message(query, "❌ Nhóm không tồn tại.")
             return
         selected_group = groups[idx]
         materials = await asyncio.to_thread(sheets.get_all_materials, selected_group)
@@ -589,7 +589,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             buttons.append(row)
         buttons.append([InlineKeyboardButton("◀ Chọn nhóm khác", callback_data="inv_import_list")])
 
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"➕ *NHẬP KHO — {selected_group}*\nChọn NVL cần nhập thêm:",
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode='Markdown'
@@ -604,12 +604,12 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         m_idx = int(data.replace("inv_imsel_", ""))
         materials = context.user_data.get('inv_import_materials', [])
         if m_idx >= len(materials):
-            await query.edit_message_text("❌ Lựa chọn không hợp lệ.")
+            await safe_edit_message(query, "❌ Lựa chọn không hợp lệ.")
             return
         m = materials[m_idx]
         name = m['name']
         context.user_data['awaiting_import_qty'] = name
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"➕ Nhập số lượng *{name}* cần nhập kho:\n"
             f"_(Tồn kho hiện tại: {m['stock']:g})_\n"
             f"_(Gõ /cancel để hủy)_",
@@ -624,7 +624,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             return
         materials = await asyncio.to_thread(sheets.get_all_materials)
         if not materials:
-            await query.edit_message_text("📦 Kho chưa có nguyên vật liệu nào.")
+            await safe_edit_message(query, "📦 Kho chưa có nguyên vật liệu nào.")
             return
 
         low_stock = [m for m in materials if m['min_stock'] > 0 and m['stock'] <= m['min_stock']]
@@ -662,7 +662,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🔍 Xem chi tiết theo nhóm", callback_data="inv_check_groups")],
             [InlineKeyboardButton("◀ Quay lại", callback_data="inv_menu")]
         ])
-        await query.edit_message_text(msg, reply_markup=keyboard, parse_mode='Markdown')
+        await safe_edit_message(query, msg, reply_markup=keyboard, parse_mode='Markdown')
         return
 
     # ── Admin: chọn nhóm để xem chi tiết tồn kho ──
@@ -683,7 +683,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             buttons.append(row)
         buttons.append([InlineKeyboardButton("◀ Quay lại", callback_data="inv_check")])
 
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             "🔍 *XEM CHI TIẾT TỒN KHO*\nChọn nhóm cần kiểm tra:",
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode='Markdown'
@@ -698,7 +698,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         idx = int(data.replace("inv_ckgrp_", ""))
         groups = context.user_data.get('inv_check_groups') or await asyncio.to_thread(sheets.get_material_groups)
         if idx >= len(groups):
-            await query.edit_message_text("❌ Nhóm không tồn tại.")
+            await safe_edit_message(query, "❌ Nhóm không tồn tại.")
             return
         selected_group = groups[idx]
         materials = await asyncio.to_thread(sheets.get_all_materials, selected_group)
@@ -720,7 +720,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("◀ Chọn nhóm khác", callback_data="inv_check_groups")],
             [InlineKeyboardButton("🏠 Menu kho", callback_data="inv_menu")]
         ])
-        await query.edit_message_text(msg, reply_markup=keyboard, parse_mode='Markdown')
+        await safe_edit_message(query, msg, reply_markup=keyboard, parse_mode='Markdown')
         return
 
     # ── Admin: lịch sử kho ──
@@ -730,7 +730,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             return
         history = await asyncio.to_thread(sheets.get_inventory_history, 20)
         if not history:
-            await query.edit_message_text(
+            await safe_edit_message(query, 
                 "📜 Chưa có lịch sử xuất/nhập kho.",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("◀ Quay lại", callback_data="inv_menu")]]),
                 parse_mode='Markdown'
@@ -750,7 +750,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         msg = "\n".join(lines)
         if len(msg) > 3900:
             msg = msg[:3900] + "\n_...bị cắt_"
-        await query.edit_message_text(msg, reply_markup=keyboard, parse_mode='Markdown')
+        await safe_edit_message(query, msg, reply_markup=keyboard, parse_mode='Markdown')
         return
 
     # ── Admin: sub-menu quản lý NVL ──
@@ -764,7 +764,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("❌ Xóa NVL", callback_data="inv_del_list")],
             [InlineKeyboardButton("◀ Quay lại", callback_data="inv_menu")]
         ])
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             "🔧 *QUẢN LÝ NGUYÊN VẬT LIỆU*\nChọn thao tác:",
             reply_markup=keyboard,
             parse_mode='Markdown'
@@ -777,7 +777,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("⛔ Chỉ quản lý được thao tác.", show_alert=True)
             return
         context.user_data['awaiting_new_material'] = True
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             "➕ *THÊM NGUYÊN VẬT LIỆU MỚI*\n\n"
             "Nhập theo định dạng:\n"
             "`Tên | Đơn vị | Mức tối thiểu | Giá nhập | Nhóm`\n\n"
@@ -807,7 +807,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             buttons.append(row)
         buttons.append([InlineKeyboardButton("◀ Quay lại", callback_data="inv_manage")])
 
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             "✏️ *SỬA NVL*\nChọn nhóm NVL cần sửa:",
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode='Markdown'
@@ -822,7 +822,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         idx = int(data.replace("inv_edgrp_", ""))
         groups = context.user_data.get('inv_edit_groups') or await asyncio.to_thread(sheets.get_material_groups)
         if idx >= len(groups):
-            await query.edit_message_text("❌ Nhóm không tồn tại.")
+            await safe_edit_message(query, "❌ Nhóm không tồn tại.")
             return
         selected_group = groups[idx]
         materials = await asyncio.to_thread(sheets.get_all_materials, selected_group)
@@ -839,7 +839,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             buttons.append(row)
         buttons.append([InlineKeyboardButton("◀ Chọn nhóm khác", callback_data="inv_edit_list")])
 
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"✏️ *SỬA NVL — {selected_group}*\nChọn món cần sửa:",
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode='Markdown'
@@ -854,12 +854,12 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         m_idx = int(data.replace("inv_edsel_", ""))
         materials = context.user_data.get('inv_edit_materials', [])
         if m_idx >= len(materials):
-            await query.edit_message_text("❌ Lựa chọn không hợp lệ.")
+            await safe_edit_message(query, "❌ Lựa chọn không hợp lệ.")
             return
         m = materials[m_idx]
         name = m['name']
         context.user_data['awaiting_edit_material'] = name
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"✏️ *SỬA NVL: {name}*\n\n"
             f"Hiện tại: Đơn vị: `{m['unit'] or '(chưa có)'}`, Min: `{m['min_stock']:g}`, Giá: `{m['price']:g}`\n\n"
             "Nhập thông tin mới theo định dạng:\n"
@@ -888,7 +888,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             buttons.append(row)
         buttons.append([InlineKeyboardButton("◀ Quay lại", callback_data="inv_manage")])
 
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             "❌ *XÓA NVL*\nChọn nhóm của món cần xóa:",
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode='Markdown'
@@ -903,7 +903,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         idx = int(data.replace("inv_dlgrp_", ""))
         groups = context.user_data.get('inv_del_groups') or await asyncio.to_thread(sheets.get_material_groups)
         if idx >= len(groups):
-            await query.edit_message_text("❌ Nhóm không tồn tại.")
+            await safe_edit_message(query, "❌ Nhóm không tồn tại.")
             return
         selected_group = groups[idx]
         materials = await asyncio.to_thread(sheets.get_all_materials, selected_group)
@@ -919,7 +919,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             buttons.append(row)
         buttons.append([InlineKeyboardButton("◀ Chọn nhóm khác", callback_data="inv_del_list")])
 
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"❌ *XÓA NVL — {selected_group}*\nChọn món cần xóa:",
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode='Markdown'
@@ -934,7 +934,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
         m_idx = int(data.replace("inv_dlsel_", ""))
         materials = context.user_data.get('inv_del_materials', [])
         if m_idx >= len(materials):
-            await query.edit_message_text("❌ Lựa chọn không hợp lệ.")
+            await safe_edit_message(query, "❌ Lựa chọn không hợp lệ.")
             return
         m = materials[m_idx]
         name = m['name']
@@ -943,7 +943,7 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton(f"✅ Xác nhận xóa {name}", callback_data="inv_dl_confirm")],
             [InlineKeyboardButton("◀ Quay lại", callback_data="inv_del_list")]
         ])
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"⚠️ Bạn có chắc muốn xóa *{name}* khỏi danh sách NVL?\n"
             f"_(Thao tác này không thể hoàn tác)_",
             reply_markup=keyboard,
@@ -958,17 +958,17 @@ async def handle_inv_callback(query, context: ContextTypes.DEFAULT_TYPE):
             return
         name = context.user_data.pop('inv_del_target', None)
         if not name:
-            await query.edit_message_text("❌ Phiên đã hết hạn.")
+            await safe_edit_message(query, "❌ Phiên đã hết hạn.")
             return
         result = await asyncio.to_thread(sheets.remove_material, name)
         if result:
-            await query.edit_message_text(
+            await safe_edit_message(query, 
                 f"✅ Đã xóa *{name}* khỏi danh mục kho.",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Menu kho", callback_data="inv_menu")]]),
                 parse_mode='Markdown'
             )
         else:
-            await query.edit_message_text(
+            await safe_edit_message(query, 
                 f"❌ Không thể xóa *{name}*. Vui lòng thử lại.",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🏠 Menu kho", callback_data="inv_menu")]]),
                 parse_mode='Markdown'

@@ -29,3 +29,11 @@ primary_region = 'nrt'
   cpu_kind = 'shared'
   cpus = 1
 
+[checks]
+  [checks.health]
+    type = "http"
+    port = 8080
+    path = "/api/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "15s"

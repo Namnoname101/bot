@@ -2,7 +2,7 @@ import asyncio
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ContextTypes
-from utils.auto_delete import delete_tracked_messages, track_message, get_main_keyboard, get_admin_keyboard
+from utils.auto_delete import delete_tracked_messages, track_message, get_main_keyboard, get_admin_keyboard, safe_edit_message
 from utils.admin import is_admin, is_super_admin
 from config import Config
 from utils.time_utils import local_now
@@ -54,7 +54,7 @@ async def handle_endshift_ca_selected(query, context: ContextTypes.DEFAULT_TYPE)
         ],
         [InlineKeyboardButton("❌ Hủy", callback_data="ks_cancel")],
     ])
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         f"🔚 **KẾT CA {ca.upper()}** — Bạn thuộc bộ phận nào?",
         reply_markup=keyboard,
         parse_mode='Markdown',

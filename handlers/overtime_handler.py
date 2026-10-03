@@ -7,7 +7,7 @@ from telegram.ext import ContextTypes
 
 from config import Config
 from utils.admin import is_admin, is_super_admin
-from utils.auto_delete import get_admin_keyboard, track_message
+from utils.auto_delete import get_admin_keyboard, track_message, safe_edit_message
 from utils.time_utils import local_now
 
 logger = logging.getLogger(__name__)
@@ -81,10 +81,10 @@ async def handle_overtime_employee_selected(query, context: ContextTypes.DEFAULT
     nickname = query.data[len("ot_sel_"):]
     if nickname == "cancel":
         context.user_data.pop('awaiting_overtime_hours', None)
-        await query.edit_message_text("❌ Đã hủy.")
+        await safe_edit_message(query, "❌ Đã hủy.")
         return
     context.user_data['awaiting_overtime_hours'] = nickname
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         f"Nhập số giờ làm thêm cho *{nickname}* (VD: `1.5`):",
         parse_mode='Markdown',
     )

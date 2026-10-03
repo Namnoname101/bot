@@ -877,7 +877,8 @@ class GoogleSheetsService:
     def checkout(self, nickname: str, shift_type: str = None, force_time: str = None) -> dict:
         """Ghi nhận check-out cho nhân viên.
         
-        Tìm hàng check-in mới nhất (hôm nay, chưa có giờ ra) và cập nhật.
+        Tìm hàng check-in mới nhất (hôm nay HOẶC hôm qua, chưa có giờ ra) và cập nhật.
+        Hỗ trợ ca đêm: checkout qua ngày mới (ví dụ check-in 18:00, checkout 00:30 hôm sau).
         
         Returns:
             dict với keys: success, time, total_hours, checkin_time
@@ -885,11 +886,13 @@ class GoogleSheetsService:
         try:
             now = local_now()
             today = now.strftime("%d/%m/%Y")
+            yesterday = (now - timedelta(days=1)).strftime("%d/%m/%Y")
             time_str = force_time if force_time else now.strftime("%H:%M:%S")
             
-            # Tìm hàng check-in hôm nay chưa có giờ ra
+            # Tìm hàng check-in hôm nay HOẶC hôm qua chưa có giờ ra
             all_data = self.ws_checkin.get_all_values()
             target_row = None
+            checkin_date = None
             
             is_ca_gay = False
             for i, row in enumerate(all_data[1:], start=2):  # Skip header
@@ -899,13 +902,14 @@ class GoogleSheetsService:
                     row_checkout = row[3].strip() if len(row) > 3 else ""
                     row_note = row[5].strip() if len(row) > 5 else ""
                     
-                    if (row_date == today and 
+                    if (row_date in (today, yesterday) and 
                         normalize_name(row_nick) == normalize_name(nickname) and
                         not row_checkout):
                         current_type = "Ca Gãy" if 'ca gãy' in row_note.lower() else "Ca Chính"
                         if shift_type and current_type != shift_type:
                             continue
                         target_row = i
+                        checkin_date = row_date
                         is_ca_gay = current_type == "Ca Gãy"
                         break
             
@@ -921,6 +925,9 @@ class GoogleSheetsService:
                 checkin_dt = datetime.strptime(checkin_time.strip(), "%H:%M:%S")
                 checkout_dt = datetime.strptime(time_str, "%H:%M:%S")
                 diff = (checkout_dt - checkin_dt).total_seconds() / 3600
+                # Xử lý ca đêm: nếu checkout qua ngày mới, diff âm → cộng 24h
+                if diff < 0 and checkin_date == yesterday:
+                    diff += 24.0
                 if diff < 0:
                     return {
                         'success': False,

@@ -5,7 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from utils.admin import is_admin
-from utils.auto_delete import track_message
+from utils.auto_delete import track_message, safe_edit_message
 from utils.time_utils import local_now
 
 logger = logging.getLogger(__name__)
@@ -79,11 +79,11 @@ async def _load_month_options(sheets) -> list:
 async def _show_selected_report(query, context: ContextTypes.DEFAULT_TYPE):
     month, year = _selected_salary_month(context)
     sheets = context.bot_data['sheets']
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         f"⏳ Đang tải bảng lương T{month}/{year} ({_salary_period_label(month, year)})..."
     )
     report = await asyncio.to_thread(sheets.get_salary_report, month, year)
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         report,
         parse_mode="Markdown",
         reply_markup=_salary_report_keyboard(),
@@ -145,7 +145,7 @@ async def handle_salary_modifier_request(
         kb = [[InlineKeyboardButton(nick, callback_data=f"sal_emp_{nick}")] for nick in nicks]
         if update.callback_query:
             kb.append([InlineKeyboardButton("🔙 Quay Lại", callback_data="salary_back_main")])
-            await update.callback_query.edit_message_text(
+            await safe_edit_message(update.callback_query,
                 f"Chọn nhân viên để thêm *{action_name}* vào *T{month}/{year}* "
                 f"({_salary_period_label(month, year)}):",
                 parse_mode="Markdown",
@@ -198,7 +198,7 @@ async def salary_inline_handler(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data.pop('salary_action', None)
         context.user_data.pop('salary_emp', None)
         options = await _load_month_options(context.bot_data['sheets'])
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             "💰 *TÍNH LƯƠNG* — Chọn tháng cần xem:",
             parse_mode="Markdown",
             reply_markup=_salary_month_keyboard(options),
@@ -237,7 +237,7 @@ async def salary_inline_handler(update: Update, context: ContextTypes.DEFAULT_TY
         action = context.user_data.get('salary_action')
         action_name = "Ứng lương" if action == "advance" else "Thưởng tiền"
         month, year = _selected_salary_month(context)
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"Nhập số tiền **{action_name}** cho **{emp_name}** tại "
             f"**T{month}/{year}** ({_salary_period_label(month, year)}) "
             f"(ví dụ: `50` = 50,000đ):",

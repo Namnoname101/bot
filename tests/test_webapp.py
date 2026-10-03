@@ -119,21 +119,31 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
             resp = await self.client.get("/api/bootstrap")
             self.assertEqual(resp.status, 401)
 
-        # When WEBAPP_ALLOW_BROWSER is True, browser gets employee role by default, and X-Admin-Key unlocks Admin
+        # When WEBAPP_ALLOW_BROWSER is True, browser gets employee role by default
         with patch.object(Config, "WEBAPP_DEV_MODE", False), patch.object(Config, "WEBAPP_ALLOW_BROWSER", True):
             emp_resp = await self.client.get("/api/bootstrap")
             self.assertEqual(emp_resp.status, 200)
             emp_data = await emp_resp.json()
             self.assertFalse(emp_data["user"]["is_admin"])
 
-            adm_resp = await self.client.get(
+            # Raw ADMIN_CHAT_ID as admin_key should NOT grant admin (security fix)
+            raw_id_resp = await self.client.get(
                 "/api/bootstrap",
                 headers={"X-Admin-Key": str(Config.ADMIN_CHAT_ID)},
             )
-            self.assertEqual(adm_resp.status, 200)
-            adm_data = await adm_resp.json()
-            self.assertTrue(adm_data["user"]["is_admin"])
-            self.assertTrue(adm_data["user"]["is_super_admin"])
+            raw_id_data = await raw_id_resp.json()
+            self.assertFalse(raw_id_data["user"]["is_admin"], "Raw user ID must not grant admin access")
+
+            # WEBAPP_ADMIN_PIN as admin_key SHOULD grant admin
+            with patch.object(Config, "WEBAPP_ADMIN_PIN", "secret-pin-2026"):
+                adm_resp = await self.client.get(
+                    "/api/bootstrap",
+                    headers={"X-Admin-Key": "secret-pin-2026"},
+                )
+                self.assertEqual(adm_resp.status, 200)
+                adm_data = await adm_resp.json()
+                self.assertTrue(adm_data["user"]["is_admin"])
+                self.assertTrue(adm_data["user"]["is_super_admin"])
 
     async def test_bootstrap_returns_roles_and_data(self):
         resp = await self.client.get("/api/bootstrap", headers=self.emp_headers)

@@ -2,7 +2,7 @@ import asyncio
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from utils.auto_delete import delete_tracked_messages, track_message, get_main_keyboard, get_admin_keyboard, GUIDE_MESSAGE
+from utils.auto_delete import delete_tracked_messages, track_message, get_main_keyboard, get_admin_keyboard, GUIDE_MESSAGE, safe_edit_message
 from utils.admin import is_admin, is_super_admin
 from config import Config
 
@@ -195,7 +195,7 @@ async def handle_checkin_type_selected(query, context: ContextTypes.DEFAULT_TYPE
             [InlineKeyboardButton("🌙 Ca Tối", callback_data="ci_ca_Tối")],
             [InlineKeyboardButton("❌ Hủy", callback_data="ci_ca_cancel")],
         ]
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             "📥 **CHECK IN — CA CHÍNH**\nChọn ca làm việc:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown',
@@ -226,19 +226,19 @@ async def handle_checkin_ca_selected(query, context: ContextTypes.DEFAULT_TYPE):
 
 async def _show_checkin_employee_picker(query, context: ContextTypes.DEFAULT_TYPE):
     """Tải và hiển thị danh sách nhân viên sau khi đã chọn loại/ca."""
-    await query.edit_message_text("⏳ Đang tải danh sách nhân viên...")
+    await safe_edit_message(query, "⏳ Đang tải danh sách nhân viên...")
 
     sheets_service = context.bot_data['sheets']
     balances = await asyncio.to_thread(sheets_service.get_all_balances)
 
     if not balances:
-        await query.edit_message_text("📉 Chưa có dữ liệu nhân viên trên hệ thống.")
+        await safe_edit_message(query, "📉 Chưa có dữ liệu nhân viên trên hệ thống.")
         return
 
     reply_markup = _build_employee_picker(balances, "ci_sel")
     shift_type = context.user_data['awaiting_checkin_type']
     selected_ca = context.user_data['awaiting_checkin_ca']
-    await query.edit_message_text(
+    await safe_edit_message(query, 
         f"📥 **CHECK IN** ({shift_type} — {selected_ca}) — Bạn là ai?",
         reply_markup=reply_markup,
         parse_mode='Markdown',
@@ -413,7 +413,7 @@ async def handle_checkout_employee_selected(query, context: ContextTypes.DEFAULT
     
     # Sửa tin nhắn chọn tên thành trạng thái đang xử lý
     shift_label = f" ({shift_type})" if shift_type else ""
-    await query.edit_message_text(f"⏳ Đang ghi nhận check-out cho {nickname}{shift_label}...")
+    await safe_edit_message(query, f"⏳ Đang ghi nhận check-out cho {nickname}{shift_label}...")
     
     result = await asyncio.to_thread(sheets_service.checkout, nickname, shift_type)
     
@@ -475,7 +475,7 @@ async def handle_mark_reported_late(query, context: ContextTypes.DEFAULT_TYPE):
     success = await asyncio.to_thread(sheets_service.mark_reported_late, nickname, date_str)
     
     if success:
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"✅ {nickname} ngày {date_str}: ĐÃ báo trước."
         )
     else:
@@ -499,7 +499,7 @@ async def handle_mark_unreported_late(query, context: ContextTypes.DEFAULT_TYPE)
     success = await asyncio.to_thread(sheets_service.mark_unreported_late, nickname, date_str)
     
     if success:
-        await query.edit_message_text(
+        await safe_edit_message(query, 
             f"❌ {nickname} ngày {date_str}: KHÔNG báo trước."
         )
     else:
