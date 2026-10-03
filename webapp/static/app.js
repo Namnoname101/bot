@@ -273,29 +273,28 @@ async function loadPublicUsers() {
   if (resp && resp.success && Array.isArray(resp.employees) && resp.employees.length > 0) {
     let html = "";
     // Admin chip
-    html += `<span class="staff-chip" onclick="quickFillLogin('admin', 'Quản Lý')">⚡ Quản Lý (Admin)</span>`;
+    html += `<span class="staff-chip" onclick="quickFillLogin('admin')">⚡ Quản Lý (Admin)</span>`;
     for (const emp of resp.employees) {
       const name = emp.nickname || emp.full_name;
       if (name) {
-        html += `<span class="staff-chip" onclick="quickFillLogin('${escapeHtml(name)}', 'Pha Chế')">${escapeHtml(name)}</span>`;
+        html += `<span class="staff-chip" onclick="quickFillLogin('${escapeHtml(name)}')">${escapeHtml(name)}</span>`;
       }
     }
     container.innerHTML = html;
   } else {
     container.innerHTML = `
-      <span class="staff-chip" onclick="quickFillLogin('admin', 'Quản Lý')">⚡ Quản Lý (Admin)</span>
-      <span class="staff-chip" onclick="quickFillLogin('An', 'Pha Chế')">An</span>
-      <span class="staff-chip" onclick="quickFillLogin('Bình', 'Pha Chế')">Bình</span>
-      <span class="staff-chip" onclick="quickFillLogin('Đại', 'Pha Chế')">Đại</span>
+      <span class="staff-chip" onclick="quickFillLogin('admin')">⚡ Quản Lý (Admin)</span>
+      <span class="staff-chip" onclick="quickFillLogin('An')">An</span>
+      <span class="staff-chip" onclick="quickFillLogin('Bình')">Bình</span>
+      <span class="staff-chip" onclick="quickFillLogin('Đại')">Đại</span>
     `;
   }
 }
 
-function quickFillLogin(username, role) {
+function quickFillLogin(username) {
   const userEl = document.getElementById("login-username");
   const pwdEl = document.getElementById("login-password");
   if (userEl) userEl.value = username;
-  selectLoginRole(role);
   if (pwdEl) pwdEl.value = "123456789";
 
   // Highlight active chip
@@ -310,17 +309,6 @@ function quickFillLogin(username, role) {
 
   const submitBtn = document.getElementById("btn-login-submit");
   if (submitBtn) submitBtn.focus();
-}
-
-function selectLoginRole(role) {
-  AppState.role = role;
-  document.querySelectorAll(".role-pill").forEach(p => {
-    if (p.getAttribute("data-role") === role) {
-      p.classList.add("active");
-    } else {
-      p.classList.remove("active");
-    }
-  });
 }
 
 function togglePasswordVisibility(id) {
@@ -348,7 +336,6 @@ async function handleLoginSubmit(e) {
     body: {
       username,
       password,
-      role: AppState.role,
     },
   });
 
@@ -359,7 +346,7 @@ async function handleLoginSubmit(e) {
     AppState.token = resp.token;
     localStorage.setItem("sober_token", resp.token);
     AppState.user = resp.user;
-    AppState.role = resp.role || resp.user.role || (resp.user.is_admin ? "Quản Lý" : "Pha Chế");
+    AppState.role = resp.user.role || (resp.user.is_admin ? "Quản Lý" : "Pha Chế");
 
     showToast("Đăng nhập thành công!", "success");
     await initApp();
@@ -2038,20 +2025,25 @@ function renderAdminEmployeesTab() {
 
   const employees = AppState.bootstrapData.employees || [];
   if (employees.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: var(--text-dim);">Chưa có nhân viên</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-dim);">Chưa có nhân viên</td></tr>`;
     return;
   }
 
   let html = "";
   employees.forEach(emp => {
     const nick = emp.nickname || emp.full_name;
+    const role = emp.role || "Pha Chế";
     html += `
       <tr>
         <td style="padding: 12px 14px; font-weight: 700;">${escapeHtml(nick)}</td>
+        <td style="text-align: center;">
+          <span class="badge badge-primary">${escapeHtml(role)}</span>
+        </td>
         <td style="text-align: center;">${emp.rate || 18}k/giờ</td>
         <td style="text-align: center;">${emp.balance || 0} ly</td>
-        <td style="text-align: right; padding-right: 14px;">
-          <button class="btn btn-secondary btn-sm" onclick="showEditRateModal('${escapeHtml(nick)}', ${emp.rate || 18})">Mức lương</button>
+        <td style="text-align: right; padding-right: 14px; white-space: nowrap;">
+          <button class="btn btn-secondary btn-sm" onclick="showEditRoleModal('${escapeHtml(nick)}', '${escapeHtml(role)}')">Vị trí</button>
+          <button class="btn btn-secondary btn-sm" onclick="showEditRateModal('${escapeHtml(nick)}', ${emp.rate || 18})" style="margin-left: 4px;">Lương</button>
         </td>
       </tr>
     `;
@@ -2066,7 +2058,16 @@ function showAddEmployeeModal() {
       <div class="form-group">
         <label class="form-label" for="new-emp-name">Tên / Nickname nhân viên</label>
         <input type="text" id="new-emp-name" class="form-input" placeholder="VD: Hoàng, Lan, Tuấn...">
-        <div class="form-hint">Mật khẩu đăng nhập mặc định sẽ là 123456789.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="new-emp-role">Vị trí làm việc (do Quản lý xếp)</label>
+        <select id="new-emp-role" class="form-input">
+          <option value="Pha Chế" selected>Pha Chế (Barista)</option>
+          <option value="Phục Vụ">Phục Vụ</option>
+          <option value="Thu Ngân">Thu Ngân</option>
+          <option value="Quản Lý">Quản Lý</option>
+        </select>
+        <div class="form-hint">Mật khẩu đăng nhập mặc định cho nhân viên mới là: <strong>123456789</strong></div>
       </div>
     `,
     `
@@ -2078,15 +2079,20 @@ function showAddEmployeeModal() {
 
 async function submitAddEmployee() {
   const name = document.getElementById("new-emp-name").value.trim();
-  if (!name) return;
+  const roleEl = document.getElementById("new-emp-role");
+  const role = roleEl ? roleEl.value.trim() : "Pha Chế";
+  if (!name) {
+    showToast("Vui lòng nhập tên nhân viên", "error");
+    return;
+  }
 
   const resp = await apiRequest("/api/admin/employee/add", {
     method: "POST",
-    body: { nickname: name }
+    body: { nickname: name, role: role || "Pha Chế" }
   });
 
   if (resp && resp.success) {
-    showToast(`Đã thêm nhân viên ${name}!`, "success");
+    showToast(`Đã thêm nhân viên ${name} (${role})!`, "success");
     closeModal();
     if (resp.employees) {
       AppState.bootstrapData.employees = resp.employees;
@@ -2094,6 +2100,49 @@ async function submitAddEmployee() {
     }
   } else {
     showToast(resp.message || "Không thể thêm nhân viên", "error");
+  }
+}
+
+function showEditRoleModal(nickname, currentRole) {
+  openModal(
+    `Xếp vị trí cho: ${nickname}`,
+    `
+      <div class="form-group">
+        <label class="form-label" for="edit-emp-role">Vị trí làm việc</label>
+        <select id="edit-emp-role" class="form-input">
+          <option value="Pha Chế" ${currentRole === "Pha Chế" ? "selected" : ""}>Pha Chế (Barista)</option>
+          <option value="Phục Vụ" ${currentRole === "Phục Vụ" ? "selected" : ""}>Phục Vụ</option>
+          <option value="Thu Ngân" ${currentRole === "Thu Ngân" ? "selected" : ""}>Thu Ngân</option>
+          <option value="Quản Lý" ${currentRole === "Quản Lý" ? "selected" : ""}>Quản Lý</option>
+        </select>
+        <div class="form-hint">Nhân viên sẽ tự động nhận vị trí này khi đăng nhập, không cần chọn lúc vào ca.</div>
+      </div>
+    `,
+    `
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">Hủy</button>
+      <button class="btn btn-primary btn-sm" onclick="submitEditRole('${escapeHtml(nickname)}')">Lưu vị trí</button>
+    `
+  );
+}
+
+async function submitEditRole(nickname) {
+  const role = document.getElementById("edit-emp-role").value;
+  if (!role) return;
+
+  const resp = await apiRequest("/api/admin/employee/role", {
+    method: "POST",
+    body: { nickname, role }
+  });
+
+  if (resp && resp.success) {
+    showToast(`Đã xếp vị trí của ${nickname} thành ${role}!`, "success");
+    closeModal();
+    if (resp.employees) {
+      AppState.bootstrapData.employees = resp.employees;
+      renderAdminEmployeesTab();
+    }
+  } else {
+    showToast(resp.message || "Lỗi cập nhật vị trí", "error");
   }
 }
 

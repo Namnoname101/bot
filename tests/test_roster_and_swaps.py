@@ -124,6 +124,26 @@ class RosterAndSwapsTests(unittest.TestCase):
         unread = self.store.get_notifications("An", unread_only=True)
         self.assertFalse(any(n["id"] == first_notif["id"] for n in unread))
 
+    def test_admin_set_employee_role_and_login(self):
+        # 1. Default role is None before explicit assignment
+        self.assertIsNone(self.store.get_employee_role("Hoàng"))
+
+        # 2. Admin assigns role 'Phục Vụ'
+        self.store.set_employee_role("Hoàng", "Phục Vụ")
+        self.assertEqual(self.store.get_employee_role("Hoàng"), "Phục Vụ")
+
+        # 3. Employee logs in without selecting role -> automatically gets Admin-assigned role
+        employees = [{"nickname": "Hoàng", "full_name": "Lê Hoàng"}]
+        ok, user_info, err = self.store.verify_login("Hoàng", "123456789", employees)
+        self.assertTrue(ok)
+        self.assertEqual(user_info["role"], "Phục Vụ")
+
+        # 4. Admin re-assigns role to 'Thu Ngân'
+        self.store.set_employee_role("Hoàng", "Thu Ngân")
+        ok2, user_info2, _ = self.store.verify_login("Hoàng", "123456789", employees)
+        self.assertTrue(ok2)
+        self.assertEqual(user_info2["role"], "Thu Ngân")
+
 
 if __name__ == "__main__":
     unittest.main()

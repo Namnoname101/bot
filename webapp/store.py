@@ -156,6 +156,7 @@ class WebAppStore:
             "roster_schedules": {},   # { week_key: { "week_key": ..., "status": "draft" | "published", "shifts": {...}, "targets": {...}, ... } }
             "shift_swaps": [],        # [ { "id": ..., "requester": ..., "target": ..., "status": ... } ]
             "notifications": [],      # [ { "id": ..., "recipient": ..., "title": ..., "message": ..., "is_read": ... } ]
+            "employee_roles": {},     # { "nickname_norm": "Pha Chế" | "Phục Vụ" | "Thu Ngân" | "Quản Lý" }
         }
         self._load()
         if self.sheets:
@@ -177,6 +178,7 @@ class WebAppStore:
                             "roster_schedules",
                             "shift_swaps",
                             "notifications",
+                            "employee_roles",
                         ):
                             if k in raw and raw[k]:
                                 self._data[k] = raw[k]
@@ -831,19 +833,34 @@ class WebAppStore:
             self._async_sheet_call(self.sheets.save_sheet_account, username.strip(), entry)
         return True
 
+    def get_employee_role(self, nickname: str) -> str | None:
+        norm = normalize_name(nickname)
+        with self._lock:
+            roles = self._data.setdefault("employee_roles", {})
+            return roles.get(norm)
+
+    def set_employee_role(self, nickname: str, role: str) -> str:
+        norm = normalize_name(nickname)
+        clean_role = str(role or "Pha Chế").strip()
+        with self._lock:
+            roles = self._data.setdefault("employee_roles", {})
+            roles[norm] = clean_role
+            self._save_unlocked()
+        return clean_role
+
     def verify_login(
         self,
         username: str,
         password: str,
         employees: list,
         bot_data: dict | None = None,
-        preferred_role: str = "Pha Chế",
+        preferred_role: str | None = None,
     ) -> tuple[bool, dict | None, str]:
         """Xác thực đăng nhập theo Username và Mật khẩu (mặc định 123456789).
 
         Hỗ trợ:
         - Admin: username='admin' (hoặc admin chat id / quan ly), pass=123456789 hoặc WEBAPP_ADMIN_PIN.
-        - Nhân viên: username là nickname/tên nhân viên, pass=123456789 (hoặc mật khẩu tùy chỉnh).
+        - Nhân viên: username là nickname/tên nhân viên, pass=123456789 (hoặc mật khẩu tùy chỉnh). Vị trí do Admin xếp.
         """
         user_raw = (username or "").strip()
         pwd_raw = str(password or "").strip()
@@ -919,7 +936,9 @@ class WebAppStore:
         emp_uid = int(matched_emp.get("id") or 0)
         is_adm = is_admin(emp_uid, context_stub) if emp_uid else False
 
-        assigned_role = preferred_role if preferred_role in ("Pha Chế", "Phục Vụ") else "Pha Chế"
+        # Vị trí do Admin ấn định trong hệ thống (ưu tiên nếu có), hoặc fallback về preferred_role/mặc định
+        admin_role = self.get_employee_role(nick)
+        assigned_role = admin_role or preferred_role or "Pha Chế"
         user_info = {
             "id": emp_uid,
             "username": nick,
@@ -927,7 +946,7 @@ class WebAppStore:
             "full_name": matched_emp.get("full_name") or nick,
             "is_admin": is_adm,
             "is_super_admin": False,
-            "role": assigned_role,
+            "role": "Quản Lý" if is_adm else assigned_role,
             "authenticated": True,
             "must_change_password": is_default,
         }

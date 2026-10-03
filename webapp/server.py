@@ -45,12 +45,15 @@ def _infer_ca(now) -> str:
     return "Tối"
 
 
-def _get_employees_list(sheets) -> list:
-    """Lấy danh sách nhân viên chi tiết (có fallback cho mock/legacy sheets)."""
+def _get_employees_list(sheets, store=None) -> list:
+    """Lấy danh sách nhân viên chi tiết kèm vị trí do Admin phân công."""
     if hasattr(sheets, "get_employees_detail"):
         try:
             details = sheets.get_employees_detail()
             if details:
+                if store:
+                    for d in details:
+                        d["role"] = store.get_employee_role(d.get("nickname") or d.get("full_name") or "")
                 return details
         except Exception:
             pass
@@ -73,21 +76,25 @@ def _get_employees_list(sheets) -> list:
         norm = normalize_name(nick)
         seen.add(norm)
         orig_nick, rate = rate_by_norm.get(norm, (nick, Config.DEFAULT_HOURLY_RATE_K))
+        emp_role = store.get_employee_role(orig_nick or nick) if store else "Pha Chế"
         result.append({
             "nickname": orig_nick or nick,
             "key": norm,
             "full_name": orig_nick or nick,
             "rate": rate,
             "balance": int(bal or 0),
+            "role": emp_role,
         })
     for norm, (orig_nick, rate) in rate_by_norm.items():
         if norm not in seen:
+            emp_role = store.get_employee_role(orig_nick) if store else "Pha Chế"
             result.append({
                 "nickname": orig_nick,
                 "key": norm,
                 "full_name": orig_nick,
                 "rate": rate,
                 "balance": 0,
+                "role": emp_role,
             })
     return result
 
@@ -222,9 +229,8 @@ async def handle_auth_login(request: web.Request) -> web.Response:
 
     username = str(data.get("username") or "").strip()
     password = str(data.get("password") or "").strip()
-    role = str(data.get("role") or "Pha Chế").strip()
-    if role not in ("Pha Chế", "Phục Vụ", "Quản Lý"):
-        role = "Pha Chế"
+    req_role = str(data.get("role") or "").strip()
+    preferred_role = req_role if req_role in ("Pha Chế", "Phục Vụ", "Quản Lý", "Thu Ngân") else None
 
     if not username:
         return web.json_response({"success": False, "message": "Vui lòng nhập Tên đăng nhập."}, status=400)
@@ -246,13 +252,13 @@ async def handle_auth_login(request: web.Request) -> web.Response:
     store: WebAppStore = request.app[STORE_KEY]
     bot_data = request.app.get(BOT_DATA_KEY) or {}
 
-    employees = await asyncio.to_thread(_get_employees_list, sheets)
+    employees = await asyncio.to_thread(_get_employees_list, sheets, store)
     ok, user_info, err_msg = store.verify_login(
         username=username,
         password=password,
         employees=employees,
         bot_data=bot_data,
-        preferred_role=role,
+        preferred_role=preferred_role,
     )
     if not ok:
         await _record_failed_attempt(rate_key)
@@ -281,7 +287,8 @@ async def handle_auth_login(request: web.Request) -> web.Response:
 async def handle_auth_public_users(request: web.Request) -> web.Response:
     """Trả về danh sách tài khoản cho màn hình đăng nhập (admin + danh sách nhân viên mới nhất)."""
     sheets = request.app[SHEETS_KEY]
-    employees = await asyncio.to_thread(_get_employees_list, sheets)
+    store: WebAppStore = request.app[STORE_KEY]
+    employees = await asyncio.to_thread(_get_employees_list, sheets, store)
     names = ["admin"]
     emp_list = []
     for e in (employees or []):
@@ -293,6 +300,7 @@ async def handle_auth_public_users(request: web.Request) -> web.Response:
             emp_list.append({
                 "nickname": nick,
                 "full_name": full,
+                "role": e.get("role") or "Pha Chế",
             })
     return web.json_response({
         "success": True,
@@ -321,7 +329,7 @@ async def handle_auth_change_password(request: web.Request) -> web.Response:
     store: WebAppStore = request.app[STORE_KEY]
     bot_data = request.app.get(BOT_DATA_KEY) or {}
 
-    employees = await asyncio.to_thread(_get_employees_list, sheets)
+    employees = await asyncio.to_thread(_get_employees_list, sheets, store)
     ok, _, _ = store.verify_login(
         username=username,
         password=old_pwd,
@@ -343,7 +351,7 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
     now = local_now()
 
     employees, open_sessions, materials, groups = await asyncio.gather(
-        asyncio.to_thread(_get_employees_list, sheets),
+        asyncio.to_thread(_get_employees_list, sheets, store),
         asyncio.to_thread(sheets.get_open_checkin_sessions),
         asyncio.to_thread(sheets.get_all_materials),
         asyncio.to_thread(sheets.get_material_groups),
@@ -1373,8 +1381,10 @@ async def handle_api_admin_employee_add(request: web.Request) -> web.Response:
     if resp := _require_admin(request):
         return resp
     sheets = request.app[SHEETS_KEY]
+    store: WebAppStore = request.app[STORE_KEY]
     data = await request.json()
     nickname = str(data.get("nickname") or "").strip()
+    role = str(data.get("role") or "").strip()
 
     valid, err_msg = validate_nickname(nickname)
     if not valid:
@@ -1386,10 +1396,14 @@ async def handle_api_admin_employee_add(request: web.Request) -> web.Response:
         msg = f"⚠️ {nickname} đã tồn tại trong hệ thống!" if err == "already_exists" else f"❌ Lỗi: {err}"
         return web.json_response({"success": False, "message": msg}, status=400)
 
-    employees = await asyncio.to_thread(_get_employees_list, sheets)
+    if role:
+        store.set_employee_role(nickname, role)
+
+    employees = await asyncio.to_thread(_get_employees_list, sheets, store)
+    msg = f"✅ Đã thêm nhân viên {nickname} ({role})!" if role else f"✅ Đã thêm nhân viên {nickname}!"
     return web.json_response({
         "success": True,
-        "message": f"✅ Đã thêm nhân viên {nickname}!",
+        "message": msg,
         "employees": employees,
     })
 
@@ -1463,10 +1477,31 @@ async def handle_api_admin_salary_rate(request: web.Request) -> web.Response:
     if not ok:
         return web.json_response({"success": False, "message": "❌ Không thể cập nhật mức lương/giờ."}, status=400)
 
-    employees = await asyncio.to_thread(_get_employees_list, sheets)
+    store: WebAppStore = request.app[STORE_KEY]
+    employees = await asyncio.to_thread(_get_employees_list, sheets, store)
     return web.json_response({
         "success": True,
         "message": f"✅ Đã cập nhật mức lương của {nickname} thành {rate:g}k/h!",
+        "employees": employees,
+    })
+
+
+async def handle_api_admin_employee_role(request: web.Request) -> web.Response:
+    if resp := _require_admin(request):
+        return resp
+    sheets = request.app[SHEETS_KEY]
+    store: WebAppStore = request.app[STORE_KEY]
+    data = await request.json()
+    nickname = str(data.get("nickname") or "").strip()
+    role = str(data.get("role") or "Pha Chế").strip()
+    if not nickname:
+        return web.json_response({"success": False, "message": "Thiếu tên nhân viên."}, status=400)
+
+    store.set_employee_role(nickname, role)
+    employees = await asyncio.to_thread(_get_employees_list, sheets, store)
+    return web.json_response({
+        "success": True,
+        "message": f"✅ Đã xếp vị trí của {nickname} thành {role}!",
         "employees": employees,
     })
 
@@ -2147,6 +2182,7 @@ def create_webapp(sheets, bot=None, bot_data: dict | None = None, store: WebAppS
     app.router.add_post("/api/admin/employee/rename", handle_api_admin_employee_rename)
     app.router.add_post("/api/admin/employee/remove", handle_api_admin_employee_remove)
     app.router.add_post("/api/admin/employee/salary-rate", handle_api_admin_salary_rate)
+    app.router.add_post("/api/admin/employee/role", handle_api_admin_employee_role)
     app.router.add_get("/api/admin/employee/reward-history", handle_api_admin_reward_history)
     app.router.add_post("/api/admin/report/update-revenue", handle_api_admin_update_revenue)
     app.router.add_post("/api/admin/announce", handle_api_admin_announce)

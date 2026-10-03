@@ -60,16 +60,6 @@
               <input type="text" id="login-username" class="form-input" placeholder="VD: An, Bình hoặc admin" required autocomplete="username">
             </div>
 
-            <!-- Role Selection -->
-            <div class="form-group">
-              <label class="form-label">Vị trí làm việc</label>
-              <div class="role-selector-group">
-                <button type="button" class="role-pill active" data-role="Pha Chế" onclick="selectLoginRole('Pha Chế')">Pha Chế</button>
-                <button type="button" class="role-pill" data-role="Phục Vụ" onclick="selectLoginRole('Phục Vụ')">Phục Vụ</button>
-                <button type="button" class="role-pill" data-role="Quản Lý" onclick="selectLoginRole('Quản Lý')">Quản Lý</button>
-              </div>
-            </div>
-
             <div class="form-group">
               <label class="form-label" for="login-password">Mật khẩu</label>
               <div class="password-input-wrapper">
@@ -729,6 +719,7 @@
               <thead>
                 <tr>
                   <th style="text-align: left; padding-left: 14px;">Tên / Nickname</th>
+                  <th>Vị trí (Admin xếp)</th>
                   <th>Mức lương / giờ</th>
                   <th>Số dư thưởng</th>
                   <th style="text-align: right; padding-right: 14px;">Thao tác</th>
@@ -934,6 +925,6 @@
   <div id="toast-container"></div>
 
   <!-- Main JavaScript App Logic -->
-  <script src="/static/app.js?v=20261003_v4"></script>
+  <script src="/static/app.js?v=20261003_v5"></script>
 </body>
 </html>
