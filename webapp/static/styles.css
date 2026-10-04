@@ -734,7 +734,16 @@ p {
 /* ── MAIN APP SHELL ──────────────────────────────────────────────────────── */
 .main-app {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1024px) {
+  .main-app {
+    flex-direction: row;
+  }
 }
 
 /* Top Navigation Bar (Mobile / Responsive) */
@@ -742,15 +751,19 @@ p {
   position: sticky;
   top: 0;
   z-index: 40;
-  height: var(--header-height);
-  background: rgba(255, 255, 255, 0.94);
+  width: 100%;
+  box-sizing: border-box;
+  height: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: 16px;
+  padding-right: 16px;
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border-light);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
 }
 
 @media (min-width: 1024px) {
@@ -942,7 +955,8 @@ p {
   bottom: 0;
   left: 0;
   right: 0;
-  height: var(--bottom-nav-height);
+  height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -1001,10 +1015,11 @@ p {
   flex: 1;
   min-width: 0;
   padding: 16px;
-  padding-bottom: calc(var(--bottom-nav-height) + 24px);
+  padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 24px);
   max-width: 1360px;
   margin: 0 auto;
   width: 100%;
+  box-sizing: border-box;
 }
 
 @media (min-width: 1024px) {
