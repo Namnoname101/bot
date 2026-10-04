@@ -445,7 +445,97 @@ p {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-dim);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.staff-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.staff-card-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-light);
+  cursor: pointer;
+  transition: var(--transition);
+  user-select: none;
+  text-align: left;
+}
+
+.staff-card-item:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-card-subtle);
+  transform: translateY(-1px);
+}
+
+.staff-card-item.active {
+  border-color: var(--primary);
+  background: #EAF0EC;
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.staff-card-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--bg-card-subtle);
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-light);
+}
+
+.staff-card-item.active .staff-card-avatar {
+  background: var(--primary);
+  color: #FFFFFF;
+  border-color: var(--primary);
+}
+
+.staff-card-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.staff-card-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.staff-card-role {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selected-user-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #F4F6F4;
+  border: 1px solid #D5E2D7;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
 }
 
 .staff-chips-container {
