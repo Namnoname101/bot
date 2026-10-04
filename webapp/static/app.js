@@ -269,8 +269,8 @@ let _publicEmployeesCache = [];
 
 async function loadPublicUsers() {
   const resp = await apiRequest("/api/auth/public-users");
-  const selectEl = document.getElementById("login-staff-select");
-  const chipsEl = document.getElementById("login-staff-chips");
+  const container = document.getElementById("login-staff-chips");
+  if (!container) return;
 
   let employees = [];
   if (resp && resp.success && Array.isArray(resp.employees) && resp.employees.length > 0) {
@@ -284,50 +284,80 @@ async function loadPublicUsers() {
   }
   _publicEmployeesCache = employees;
 
-  // 1. Populate Dropdown Select
-  if (selectEl) {
-    let optHtml = `<option value="">-- Chạm để chọn tên của bạn --</option>`;
-    optHtml += `<option value="admin">⚡ Quản Lý (Admin quán)</option>`;
-    for (const emp of employees) {
-      const nick = emp.nickname || emp.full_name;
-      const role = emp.role || "Nhân viên";
-      if (nick) {
-        optHtml += `<option value="${escapeHtml(nick)}">${escapeHtml(nick)} (${escapeHtml(role)})</option>`;
-      }
+  let html = `
+    <button type="button" class="staff-quick-btn admin-card" data-username="admin" onclick="selectLoginUser('admin', 'Quản Lý', 'Admin quán', '⚡')">
+      <div class="staff-btn-avatar">⚡</div>
+      <div class="staff-btn-info">
+        <div class="staff-btn-name">Quản Lý (Admin quán)</div>
+        <div class="staff-btn-role">Toàn quyền quản trị & xếp lịch</div>
+      </div>
+      <span class="badge badge-primary" style="font-size: 11px;">Admin</span>
+    </button>
+  `;
+
+  for (const emp of employees) {
+    const nick = emp.nickname || emp.full_name;
+    const role = emp.role || "Pha Chế";
+    const initial = nick.charAt(0).toUpperCase();
+    if (nick) {
+      html += `
+        <button type="button" class="staff-quick-btn" data-username="${escapeHtml(nick)}" onclick="selectLoginUser('${escapeHtml(nick)}', '${escapeHtml(nick)}', '${escapeHtml(role)}', '${escapeHtml(initial)}')">
+          <div class="staff-btn-avatar">${escapeHtml(initial)}</div>
+          <div class="staff-btn-info">
+            <div class="staff-btn-name">${escapeHtml(nick)}</div>
+            <div class="staff-btn-role">${escapeHtml(role)}</div>
+          </div>
+        </button>
+      `;
     }
-    selectEl.innerHTML = optHtml;
   }
 
-  // 2. Populate Quick Chips
-  if (chipsEl) {
-    let chipsHtml = `
-      <button type="button" class="quick-chip" data-username="admin" onclick="selectLoginUser('admin', 'Quản Lý', 'Admin quán', '⚡')">
-        <span>⚡</span>
-        <span>Quản Lý</span>
-      </button>
-    `;
-    for (const emp of employees) {
-      const nick = emp.nickname || emp.full_name;
-      const role = emp.role || "Pha Chế";
-      const initial = nick.charAt(0).toUpperCase();
-      if (nick) {
-        chipsHtml += `
-          <button type="button" class="quick-chip" data-username="${escapeHtml(nick)}" onclick="selectLoginUser('${escapeHtml(nick)}', '${escapeHtml(nick)}', '${escapeHtml(role)}', '${escapeHtml(initial)}')">
-            <span>${escapeHtml(nick)}</span>
-            <span class="chip-badge">${escapeHtml(role)}</span>
-          </button>
-        `;
-      }
+  container.innerHTML = html;
+}
+
+function selectLoginUser(username, displayName, role, avatarLetter) {
+  const hiddenInput = document.getElementById("login-username");
+  const pwdInput = document.getElementById("login-password");
+  const banner = document.getElementById("login-selected-banner");
+  const avatarEl = document.getElementById("login-selected-avatar");
+  const nameEl = document.getElementById("login-selected-name");
+  const roleEl = document.getElementById("login-selected-role");
+
+  if (hiddenInput) hiddenInput.value = username;
+
+  if (banner && avatarEl && nameEl && roleEl) {
+    avatarEl.textContent = avatarLetter || (displayName ? displayName.charAt(0).toUpperCase() : "U");
+    nameEl.textContent = displayName || username;
+    roleEl.textContent = role || "Nhân viên";
+    banner.classList.remove("hidden");
+  }
+
+  // Highlight active staff button
+  document.querySelectorAll(".staff-quick-btn").forEach(btn => {
+    if (btn.getAttribute("data-username") === username) {
+      btn.classList.add("active");
+    } else {
+      btn.classList.remove("active");
     }
-    chipsEl.innerHTML = chipsHtml;
+  });
+
+  if (pwdInput) {
+    if (!pwdInput.value) {
+      pwdInput.value = "123456789";
+    }
+    pwdInput.focus();
   }
 }
 
-function handleStaffSelectChange(username) {
-  if (!username) {
-    clearLoginUserSelection();
-    return;
-  }
+function clearLoginUserSelection() {
+  const hiddenInput = document.getElementById("login-username");
+  const banner = document.getElementById("login-selected-banner");
+  if (hiddenInput) hiddenInput.value = "";
+  if (banner) banner.classList.add("hidden");
+  document.querySelectorAll(".staff-quick-btn").forEach(btn => btn.classList.remove("active"));
+}
+
+function quickFillLogin(username) {
   if (username === "admin") {
     selectLoginUser("admin", "Quản Lý", "Admin quán", "⚡");
     return;
@@ -337,56 +367,6 @@ function handleStaffSelectChange(username) {
   const role = (found && found.role) || "Nhân viên";
   const initial = username.charAt(0).toUpperCase();
   selectLoginUser(username, username, role, initial);
-}
-
-function selectLoginUser(username, displayName, role, avatarLetter) {
-  const hiddenInput = document.getElementById("login-username");
-  const selectEl = document.getElementById("login-staff-select");
-  const pwdInput = document.getElementById("login-password");
-  const banner = document.getElementById("login-selected-banner");
-  const avatarEl = document.getElementById("login-selected-avatar");
-  const nameEl = document.getElementById("login-selected-name");
-  const roleEl = document.getElementById("login-selected-role");
-
-  if (hiddenInput) hiddenInput.value = username;
-  if (selectEl && selectEl.value !== username) selectEl.value = username;
-
-  if (banner && avatarEl && nameEl && roleEl) {
-    avatarEl.textContent = avatarLetter || (displayName ? displayName.charAt(0).toUpperCase() : "U");
-    nameEl.textContent = displayName || username;
-    roleEl.textContent = role || "Nhân viên";
-    banner.classList.remove("hidden");
-  }
-
-  // Highlight active chip
-  document.querySelectorAll(".quick-chip").forEach(chip => {
-    if (chip.getAttribute("data-username") === username) {
-      chip.classList.add("active");
-    } else {
-      chip.classList.remove("active");
-    }
-  });
-
-  if (pwdInput) {
-    if (!pwdInput.value) {
-      pwdInput.value = "123456789";
-    }
-  }
-}
-
-function clearLoginUserSelection() {
-  const hiddenInput = document.getElementById("login-username");
-  const selectEl = document.getElementById("login-staff-select");
-  const banner = document.getElementById("login-selected-banner");
-  if (hiddenInput) hiddenInput.value = "";
-  if (selectEl) selectEl.value = "";
-  if (banner) banner.classList.add("hidden");
-  document.querySelectorAll(".quick-chip").forEach(chip => chip.classList.remove("active"));
-}
-
-// Keep quickFillLogin alias for backward compatibility
-function quickFillLogin(username) {
-  handleStaffSelectChange(username);
 }
 
 function togglePasswordVisibility(id) {
