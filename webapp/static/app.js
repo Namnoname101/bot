@@ -265,10 +265,12 @@ function showMainApp() {
   }
 }
 
+let _publicEmployeesCache = [];
+
 async function loadPublicUsers() {
   const resp = await apiRequest("/api/auth/public-users");
-  const container = document.getElementById("login-staff-chips");
-  if (!container) return;
+  const selectEl = document.getElementById("login-staff-select");
+  const chipsEl = document.getElementById("login-staff-chips");
 
   let employees = [];
   if (resp && resp.success && Array.isArray(resp.employees) && resp.employees.length > 0) {
@@ -280,64 +282,88 @@ async function loadPublicUsers() {
       { nickname: "Đại", full_name: "Lê Đại", role: "Barista" },
     ];
   }
+  _publicEmployeesCache = employees;
 
-  let html = "";
-  // Admin Card
-  html += `
-    <div class="staff-card-item" data-username="admin" onclick="selectLoginUser('admin', 'Quản Lý', 'Admin', '⚡')">
-      <div class="staff-card-avatar" style="background: var(--primary); color: #fff;">⚡</div>
-      <div class="staff-card-info">
-        <div class="staff-card-name">Quản Lý</div>
-        <div class="staff-card-role">Admin quán</div>
-      </div>
-    </div>
-  `;
-
-  // Staff Cards
-  for (const emp of employees) {
-    const nick = emp.nickname || emp.full_name;
-    const role = emp.role || "Pha Chế";
-    const initial = nick.charAt(0).toUpperCase();
-    if (nick) {
-      html += `
-        <div class="staff-card-item" data-username="${escapeHtml(nick)}" onclick="selectLoginUser('${escapeHtml(nick)}', '${escapeHtml(nick)}', '${escapeHtml(role)}', '${escapeHtml(initial)}')">
-          <div class="staff-card-avatar">${escapeHtml(initial)}</div>
-          <div class="staff-card-info">
-            <div class="staff-card-name">${escapeHtml(nick)}</div>
-            <div class="staff-card-role">${escapeHtml(role)}</div>
-          </div>
-        </div>
-      `;
+  // 1. Populate Dropdown Select
+  if (selectEl) {
+    let optHtml = `<option value="">-- Chạm để chọn tên của bạn --</option>`;
+    optHtml += `<option value="admin">⚡ Quản Lý (Admin quán)</option>`;
+    for (const emp of employees) {
+      const nick = emp.nickname || emp.full_name;
+      const role = emp.role || "Nhân viên";
+      if (nick) {
+        optHtml += `<option value="${escapeHtml(nick)}">${escapeHtml(nick)} (${escapeHtml(role)})</option>`;
+      }
     }
+    selectEl.innerHTML = optHtml;
   }
 
-  container.innerHTML = html;
+  // 2. Populate Quick Chips
+  if (chipsEl) {
+    let chipsHtml = `
+      <button type="button" class="quick-chip" data-username="admin" onclick="selectLoginUser('admin', 'Quản Lý', 'Admin quán', '⚡')">
+        <span>⚡</span>
+        <span>Quản Lý</span>
+      </button>
+    `;
+    for (const emp of employees) {
+      const nick = emp.nickname || emp.full_name;
+      const role = emp.role || "Pha Chế";
+      const initial = nick.charAt(0).toUpperCase();
+      if (nick) {
+        chipsHtml += `
+          <button type="button" class="quick-chip" data-username="${escapeHtml(nick)}" onclick="selectLoginUser('${escapeHtml(nick)}', '${escapeHtml(nick)}', '${escapeHtml(role)}', '${escapeHtml(initial)}')">
+            <span>${escapeHtml(nick)}</span>
+            <span class="chip-badge">${escapeHtml(role)}</span>
+          </button>
+        `;
+      }
+    }
+    chipsEl.innerHTML = chipsHtml;
+  }
+}
+
+function handleStaffSelectChange(username) {
+  if (!username) {
+    clearLoginUserSelection();
+    return;
+  }
+  if (username === "admin") {
+    selectLoginUser("admin", "Quản Lý", "Admin quán", "⚡");
+    return;
+  }
+  const empList = _publicEmployeesCache || [];
+  const found = empList.find(e => (e.nickname || e.full_name) === username);
+  const role = (found && found.role) || "Nhân viên";
+  const initial = username.charAt(0).toUpperCase();
+  selectLoginUser(username, username, role, initial);
 }
 
 function selectLoginUser(username, displayName, role, avatarLetter) {
   const hiddenInput = document.getElementById("login-username");
+  const selectEl = document.getElementById("login-staff-select");
   const pwdInput = document.getElementById("login-password");
   const banner = document.getElementById("login-selected-banner");
   const avatarEl = document.getElementById("login-selected-avatar");
   const nameEl = document.getElementById("login-selected-name");
   const roleEl = document.getElementById("login-selected-role");
-  const submitBtn = document.getElementById("btn-login-submit");
 
   if (hiddenInput) hiddenInput.value = username;
+  if (selectEl && selectEl.value !== username) selectEl.value = username;
 
   if (banner && avatarEl && nameEl && roleEl) {
-    avatarEl.textContent = avatarLetter || displayName.charAt(0).toUpperCase();
-    nameEl.textContent = displayName;
-    roleEl.textContent = role;
+    avatarEl.textContent = avatarLetter || (displayName ? displayName.charAt(0).toUpperCase() : "U");
+    nameEl.textContent = displayName || username;
+    roleEl.textContent = role || "Nhân viên";
     banner.classList.remove("hidden");
   }
 
-  // Highlight active staff card
-  document.querySelectorAll(".staff-card-item").forEach(card => {
-    if (card.getAttribute("data-username") === username) {
-      card.classList.add("active");
+  // Highlight active chip
+  document.querySelectorAll(".quick-chip").forEach(chip => {
+    if (chip.getAttribute("data-username") === username) {
+      chip.classList.add("active");
     } else {
-      card.classList.remove("active");
+      chip.classList.remove("active");
     }
   });
 
@@ -345,17 +371,22 @@ function selectLoginUser(username, displayName, role, avatarLetter) {
     if (!pwdInput.value) {
       pwdInput.value = "123456789";
     }
-    pwdInput.focus();
   }
+}
 
-  if (submitBtn) {
-    submitBtn.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }
+function clearLoginUserSelection() {
+  const hiddenInput = document.getElementById("login-username");
+  const selectEl = document.getElementById("login-staff-select");
+  const banner = document.getElementById("login-selected-banner");
+  if (hiddenInput) hiddenInput.value = "";
+  if (selectEl) selectEl.value = "";
+  if (banner) banner.classList.add("hidden");
+  document.querySelectorAll(".quick-chip").forEach(chip => chip.classList.remove("active"));
 }
 
 // Keep quickFillLogin alias for backward compatibility
 function quickFillLogin(username) {
-  selectLoginUser(username, username, "Nhân viên", username.charAt(0).toUpperCase());
+  handleStaffSelectChange(username);
 }
 
 function togglePasswordVisibility(id) {
