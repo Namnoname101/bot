@@ -1734,14 +1734,14 @@ async def handle_api_schedule_register(request: web.Request) -> web.Response:
 
     await _safe_send_admin(
         bot,
-        f"📅 **ĐĂNG KÝ LỊCH CA ({week_label})**\n"
-        f"👤 **{nickname}** ({role}) — Đăng ký **{total_shifts} ca** (Mong muốn: {target_shifts} ca)"
+        f"📅 **BÁO LỊCH RẢNH ({week_label})**\n"
+        f"👤 **{nickname}** ({role}) — Báo rảnh **{total_shifts} ca** trong tuần."
         + (f"\n📝 Ghi chú: {note}" if note else ""),
     )
 
     return web.json_response({
         "success": True,
-        "message": f"✅ Đã lưu lịch đăng ký ({total_shifts} ca) cho {nickname}!",
+        "message": f"✅ Đã lưu lịch rảnh ({total_shifts} ca) cho {nickname}!",
         "entry": entry,
         "shift_schedules": store.get_shift_schedules(),
     })

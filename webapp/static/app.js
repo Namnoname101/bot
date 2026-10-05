@@ -833,33 +833,54 @@ function renderAvailabilityForm() {
           <span class="reg-day-date">${d.date_str}</span>
         </div>
         <div class="reg-slots-options" data-day="${d.code}">
-          <div class="slot-toggle-pill ${selected.includes('Sáng') ? 'checked' : ''}" onclick="toggleSlotPill(this)">
-            Sáng (07-12)
+          <div class="slot-toggle-pill ${selected.includes('Sáng') ? 'checked' : ''}" onclick="toggleSlotPill(this)" data-ca="Sáng">
+            <span>🌅 Sáng</span>
+            <small style="font-size: 11px; opacity: 0.85;">6:30–12h</small>
           </div>
-          <div class="slot-toggle-pill ${selected.includes('Chiều') ? 'checked' : ''}" onclick="toggleSlotPill(this)">
-            Chiều (13-17)
+          <div class="slot-toggle-pill ${selected.includes('Chiều') ? 'checked' : ''}" onclick="toggleSlotPill(this)" data-ca="Chiều">
+            <span>☀️ Chiều</span>
+            <small style="font-size: 11px; opacity: 0.85;">12h–18h</small>
           </div>
-          <div class="slot-toggle-pill ${selected.includes('Tối') ? 'checked' : ''}" onclick="toggleSlotPill(this)">
-            Tối (18-22h30)
+          <div class="slot-toggle-pill ${selected.includes('Tối') ? 'checked' : ''}" onclick="toggleSlotPill(this)" data-ca="Tối">
+            <span>🌙 Tối</span>
+            <small style="font-size: 11px; opacity: 0.85;">18h–22h30</small>
           </div>
         </div>
       </div>
     `;
   });
   container.innerHTML = html;
-
-  if (existing.target_shifts) {
-    const targetEl = document.getElementById("reg-target-shifts");
-    if (targetEl) targetEl.value = existing.target_shifts;
-  }
-  if (existing.note) {
-    const noteEl = document.getElementById("reg-note");
-    if (noteEl) noteEl.value = existing.note;
-  }
+  updateAvailabilityCounter();
 }
 
 function toggleSlotPill(el) {
   el.classList.toggle("checked");
+  updateAvailabilityCounter();
+}
+
+function updateAvailabilityCounter() {
+  const count = document.querySelectorAll(".slot-toggle-pill.checked").length;
+  const badge = document.getElementById("reg-selected-count-badge");
+  if (badge) {
+    badge.textContent = `${count} ca rảnh`;
+    badge.className = count > 0 ? "badge badge-primary" : "badge badge-muted";
+  }
+}
+
+function quickSelectAllShifts(mode) {
+  document.querySelectorAll(".reg-slots-options").forEach(row => {
+    const pills = row.querySelectorAll(".slot-toggle-pill");
+    if (mode === "all") {
+      pills.forEach(p => p.classList.add("checked"));
+    } else if (mode === "evening") {
+      pills[0].classList.remove("checked");
+      pills[1].classList.remove("checked");
+      pills[2].classList.add("checked");
+    } else if (mode === "clear") {
+      pills.forEach(p => p.classList.remove("checked"));
+    }
+  });
+  updateAvailabilityCounter();
 }
 
 function copyLastWeekAvailability() {
@@ -870,7 +891,6 @@ function copyLastWeekAvailability() {
     return;
   }
 
-  // Pre-fill
   document.querySelectorAll(".reg-slots-options").forEach(row => {
     const day = row.getAttribute("data-day");
     const slots = existing.slots[day] || [];
@@ -879,10 +899,7 @@ function copyLastWeekAvailability() {
     pills[1].classList.toggle("checked", slots.includes("Chiều"));
     pills[2].classList.toggle("checked", slots.includes("Tối"));
   });
-
-  if (existing.target_shifts) {
-    document.getElementById("reg-target-shifts").value = existing.target_shifts;
-  }
+  updateAvailabilityCounter();
   showToast("Đã sao chép lịch từ tuần trước!", "success");
 }
 
@@ -890,11 +907,10 @@ async function submitAvailabilityRegistration() {
   if (!AppState.user) return;
   const nick = AppState.user.nickname || AppState.user.username;
   const role = AppState.user.role || "Pha Chế";
-  const targetShifts = parseInt(document.getElementById("reg-target-shifts").value) || 5;
-  const note = document.getElementById("reg-note").value.trim();
   const weekLabel = AppState.weekInfo ? AppState.weekInfo.week_label : "Tuần tới";
 
   const slots = {};
+  let totalCount = 0;
   document.querySelectorAll(".reg-slots-options").forEach(row => {
     const day = row.getAttribute("data-day");
     const pills = row.querySelectorAll(".slot-toggle-pill");
@@ -904,6 +920,7 @@ async function submitAvailabilityRegistration() {
     if (pills[2].classList.contains("checked")) checked.push("Tối");
     if (checked.length > 0) {
       slots[day] = checked;
+      totalCount += checked.length;
     }
   });
 
@@ -913,14 +930,12 @@ async function submitAvailabilityRegistration() {
       nickname: nick,
       role,
       slots,
-      target_shifts: targetShifts,
-      note,
       week_label: weekLabel,
     }
   });
 
   if (resp && resp.success) {
-    showToast(resp.message || "Đã lưu lịch đăng ký thành công!", "success");
+    showToast(`✅ Đã gửi lịch rảnh (${totalCount} ca) thành công!`, "success");
     if (resp.shift_schedules) {
       AppState.shiftSchedules = resp.shift_schedules;
     }
@@ -1701,14 +1716,18 @@ function renderContextualAssignmentDrawer() {
     }
   });
 
+  // Sort candidates by weekly assigned shifts count ascending (least shifts first for fair distribution)
+  registeredCandidates.sort((a, b) => a.weeklyAssignedCount - b.weeklyAssignedCount);
+  unregisteredCandidates.sort((a, b) => a.weeklyAssignedCount - b.weeklyAssignedCount);
+
   // Render Subtabs & Filters
   let html = `
     <div class="drawer-subtabs">
       <button class="drawer-subtab-btn ${AppState.drawerTab === 'registered' ? 'active' : ''}" onclick="setDrawerTab('registered')">
-        Đã đăng ký (${registeredCandidates.length})
+        🟢 Rảnh ca này (${registeredCandidates.length})
       </button>
       <button class="drawer-subtab-btn ${AppState.drawerTab === 'unregistered' ? 'active' : ''}" onclick="setDrawerTab('unregistered')">
-        Không đăng ký (${unregisteredCandidates.length})
+        ⚪ Chưa đăng ký (${unregisteredCandidates.length})
       </button>
     </div>
   `;
@@ -1738,7 +1757,7 @@ function renderContextualAssignmentDrawer() {
   } else {
     html += `<div class="candidate-list">`;
     activeCandidates.forEach(c => {
-      const reachedTarget = c.weeklyAssignedCount >= c.targetShifts;
+      const shiftBadgeClass = c.weeklyAssignedCount === 0 ? 'badge-info' : (c.weeklyAssignedCount <= 3 ? 'badge-success' : 'badge-warning');
 
       html += `
         <div class="candidate-card ${c.worksOtherCaToday ? 'disabled' : ''}">
@@ -1746,15 +1765,16 @@ function renderContextualAssignmentDrawer() {
             <div class="user-avatar" style="width: 32px; height: 32px; font-size: 13px;">${c.nickname.charAt(0).toUpperCase()}</div>
             <div class="candidate-meta">
               <span class="candidate-name">${escapeHtml(c.nickname)} <small style="color: var(--text-dim);">(${c.role})</small></span>
-              <span class="candidate-stats">Tuần này: ${c.weeklyAssignedCount}/${c.targetShifts} ca</span>
+              <span class="candidate-stats" style="margin-top: 2px;">
+                Đã có: <span class="badge ${shiftBadgeClass}" style="padding: 1px 6px; font-weight: 700; font-size: 11px;">${c.weeklyAssignedCount} ca</span>
+              </span>
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 6px;">
-            ${c.worksOtherCaToday ? '<span class="badge badge-danger">Trùng lịch</span>' : ''}
-            ${(!c.worksOtherCaToday && reachedTarget) ? '<span class="badge badge-warning">Đã đủ ca</span>' : ''}
+            ${c.worksOtherCaToday ? '<span class="badge badge-danger">Trùng ngày</span>' : ''}
             ${c.isAssignedHere ?
               `<button class="btn btn-danger btn-sm" onclick="handleUnassignStaff('${c.nickname}')">Bỏ ca</button>` :
-              `<button class="btn btn-primary btn-sm" ${c.worksOtherCaToday ? 'disabled' : ''} onclick="handleAssignStaff('${c.nickname}')">+ Xếp vào ca</button>`
+              `<button class="btn btn-primary btn-sm" ${c.worksOtherCaToday ? 'disabled' : ''} onclick="handleAssignStaff('${c.nickname}')">+ Xếp ca</button>`
             }
           </div>
         </div>
@@ -1832,7 +1852,7 @@ async function handleSuggestRosterDraft() {
     AppState.currentRoster = resp.roster;
     renderDesktopRosterGrid();
     renderContextualAssignmentDrawer();
-    showToast("Đã tạo bản nháp gợi ý phân bổ ca tự động!", "success");
+    showToast("✅ Đã tự động chia đều ca theo lịch rảnh của nhân viên!", "success");
   } else {
     showToast(resp.message || "Không thể tạo gợi ý", "error");
   }

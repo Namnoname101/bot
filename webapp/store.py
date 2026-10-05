@@ -582,11 +582,8 @@ class WebAppStore:
                         st for st in emp_state.values()
                         if slot_key in st["registered_slots"] and d not in st["assigned_days"]
                     ]
-                    # Sắp xếp ưu tiên: người có assigned_count ít hơn, chưa đạt target_shifts
-                    primary_candidates.sort(key=lambda x: (
-                        1 if x["assigned_count"] >= x["target_shifts"] else 0,
-                        x["assigned_count"]
-                    ))
+                    # Sắp xếp ưu tiên: người có số ca đã xếp ít nhất (chia đều ca trong tuần)
+                    primary_candidates.sort(key=lambda x: x["assigned_count"])
 
                     for cand in primary_candidates:
                         if len(slot_staff) >= needed:
@@ -594,6 +591,20 @@ class WebAppStore:
                         slot_staff.append(cand["nickname"])
                         cand["assigned_count"] += 1
                         cand["assigned_days"].add(d)
+
+                    # 2. Nếu ca vẫn thiếu người, tìm thêm nhân viên chưa làm ca nào trong ngày (ưu tiên người ít ca nhất)
+                    if len(slot_staff) < needed:
+                        secondary_candidates = [
+                            st for st in emp_state.values()
+                            if d not in st["assigned_days"] and st["nickname"] not in slot_staff
+                        ]
+                        secondary_candidates.sort(key=lambda x: x["assigned_count"])
+                        for cand in secondary_candidates:
+                            if len(slot_staff) >= needed:
+                                break
+                            slot_staff.append(cand["nickname"])
+                            cand["assigned_count"] += 1
+                            cand["assigned_days"].add(d)
 
                     new_shifts[slot_key] = slot_staff
 
