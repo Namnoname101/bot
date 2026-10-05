@@ -1359,13 +1359,13 @@ async function loadEmployeePayrollData() {
   const resp = await apiRequest(`/api/personal/summary?nickname=${encodeURIComponent(nick)}`);
   if (!resp || !resp.success || !resp.summary) return;
 
-  const s = resp.summary;
-  document.getElementById("emp-payroll-total").textContent = formatCurrency((s.estimated_pay_k || 0) * 1000);
-  document.getElementById("emp-payroll-rate").textContent = `Mức lương: ${s.rate || 0}k/giờ`;
-
   const regularPay = Math.round((s.regular_hours || 0) * (s.rate || 0) * 1000);
   const otPay = Math.round((s.overtime_hours || 0) * (s.rate || 0) * 1.5 * 1000);
-  const penalty = (s.late_count || 0) * 20000;
+  const penalty = (s.late_count || 0) * 10000;
+  const netTotal = Math.max(0, regularPay + otPay - penalty);
+
+  document.getElementById("emp-payroll-total").textContent = formatCurrency(netTotal);
+  document.getElementById("emp-payroll-rate").textContent = `Mức lương: ${s.rate || 0}k/giờ`;
 
   document.getElementById("emp-breakdown-regular").textContent = formatCurrency(regularPay);
   document.getElementById("emp-breakdown-ot").textContent = `+${formatCurrency(otPay)}`;

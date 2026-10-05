@@ -2179,7 +2179,9 @@ class GoogleSheetsService:
                     ot_hours += float(v or 0.0)
 
             total_hours = round(regular_hours + ot_hours, 2)
-            estimated_pay_k = round(total_hours * rate, 1)
+            late_penalty_k = round(late_count * 10.0, 1)  # 10k/lần đi muộn
+            base_salary_k = round(total_hours * rate, 1)
+            estimated_pay_k = round(max(0.0, base_salary_k - late_penalty_k), 1)
 
             return {
                 'success': True,
@@ -2191,6 +2193,8 @@ class GoogleSheetsService:
                 'overtime_hours': round(ot_hours, 2),
                 'total_hours': total_hours,
                 'rate': rate,
+                'base_salary_k': base_salary_k,
+                'late_penalty_k': late_penalty_k,
                 'estimated_pay_k': estimated_pay_k,
                 'balance': balance,
                 'late_count': late_count,
