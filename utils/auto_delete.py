@@ -5,24 +5,20 @@ from telegram import KeyboardButton, ReplyKeyboardMarkup
 logger = logging.getLogger(__name__)
 
 GUIDE_MESSAGE = (
-    "🤖 *BOT SOBER* — Hướng dẫn nhanh\n\n"
-    "📱 *Mở Mini App:* Giao diện ứng dụng tổng hợp (Chấm công, Kho NVL, Thưởng, Báo cáo, Quản lý).\n"
-    "📥 *Check In:* Chọn loại ca, ca làm và tên. Đi sớm được ghi công từ giờ chuẩn.\n"
+    "🤖 *BOT SOBER* — Hướng dẫn nhanh (Máy cố định quán)\n\n"
+    "📥 *Check In:* Chấm công vào ca (chọn loại ca, ca làm và tên).\n"
     "📤 *Check Out:* Chấm công ra ca (chọn tên là xong).\n"
-    "⚡ *Thưởng Doanh Thu:* Chọn nhân viên có mặt để cộng 1 ly.\n"
-    "🥤 *Báo Dùng Thưởng:* Chọn tên để trừ 1 ly đã dùng.\n"
-    "🎁 *Tra Cứu Thưởng:* Xem số dư ly của bạn.\n"
-    "💡 *Đóng Góp Ý Kiến:* Gửi ý kiến trực tiếp cho quản lý.\n\n"
+    "📦 *Lấy NVL:* Báo xuất/lấy nguyên vật liệu tại quầy/kho quán.\n"
+    "🔚 *Kết Ca:* Bàn giao ca và nộp báo cáo kết ca.\n"
+    "📱 *Mở Mini App:* Xem bảng công, lịch làm, đổi ca & Báo Dùng Thưởng cá nhân.\n\n"
     "⏰ _Ca làm: Sáng 6:30–12:00 | Chiều 12:00–18:00 | Tối 18:00–22:30_"
 )
 
 def get_main_keyboard():
     keyboard = [
-        [KeyboardButton("📱 Mở Mini App")],
         [KeyboardButton("📥 Check In"), KeyboardButton("📤 Check Out")],
-        [KeyboardButton("⚡ Thưởng Doanh Thu"), KeyboardButton("🥤 Báo Dùng Thưởng")],
-        [KeyboardButton("🎁 Tra Cứu Thưởng"), KeyboardButton("💡 Đóng Góp Ý Kiến")],
-        [KeyboardButton("📦 Lấy NVL"), KeyboardButton("🔚 Kết Ca")]
+        [KeyboardButton("📦 Lấy NVL"), KeyboardButton("🔚 Kết Ca")],
+        [KeyboardButton("📱 Mở Mini App")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
 
