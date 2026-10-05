@@ -6,11 +6,11 @@ logger = logging.getLogger(__name__)
 
 GUIDE_MESSAGE = (
     "🤖 *BOT SOBER* — Hướng dẫn nhanh (Máy cố định quán)\n\n"
-    "📥 *Check In:* Chấm công vào ca (chọn loại ca, ca làm và tên).\n"
+    "📥 *Check In:* Chấm công vào ca (chọn ca và tên).\n"
     "📤 *Check Out:* Chấm công ra ca (chọn tên là xong).\n"
     "📦 *Lấy NVL:* Báo xuất/lấy nguyên vật liệu tại quầy/kho quán.\n"
-    "🔚 *Kết Ca:* Bàn giao ca và nộp báo cáo kết ca.\n"
-    "📱 *Mở Mini App:* Xem bảng công, lịch làm, đổi ca & Báo Dùng Thưởng cá nhân.\n\n"
+    "🔚 *Kết Ca:* Bàn giao ca và nộp báo cáo kết ca.\n\n"
+    "💡 _Bảng công, đổi ca, Báo Dùng Thưởng: dùng điện thoại cá nhân vào Webapp._\n"
     "⏰ _Ca làm: Sáng 6:30–12:00 | Chiều 12:00–18:00 | Tối 18:00–22:30_"
 )
 
@@ -18,7 +18,6 @@ def get_main_keyboard():
     keyboard = [
         [KeyboardButton("📥 Check In"), KeyboardButton("📤 Check Out")],
         [KeyboardButton("📦 Lấy NVL"), KeyboardButton("🔚 Kết Ca")],
-        [KeyboardButton("📱 Mở Mini App")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, is_persistent=True)
 
