@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from zoneinfo import ZoneInfo
-from telegram import MenuButtonWebApp, Update, WebAppInfo
+from telegram import MenuButtonDefault, Update, WebAppInfo
 from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, CallbackQueryHandler, ContextTypes
 
 from config import Config
@@ -141,17 +141,13 @@ async def post_init(application):
     except Exception:
         logger.exception("Không thể khởi động Mini App HTTP Server.")
 
-    if Config.WEBAPP_URL.startswith("https://"):
-        try:
-            await application.bot.set_chat_menu_button(
-                menu_button=MenuButtonWebApp(
-                    text="📱 Mở App",
-                    web_app=WebAppInfo(url=Config.WEBAPP_URL),
-                )
-            )
-            logger.info("✅ Đã thiết lập MenuButtonWebApp: %s", Config.WEBAPP_URL)
-        except Exception as e:
-            logger.warning("Không thiết lập được MenuButtonWebApp: %s", e)
+    try:
+        await application.bot.set_chat_menu_button(
+            menu_button=MenuButtonDefault()
+        )
+        logger.info("✅ Đã thiết lập MenuButton về mặc định.")
+    except Exception as e:
+        logger.warning("Không thiết lập được MenuButton: %s", e)
 
 
 async def post_stop(application):
