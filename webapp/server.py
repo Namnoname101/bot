@@ -1749,6 +1749,37 @@ async def handle_api_schedule_register(request: web.Request) -> web.Response:
 
 # ── 6. Weekly Roster, Shift Swaps & Notifications ────────────────────────────
 
+async def handle_api_sync(request: web.Request) -> web.Response:
+    """Lightweight real-time sync endpoint (<5ms, zero Google Sheets calls)"""
+    store: WebAppStore = request.app[STORE_KEY]
+    bot_data = request.app[BOT_DATA_KEY]
+    user = request.get(USER_KEY) or {}
+    try:
+        offset = int(request.query.get("offset") or 0)
+    except (TypeError, ValueError):
+        offset = 0
+
+    w_info = get_week_info(offset_weeks=offset)
+    target_key = w_info["week_key"]
+    roster = store.get_roster(target_key)
+    schedules = store.get_shift_schedules()
+    user_nick = user.get("nickname") or user.get("username") or ""
+    my_notifs = store.get_notifications(user_nick) if user_nick else []
+    pending_swaps = len(store.get_swap_requests(status="pending")) if user.get("is_admin") else 0
+    pending_rewards = len(bot_data.get("reward_requests") or {}) if user.get("is_admin") else 0
+
+    return web.json_response({
+        "success": True,
+        "week_info": w_info,
+        "roster": roster,
+        "shift_schedules": schedules,
+        "notifications": my_notifs,
+        "pending_swaps_count": pending_swaps,
+        "pending_rewards_count": pending_rewards,
+        "server_time": local_now().strftime("%H:%M:%S"),
+    })
+
+
 async def handle_api_roster_get(request: web.Request) -> web.Response:
     store: WebAppStore = request.app[STORE_KEY]
     week_key = request.query.get("week") or None
@@ -1763,6 +1794,7 @@ async def handle_api_roster_get(request: web.Request) -> web.Response:
         "success": True,
         "week_info": w_info,
         "roster": roster,
+        "shift_schedules": store.get_shift_schedules(),
     })
 
 
@@ -2193,7 +2225,8 @@ def create_webapp(sheets, bot=None, bot_data: dict | None = None, store: WebAppS
     app.router.add_get("/api/auth/public-users", handle_auth_public_users)
     app.router.add_post("/api/auth/change-password", handle_auth_change_password)
 
-    # Weekly Roster & Schedule Planning
+    # Real-Time Sync & Weekly Roster
+    app.router.add_get("/api/sync", handle_api_sync)
     app.router.add_get("/api/roster", handle_api_roster_get)
     app.router.add_post("/api/admin/roster/save-draft", handle_api_admin_roster_save_draft)
     app.router.add_post("/api/admin/roster/publish", handle_api_admin_roster_publish)

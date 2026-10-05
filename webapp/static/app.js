@@ -257,12 +257,84 @@ function showMainApp() {
   renderNavigation();
   updateUserUI();
 
+  // Bắt đầu đồng bộ dữ liệu thời gian thực
+  startRealtimeSync();
+
   // Route to default role tab
   if (AppState.user && AppState.user.is_admin) {
     switchTab("tab-admin-dashboard");
   } else {
     switchTab("tab-emp-home");
   }
+}
+
+// ── Real-Time Auto-Sync Engine (Cập nhật song song không cần reload trang) ────
+let syncIntervalId = null;
+let lastSchedulesHash = "";
+let lastRosterHash = "";
+let isSyncing = false;
+
+function startRealtimeSync() {
+  if (syncIntervalId) return;
+  lastSchedulesHash = JSON.stringify(AppState.shiftSchedules || {});
+  lastRosterHash = JSON.stringify(AppState.currentRoster || {});
+
+  syncIntervalId = setInterval(performRealtimeSync, 3500);
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      performRealtimeSync();
+    }
+  });
+}
+
+async function performRealtimeSync(force = false) {
+  if (!AppState.user || isSyncing || (document.hidden && !force)) return;
+  isSyncing = true;
+
+  try {
+    const offset = AppState.weekOffset || 0;
+    const resp = await apiRequest(`/api/sync?offset=${offset}`);
+
+    if (resp && resp.success) {
+      const newSchedulesJson = JSON.stringify(resp.shift_schedules || {});
+      const newRosterJson = JSON.stringify(resp.roster || {});
+
+      const schedulesChanged = lastSchedulesHash !== newSchedulesJson;
+      const rosterChanged = lastRosterHash !== newRosterJson;
+
+      lastSchedulesHash = newSchedulesJson;
+      lastRosterHash = newRosterJson;
+
+      AppState.shiftSchedules = resp.shift_schedules || {};
+      if (resp.roster) AppState.currentRoster = resp.roster;
+      if (resp.week_info) AppState.weekInfo = resp.week_info;
+      if (resp.notifications) AppState.notifications = resp.notifications;
+
+      // Cập nhật ngay màn hình nếu dữ liệu lịch thay đổi
+      if (schedulesChanged || rosterChanged || force) {
+        if (AppState.activeTab === "tab-admin-roster") {
+          renderDesktopRosterGrid();
+          if (AppState.selectedSlot) {
+            renderContextualAssignmentDrawer();
+          }
+        } else if (AppState.activeTab === "tab-admin-matrix") {
+          renderAdminAvailabilityMatrix();
+        } else if (AppState.activeTab === "tab-emp-schedule") {
+          renderEmployeeSchedule();
+        }
+      }
+    }
+  } catch (e) {
+    console.debug("Background sync error:", e);
+  } finally {
+    isSyncing = false;
+  }
+}
+
+async function manualRefreshRoster() {
+  await performRealtimeSync(true);
+  showToast("✅ Đã cập nhật dữ liệu lịch mới nhất!", "success");
 }
 
 let _publicEmployeesCache = [];
@@ -1556,6 +1628,9 @@ async function loadAdminRosterData() {
   if (resp && resp.success && resp.roster) {
     AppState.currentRoster = resp.roster;
     AppState.weekInfo = resp.week_info;
+    if (resp.shift_schedules) {
+      AppState.shiftSchedules = resp.shift_schedules;
+    }
 
     // Header label & status
     const labelEl = document.getElementById("admin-roster-week-label");
