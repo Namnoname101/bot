@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css?v=20261005_v1">
+  <link rel="stylesheet" href="/static/styles.css?v=20261005_v2">
   <style>
     /* Critical Login Styling (Ensures perfect display across all cache states) */
     .login-view {
@@ -1081,6 +1081,22 @@
             </div>
           </div>
 
+          <!-- Admin Payroll KPI Cards -->
+          <div class="stats-triplet" style="margin-bottom: 16px;">
+            <div class="stat-item">
+              <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px;">Tổng chi lương kỳ này</div>
+              <div id="admin-salary-kpi-total" style="font-size: 20px; font-weight: 800; color: var(--primary);">0đ</div>
+            </div>
+            <div class="stat-item">
+              <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px;">Tổng giờ công toàn quán</div>
+              <div id="admin-salary-kpi-hours" style="font-size: 20px; font-weight: 800; color: var(--text-main);">0h</div>
+            </div>
+            <div class="stat-item">
+              <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px;">Kỳ lương</div>
+              <div id="admin-salary-kpi-period" style="font-size: 13.5px; font-weight: 700; color: var(--text-muted); margin-top: 4px;">—</div>
+            </div>
+          </div>
+
           <div class="card" style="overflow-x: auto;">
             <table class="calendar-grid-table" style="min-width: 760px;">
               <thead>
@@ -1260,6 +1276,6 @@
   <div id="toast-container"></div>
 
   <!-- Main JavaScript App Logic -->
-  <script src="/static/app.js?v=20261005_v1"></script>
+  <script src="/static/app.js?v=20261005_v2"></script>
 </body>
 </html>

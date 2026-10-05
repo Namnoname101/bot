@@ -2247,26 +2247,95 @@ async function loadAdminSalaryData() {
   const tbody = document.getElementById("admin-salary-tbody");
   if (!tbody) return;
 
-  const resp = await apiRequest("/api/admin/salary");
-  if (!resp || !resp.success || !resp.salary) return;
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-dim);">Đang tải dữ liệu bảng lương...</td></tr>`;
 
-  const rows = resp.salary.rows || [];
-  if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-dim);">Chưa có dữ liệu lương tháng này</td></tr>`;
+  let url = "/api/admin/salary";
+  if (select && select.value && select.value !== "current") {
+    const parts = select.value.split("-");
+    if (parts.length === 2) {
+      url += `?year=${parts[0]}&month=${parts[1]}`;
+    }
+  }
+
+  const resp = await apiRequest(url);
+  if (!resp || !resp.success || !resp.salary) {
+    const err = (resp && resp.message) || "Không thể tải dữ liệu bảng lương. Vui lòng kiểm tra quyền Admin.";
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--danger);">${escapeHtml(err)}</td></tr>`;
+    return;
+  }
+
+  const s = resp.salary;
+
+  // Update KPI Cards
+  const kpiTotal = document.getElementById("admin-salary-kpi-total");
+  const kpiHours = document.getElementById("admin-salary-kpi-hours");
+  const kpiPeriod = document.getElementById("admin-salary-kpi-period");
+
+  if (kpiTotal) kpiTotal.textContent = formatCurrency((s.total_payout || 0) * 1000);
+  if (kpiHours) kpiHours.textContent = `${s.total_hours || 0}h`;
+  if (kpiPeriod && s.period_start && s.period_end) {
+    kpiPeriod.textContent = `${s.period_start} → ${s.period_end}`;
+  }
+
+  // Populate Month Filter Select if needed
+  if (select && Array.isArray(resp.options) && resp.options.length > 0) {
+    const curMonth = s.month;
+    const curYear = s.year;
+    if (select.options.length <= 1) {
+      let optHtml = "";
+      resp.options.forEach(opt => {
+        const val = `${opt.year}-${opt.month}`;
+        const isSelected = (opt.month === curMonth && opt.year === curYear);
+        optHtml += `<option value="${val}" ${isSelected ? "selected" : ""}>Tháng ${opt.month}/${opt.year}${!opt.exists ? " ✨" : ""}</option>`;
+      });
+      select.innerHTML = optHtml;
+    }
+  }
+
+  const items = s.items || s.rows || [];
+  if (items.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-dim);">Chưa có dữ liệu bảng lương tháng ${s.month || ''}/${s.year || ''}</td></tr>`;
     return;
   }
 
   let html = "";
-  rows.forEach(r => {
+  items.forEach(r => {
+    const displayName = r.display_name || r.nickname;
+    const initial = displayName.charAt(0).toUpperCase();
+    const hours = r.hours !== undefined ? r.hours : (r.total_hours || 0);
+    const rate = r.rate || 0;
+    const bonus = r.bonus || 0;
+    const advance = r.advance || 0;
+    const totalAmount = (r.total !== undefined ? r.total : (r.net_salary || 0)) * 1000;
+
+    let bonusAdvHtml = "—";
+    if (bonus > 0 && advance > 0) {
+      bonusAdvHtml = `<span style="color: var(--success); font-weight: 600;">+${formatCurrency(bonus * 1000)}</span><br><span style="color: var(--warning); font-weight: 600;">-${formatCurrency(advance * 1000)}</span>`;
+    } else if (bonus > 0) {
+      bonusAdvHtml = `<span style="color: var(--success); font-weight: 600;">+${formatCurrency(bonus * 1000)}</span>`;
+    } else if (advance > 0) {
+      bonusAdvHtml = `<span style="color: var(--warning); font-weight: 600;">-${formatCurrency(advance * 1000)}</span>`;
+    }
+
     html += `
       <tr>
-        <td style="padding: 10px 14px; font-weight: 700;">${escapeHtml(r.nickname)}</td>
-        <td style="text-align: center;">${r.total_hours || 0}h</td>
-        <td style="text-align: center;">${r.rate || 0}k/h</td>
-        <td style="text-align: center;">${formatCurrency(r.bonus || 0)}</td>
-        <td style="text-align: center; font-weight: 700; color: var(--primary);">${formatCurrency(r.net_salary || 0)}</td>
+        <td style="padding: 10px 14px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="staff-card-avatar" style="width: 28px; height: 28px; font-size: 12px;">${escapeHtml(initial)}</div>
+            <div>
+              <div style="font-weight: 700; color: var(--text-main); font-size: 13.5px;">${escapeHtml(displayName)}</div>
+              ${displayName !== r.nickname ? `<div style="font-size: 11px; color: var(--text-dim);">${escapeHtml(r.nickname)}</div>` : ''}
+            </div>
+          </div>
+        </td>
+        <td style="text-align: center; font-weight: 600;">${hours}h</td>
+        <td style="text-align: center; color: var(--text-muted);">${rate}k/h</td>
+        <td style="text-align: center;">${bonusAdvHtml}</td>
+        <td style="text-align: center; font-weight: 700; font-size: 14.5px; color: var(--primary);">${formatCurrency(totalAmount)}</td>
         <td style="text-align: right; padding-right: 14px;">
-          <button class="btn btn-secondary btn-sm" onclick="showSalaryModifierModal('${escapeHtml(r.nickname)}')">+ Thưởng/Ứng</button>
+          <button class="btn btn-secondary btn-sm" onclick="showSalaryModifierModal('${escapeHtml(r.nickname)}')">
+            <span>+ Thưởng/Ứng</span>
+          </button>
         </td>
       </tr>
     `;
@@ -2281,13 +2350,14 @@ function showSalaryModifierModal(nickname) {
       <div class="form-group">
         <label class="form-label">Loại điều chỉnh</label>
         <select id="mod-type" class="form-select">
-          <option value="bonus">Thưởng tiền (+)</option>
-          <option value="advance">Ứng lương (-)</option>
+          <option value="bonus">🎁 Thưởng tiền (+)</option>
+          <option value="advance">💸 Ứng lương (-)</option>
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label" for="mod-amount">Số tiền (VD: 50k, 100k, 200k)</label>
+        <label class="form-label" for="mod-amount">Số tiền</label>
         <input type="text" id="mod-amount" class="form-input" placeholder="VD: 50k hoặc 50000">
+        <div class="form-hint">Nhập 50 = 50.000đ, hoặc 100k = 100.000đ</div>
       </div>
     `,
     `
@@ -2300,11 +2370,25 @@ function showSalaryModifierModal(nickname) {
 async function submitSalaryModifier(nickname) {
   const type = document.getElementById("mod-type").value;
   const amount = document.getElementById("mod-amount").value.trim();
-  if (!amount) return;
+  if (!amount) {
+    showToast("Vui lòng nhập số tiền", "error");
+    return;
+  }
+
+  const select = document.getElementById("admin-salary-month-select");
+  let month = null;
+  let year = null;
+  if (select && select.value && select.value !== "current") {
+    const parts = select.value.split("-");
+    if (parts.length === 2) {
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10);
+    }
+  }
 
   const resp = await apiRequest("/api/admin/salary/modifier", {
     method: "POST",
-    body: { nickname, type, amount }
+    body: { nickname, type, amount, month, year }
   });
 
   if (resp && resp.success) {
