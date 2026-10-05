@@ -2077,13 +2077,22 @@ async function handleAdminSwapDecide(swapId, approve) {
 }
 
 // ── 5. Admin Employees Tab ───────────────────────────────────────────────────
+function getRoleCssClass(role) {
+  const norm = (role || "").toLowerCase();
+  if (norm.includes("pha chế") || norm.includes("barista")) return "role-phache";
+  if (norm.includes("phục vụ")) return "role-phucvu";
+  if (norm.includes("thu ngân")) return "role-thungan";
+  if (norm.includes("quản lý") || norm.includes("admin")) return "role-quanly";
+  return "role-phache";
+}
+
 function renderAdminEmployeesTab() {
   const tbody = document.getElementById("admin-employees-tbody");
   if (!tbody || !AppState.bootstrapData) return;
 
   const employees = AppState.bootstrapData.employees || [];
   if (employees.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px; color: var(--text-dim);">Chưa có nhân viên</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--text-dim);">Chưa có nhân viên nào trong danh sách.</td></tr>`;
     return;
   }
 
@@ -2091,22 +2100,119 @@ function renderAdminEmployeesTab() {
   employees.forEach(emp => {
     const nick = emp.nickname || emp.full_name;
     const role = emp.role || "Pha Chế";
+    const initial = (nick || "?").trim().charAt(0).toUpperCase();
+    const roleClass = getRoleCssClass(role);
+    const rateVal = emp.rate || 18;
+
     html += `
       <tr>
-        <td style="padding: 12px 14px; font-weight: 700;">${escapeHtml(nick)}</td>
-        <td style="text-align: center;">
-          <span class="badge badge-primary">${escapeHtml(role)}</span>
+        <td style="padding: 12px 14px;">
+          <div class="emp-name-cell">
+            <div class="emp-avatar-sm">${escapeHtml(initial)}</div>
+            <div style="font-weight: 700; color: var(--text-main); font-size: 14px;">${escapeHtml(nick)}</div>
+          </div>
         </td>
-        <td style="text-align: center;">${emp.rate || 18}k/giờ</td>
-        <td style="text-align: center;">${emp.balance || 0} ly</td>
+        <td style="text-align: center;">
+          <select class="inline-role-select ${roleClass}" 
+                  onchange="onInlineRoleChange('${escapeHtml(nick)}', this)"
+                  title="Bấm để thay đổi vị trí">
+            <option value="Pha Chế" ${role === 'Pha Chế' ? 'selected' : ''}>☕ Pha Chế</option>
+            <option value="Phục Vụ" ${role === 'Phục Vụ' ? 'selected' : ''}>🍽️ Phục Vụ</option>
+            <option value="Thu Ngân" ${role === 'Thu Ngân' ? 'selected' : ''}>💵 Thu Ngân</option>
+            <option value="Quản Lý" ${role === 'Quản Lý' ? 'selected' : ''}>👑 Quản Lý</option>
+          </select>
+        </td>
+        <td style="text-align: center;">
+          <div class="inline-rate-box" title="Bấm để sửa mức lương">
+            <input type="number" 
+                   class="inline-rate-input" 
+                   value="${rateVal}" 
+                   step="0.5" 
+                   min="10" 
+                   max="100" 
+                   data-original="${rateVal}"
+                   onfocus="this.select()"
+                   onkeydown="if(event.key==='Enter') this.blur()"
+                   onchange="onInlineRateChange('${escapeHtml(nick)}', this)">
+            <span class="inline-rate-unit">k/h</span>
+          </div>
+        </td>
+        <td style="text-align: center;">
+          <span style="font-weight: 700; color: var(--text-main);">${emp.balance || 0}</span>
+          <span style="font-size: 12px; color: var(--text-dim);"> ly</span>
+        </td>
         <td style="text-align: right; padding-right: 14px; white-space: nowrap;">
-          <button class="btn btn-secondary btn-sm" onclick="showEditRoleModal('${escapeHtml(nick)}', '${escapeHtml(role)}')">Vị trí</button>
-          <button class="btn btn-secondary btn-sm" onclick="showEditRateModal('${escapeHtml(nick)}', ${emp.rate || 18})" style="margin-left: 4px;">Lương</button>
+          <button class="btn-icon-subtle" onclick="showRenameEmployeeModal('${escapeHtml(nick)}')" title="Đổi tên nhân viên">✏️</button>
+          <button class="btn-icon-subtle btn-delete" onclick="confirmDeleteEmployee('${escapeHtml(nick)}')" title="Xóa nhân viên" style="margin-left: 4px;">🗑️</button>
         </td>
       </tr>
     `;
   });
   tbody.innerHTML = html;
+}
+
+async function onInlineRoleChange(nickname, selectEl) {
+  const role = selectEl.value;
+  const oldRoleClass = selectEl.className;
+  
+  // Update class immediately for responsive visual feedback
+  selectEl.className = `inline-role-select ${getRoleCssClass(role)}`;
+
+  const resp = await apiRequest("/api/admin/employee/role", {
+    method: "POST",
+    body: { nickname, role }
+  });
+
+  if (resp && resp.success) {
+    showToast(`✅ Đã lưu vị trí ${nickname}: ${role}!`, "success");
+    if (resp.employees) {
+      AppState.bootstrapData.employees = resp.employees;
+    } else {
+      const emp = (AppState.bootstrapData.employees || []).find(e => (e.nickname || e.full_name) === nickname);
+      if (emp) emp.role = role;
+    }
+  } else {
+    showToast(resp.message || "Lỗi cập nhật vị trí", "error");
+    selectEl.className = oldRoleClass;
+    if (AppState.bootstrapData && AppState.bootstrapData.employees) {
+      const emp = AppState.bootstrapData.employees.find(e => (e.nickname || e.full_name) === nickname);
+      if (emp) selectEl.value = emp.role || "Pha Chế";
+    }
+  }
+}
+
+async function onInlineRateChange(nickname, inputEl) {
+  const original = parseFloat(inputEl.getAttribute("data-original") || "18");
+  const newRate = parseFloat(inputEl.value);
+
+  if (isNaN(newRate) || newRate <= 0) {
+    showToast("Mức lương phải > 0 (k/giờ)", "error");
+    inputEl.value = original;
+    return;
+  }
+
+  if (newRate === original) {
+    return;
+  }
+
+  const resp = await apiRequest("/api/admin/employee/salary-rate", {
+    method: "POST",
+    body: { nickname, rate: newRate }
+  });
+
+  if (resp && resp.success) {
+    showToast(`✅ Đã lưu mức lương ${nickname}: ${newRate}k/h!`, "success");
+    inputEl.setAttribute("data-original", newRate);
+    if (resp.employees) {
+      AppState.bootstrapData.employees = resp.employees;
+    } else {
+      const emp = (AppState.bootstrapData.employees || []).find(e => (e.nickname || e.full_name) === nickname);
+      if (emp) emp.rate = newRate;
+    }
+  } else {
+    showToast(resp.message || "Lỗi cập nhật mức lương", "error");
+    inputEl.value = original;
+  }
 }
 
 function showAddEmployeeModal() {
@@ -2161,83 +2267,79 @@ async function submitAddEmployee() {
   }
 }
 
-function showEditRoleModal(nickname, currentRole) {
+function showRenameEmployeeModal(nickname) {
   openModal(
-    `Xếp vị trí cho: ${nickname}`,
+    "Đổi tên nhân viên",
     `
       <div class="form-group">
-        <label class="form-label" for="edit-emp-role">Vị trí làm việc</label>
-        <select id="edit-emp-role" class="form-input">
-          <option value="Pha Chế" ${currentRole === "Pha Chế" ? "selected" : ""}>Pha Chế (Barista)</option>
-          <option value="Phục Vụ" ${currentRole === "Phục Vụ" ? "selected" : ""}>Phục Vụ</option>
-          <option value="Thu Ngân" ${currentRole === "Thu Ngân" ? "selected" : ""}>Thu Ngân</option>
-          <option value="Quản Lý" ${currentRole === "Quản Lý" ? "selected" : ""}>Quản Lý</option>
-        </select>
-        <div class="form-hint">Nhân viên sẽ tự động nhận vị trí này khi đăng nhập, không cần chọn lúc vào ca.</div>
+        <label class="form-label" for="rename-emp-input">Tên / Nickname mới</label>
+        <input type="text" id="rename-emp-input" class="form-input" value="${escapeHtml(nickname)}" placeholder="Nhập tên mới">
+        <div class="form-hint">Dữ liệu chấm công, thưởng và ca làm sẽ được cập nhật sang tên mới.</div>
       </div>
     `,
     `
       <button class="btn btn-secondary btn-sm" onclick="closeModal()">Hủy</button>
-      <button class="btn btn-primary btn-sm" onclick="submitEditRole('${escapeHtml(nickname)}')">Lưu vị trí</button>
+      <button class="btn btn-primary btn-sm" onclick="submitRenameEmployee('${escapeHtml(nickname)}')">Lưu tên mới</button>
     `
   );
 }
 
-async function submitEditRole(nickname) {
-  const role = document.getElementById("edit-emp-role").value;
-  if (!role) return;
+async function submitRenameEmployee(oldNickname) {
+  const input = document.getElementById("rename-emp-input");
+  const newNickname = input ? input.value.trim() : "";
+  if (!newNickname || newNickname === oldNickname) {
+    closeModal();
+    return;
+  }
 
-  const resp = await apiRequest("/api/admin/employee/role", {
+  const resp = await apiRequest("/api/admin/employee/rename", {
     method: "POST",
-    body: { nickname, role }
+    body: { old_nickname: oldNickname, new_nickname: newNickname }
   });
 
   if (resp && resp.success) {
-    showToast(`Đã xếp vị trí của ${nickname} thành ${role}!`, "success");
+    showToast(`✅ Đã đổi tên ${oldNickname} → ${newNickname}!`, "success");
     closeModal();
     if (resp.employees) {
       AppState.bootstrapData.employees = resp.employees;
       renderAdminEmployeesTab();
     }
   } else {
-    showToast(resp.message || "Lỗi cập nhật vị trí", "error");
+    showToast(resp.message || "Không thể đổi tên nhân viên", "error");
   }
 }
 
-function showEditRateModal(nickname, currentRate) {
+function confirmDeleteEmployee(nickname) {
   openModal(
-    `Cập nhật mức lương: ${nickname}`,
+    "Xác nhận xóa nhân viên",
     `
-      <div class="form-group">
-        <label class="form-label" for="edit-emp-rate">Mức lương nghìn đồng/giờ (k/h)</label>
-        <input type="number" id="edit-emp-rate" class="form-input" value="${currentRate}" step="0.5" min="10" max="100">
+      <p style="margin-bottom: 12px;">Bạn có chắc chắn muốn xóa nhân viên <strong>${escapeHtml(nickname)}</strong> khỏi hệ thống quán?</p>
+      <div style="font-size: 13px; color: var(--danger); background: var(--danger-bg); border: 1px solid var(--danger-border); padding: 10px; border-radius: var(--radius-sm); line-height: 1.5;">
+        ⚠️ Nhân viên bị xóa sẽ không thể đăng nhập hoặc hiển thị trong danh sách chấm công và bàn giao ca.
       </div>
     `,
     `
       <button class="btn btn-secondary btn-sm" onclick="closeModal()">Hủy</button>
-      <button class="btn btn-primary btn-sm" onclick="submitEditRate('${nickname}')">Lưu mức lương</button>
+      <button class="btn btn-danger btn-sm" onclick="submitDeleteEmployee('${escapeHtml(nickname)}')">Xác nhận xóa</button>
     `
   );
 }
 
-async function submitEditRate(nickname) {
-  const rate = parseFloat(document.getElementById("edit-emp-rate").value);
-  if (!rate || rate <= 0) return;
-
-  const resp = await apiRequest("/api/admin/employee/salary-rate", {
+async function submitDeleteEmployee(nickname) {
+  closeModal();
+  const resp = await apiRequest("/api/admin/employee/remove", {
     method: "POST",
-    body: { nickname, rate }
+    body: { nickname }
   });
 
   if (resp && resp.success) {
-    showToast("Đã cập nhật mức lương!", "success");
-    closeModal();
+    showToast(`✅ Đã xóa nhân viên ${nickname}!`, "success");
     if (resp.employees) {
       AppState.bootstrapData.employees = resp.employees;
       renderAdminEmployeesTab();
     }
   } else {
-    showToast(resp.message || "Lỗi cập nhật", "error");
+    showToast(resp.message || "Không thể xóa nhân viên", "error");
   }
 }
 
