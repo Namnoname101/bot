@@ -324,6 +324,16 @@ async function performRealtimeSync(force = false) {
           renderEmployeeSchedule();
         }
       }
+
+      // Live update Admin Dashboard khi có nhân viên báo thưởng ca mới
+      if (resp.pending_rewards_count !== undefined) {
+        if (AppState.pendingRewardsCount !== undefined && AppState.pendingRewardsCount !== resp.pending_rewards_count) {
+          if (AppState.activeTab === "tab-admin-dashboard") {
+            loadAdminDashboardData();
+          }
+        }
+        AppState.pendingRewardsCount = resp.pending_rewards_count;
+      }
     }
   } catch (e) {
     console.debug("Background sync error:", e);
@@ -657,6 +667,7 @@ function updateUserUI() {
   if (empWelcomeName) empWelcomeName.textContent = name;
   if (empWelcomeRole) empWelcomeRole.textContent = role;
 
+  renderEmployeeRewardCard();
   updateBadgeCounts();
 }
 
@@ -770,6 +781,9 @@ async function loadEmployeeHomeData() {
   if (!AppState.user) return;
   const nick = AppState.user.nickname || AppState.user.username;
 
+  // 0. Update reward card balance
+  renderEmployeeRewardCard();
+
   // 1. Fetch personal salary summary
   const summaryResp = await apiRequest(`/api/personal/summary?nickname=${encodeURIComponent(nick)}`);
   if (summaryResp && summaryResp.success && summaryResp.summary) {
@@ -867,6 +881,237 @@ function renderHomeNotificationsSnippet() {
   });
   html += '</div>';
   container.innerHTML = html;
+}
+
+// ── 1.1 Quỹ Ly Thưởng Doanh Thu (Yêu Cầu & Dùng Ly) ──────────────────────────
+function renderEmployeeRewardCard() {
+  if (!AppState.user) return;
+  const nick = AppState.user.nickname || AppState.user.username || "";
+  const userNorm = normalizeName(nick);
+  const myEmp = (AppState.employees || []).find(e => normalizeName(e.nickname || e.full_name) === userNorm);
+  const balance = (myEmp && myEmp.balance !== undefined && myEmp.balance !== null) ? myEmp.balance : (AppState.user.balance || 0);
+
+  const countEl = document.getElementById("emp-reward-count");
+  if (countEl) {
+    countEl.textContent = balance;
+  }
+}
+
+function showRewardRequestModal() {
+  if (!AppState.user) return;
+  const currentNick = AppState.user.nickname || AppState.user.username || "";
+  const currentNorm = normalizeName(currentNick);
+
+  // Inferred shift (Sáng, Chiều, Tối)
+  const currentCa = (AppState.serverTime && AppState.serverTime.inferred_ca) || "Tối";
+
+  // List active employees
+  const staffList = (AppState.employees || []).filter(e => e.active !== false);
+
+  // Collect checked-in nicknames
+  const checkedInNicks = new Set((AppState.openSessions || []).map(s => normalizeName(s.nickname || s.employee_name || "")));
+
+  let staffHtml = staffList.map(e => {
+    const isMe = normalizeName(e.nickname || e.full_name) === currentNorm;
+    const isCheckedIn = checkedInNicks.has(normalizeName(e.nickname || e.full_name));
+    const preChecked = isMe || isCheckedIn;
+    return `
+      <label class="reward-staff-item ${preChecked ? 'selected' : ''}" id="staff-row-${escapeHtml(e.nickname)}" onclick="toggleRewardStaffRow(this)">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <input type="checkbox" name="reward_staff" value="${escapeHtml(e.nickname)}" ${preChecked ? 'checked' : ''} style="pointer-events: none;">
+          <div>
+            <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">
+              ${escapeHtml(e.full_name || e.nickname)} ${isMe ? '<span class="badge badge-primary" style="font-size: 10px; margin-left: 4px;">Bạn</span>' : ''}
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted);">${escapeHtml(e.role || 'Pha chế')} ${isCheckedIn ? '• <span style="color:var(--success);">Đang check-in</span>' : ''}</div>
+          </div>
+        </div>
+      </label>
+    `;
+  }).join('');
+
+  const bodyHtml = `
+    <div style="margin-bottom: 16px;">
+      <label class="form-label" style="margin-bottom: 8px;">1. Chọn ca làm việc:</label>
+      <div class="reward-shift-selector" id="reward-shift-picker">
+        <div class="reward-shift-chip ${currentCa === 'Sáng' ? 'active' : ''}" onclick="selectRewardShift(this, 'Sáng')">🌅 Ca Sáng</div>
+        <div class="reward-shift-chip ${currentCa === 'Chiều' ? 'active' : ''}" onclick="selectRewardShift(this, 'Chiều')">☀️ Ca Chiều</div>
+        <div class="reward-shift-chip ${currentCa === 'Tối' ? 'active' : ''}" onclick="selectRewardShift(this, 'Tối')">🌙 Ca Tối</div>
+      </div>
+      <input type="hidden" id="selected-reward-ca" value="${escapeHtml(currentCa)}">
+    </div>
+
+    <div style="margin-bottom: 12px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <label class="form-label" style="margin-bottom: 0;">2. Chọn các bạn cùng trực ca (+1 ly):</label>
+        <button type="button" class="btn btn-ghost btn-xs" onclick="quickSelectActiveOnly()">Chọn bạn check-in</button>
+      </div>
+      <div class="reward-staff-list" id="reward-staff-list">
+        ${staffHtml}
+      </div>
+    </div>
+
+    <div style="padding: 10px 12px; background: var(--bg-card-subtle); border-radius: var(--radius-md); font-size: 12px; color: var(--text-muted);">
+      ℹ️ <strong>Lưu ý:</strong> Sau khi bấm gửi, yêu cầu sẽ được chuyển đến Quản lý phê duyệt (qua Telegram & WebApp) trước khi cộng vào số dư ly thưởng.
+    </div>
+  `;
+
+  const actionsHtml = `
+    <button type="button" class="btn btn-secondary" onclick="closeModal()">Hủy</button>
+    <button type="button" class="btn btn-primary" id="btn-submit-reward-req" onclick="submitRewardRequest()">
+      <span>Gửi Yêu Cầu Quản Lý</span>
+    </button>
+  `;
+
+  openModal("Báo Thưởng Doanh Thu", bodyHtml, actionsHtml);
+}
+
+function selectRewardShift(chip, ca) {
+  document.querySelectorAll("#reward-shift-picker .reward-shift-chip").forEach(c => c.classList.remove("active"));
+  chip.classList.add("active");
+  const hiddenInput = document.getElementById("selected-reward-ca");
+  if (hiddenInput) hiddenInput.value = ca;
+}
+
+function toggleRewardStaffRow(row) {
+  const cb = row.querySelector("input[type=checkbox]");
+  if (!cb) return;
+  cb.checked = !cb.checked;
+  row.classList.toggle("selected", cb.checked);
+}
+
+function quickSelectActiveOnly() {
+  const checkedInNicks = new Set((AppState.openSessions || []).map(s => normalizeName(s.nickname || s.employee_name || "")));
+  const currentNick = AppState.user ? normalizeName(AppState.user.nickname || AppState.user.username || "") : "";
+
+  document.querySelectorAll("#reward-staff-list .reward-staff-item").forEach(row => {
+    const cb = row.querySelector("input[type=checkbox]");
+    if (!cb) return;
+    const nickNorm = normalizeName(cb.value);
+    const shouldCheck = checkedInNicks.has(nickNorm) || nickNorm === currentNick;
+    cb.checked = shouldCheck;
+    row.classList.toggle("selected", shouldCheck);
+  });
+}
+
+async function submitRewardRequest() {
+  const caInput = document.getElementById("selected-reward-ca");
+  const ca = caInput ? caInput.value : "Tối";
+
+  const selectedBoxes = Array.from(document.querySelectorAll("#reward-staff-list input[type=checkbox]:checked"));
+  const employees = selectedBoxes.map(b => b.value);
+
+  if (employees.length === 0) {
+    showToast("Vui lòng chọn ít nhất 1 nhân viên trong ca!", "warning");
+    return;
+  }
+
+  const submitBtn = document.getElementById("btn-submit-reward-req");
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<span>Đang gửi...</span>`;
+  }
+
+  const resp = await apiRequest("/api/rewards/request", "POST", {
+    employees: employees,
+    ca: ca
+  });
+
+  if (resp && resp.success) {
+    closeModal();
+    showToast(resp.message || "Đã gửi yêu cầu thưởng ca thành công!", "success");
+    if (resp.approved && resp.employees) {
+      AppState.employees = resp.employees;
+      renderEmployeeRewardCard();
+    }
+  } else {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<span>Gửi Yêu Cầu Quản Lý</span>`;
+    }
+    showToast((resp && resp.message) || "Lỗi khi gửi yêu cầu thưởng", "danger");
+  }
+}
+
+function showUseRewardModal() {
+  if (!AppState.user) return;
+  const nick = AppState.user.nickname || AppState.user.username || "";
+  const userNorm = normalizeName(nick);
+  const myEmp = (AppState.employees || []).find(e => normalizeName(e.nickname || e.full_name) === userNorm);
+  const balance = (myEmp && myEmp.balance !== undefined && myEmp.balance !== null) ? myEmp.balance : (AppState.user.balance || 0);
+
+  if (balance <= 0) {
+    const bodyHtml = `
+      <div style="text-align: center; padding: 16px 8px;">
+        <div style="font-size: 40px; margin-bottom: 12px;">☕</div>
+        <h4 style="margin-bottom: 8px; color: var(--text-main);">Bạn chưa có ly thưởng nào</h4>
+        <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0;">
+          Số dư ly thưởng hiện tại là <strong>0 ly</strong>.<br>
+          Khi ca làm việc của bạn đạt doanh thu thưởng, hãy dùng nút <strong>Báo thưởng ca</strong> để được Quản lý duyệt cộng thưởng nhé!
+        </p>
+      </div>
+    `;
+    const actionsHtml = `
+      <button type="button" class="btn btn-primary" onclick="closeModal()" style="width: 100%;">Đã hiểu</button>
+    `;
+    openModal("Quỹ ly thưởng", bodyHtml, actionsHtml);
+    return;
+  }
+
+  const bodyHtml = `
+    <div style="text-align: center; padding: 16px 8px;">
+      <div style="font-size: 40px; margin-bottom: 12px;">🥤</div>
+      <h4 style="margin-bottom: 8px; color: var(--text-main);">Dùng 1 ly thưởng tại quán?</h4>
+      <p style="font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 16px;">
+        Bạn hiện đang có <strong style="color: var(--primary); font-size: 16px;">${balance} ly thưởng</strong>.<br>
+        Bạn có muốn dùng <strong>1 ly nước</strong> ngay bây giờ không?
+      </p>
+      <div style="padding: 10px 12px; background: var(--warning-bg); border: 1px solid var(--warning-border); border-radius: var(--radius-md); font-size: 12px; color: #925829; text-align: left;">
+        ℹ️ Hệ thống sẽ trừ 1 ly vào quỹ cá nhân trên Google Sheets và tự động gửi thông báo đối soát vào nhóm quán.
+      </div>
+    </div>
+  `;
+
+  const actionsHtml = `
+    <button type="button" class="btn btn-secondary" onclick="closeModal()">Để sau</button>
+    <button type="button" class="btn btn-primary" id="btn-confirm-use-reward" onclick="submitUseReward('${escapeHtml(nick)}')">
+      <span>Xác nhận dùng 1 ly</span>
+    </button>
+  `;
+
+  openModal("Xác nhận dùng ly thưởng", bodyHtml, actionsHtml);
+}
+
+async function submitUseReward(nick) {
+  const btn = document.getElementById("btn-confirm-use-reward");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span>Đang trừ...</span>`;
+  }
+
+  const resp = await apiRequest("/api/rewards/use", "POST", { nickname: nick });
+  if (resp && resp.success) {
+    closeModal();
+    showToast(resp.message || "Đã trừ 1 ly thưởng thành công!", "success");
+
+    // Update state
+    if (resp.balance !== undefined) {
+      if (AppState.user) AppState.user.balance = resp.balance;
+      const userNorm = normalizeName(nick);
+      const myEmp = (AppState.employees || []).find(e => normalizeName(e.nickname || e.full_name) === userNorm);
+      if (myEmp) myEmp.balance = resp.balance;
+    }
+    if (resp.employees) {
+      AppState.employees = resp.employees;
+    }
+    renderEmployeeRewardCard();
+  } else {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<span>Xác nhận dùng 1 ly</span>`;
+    }
+    showToast((resp && resp.message) || "Lỗi khi trừ ly thưởng", "danger");
+  }
 }
 
 // ── 2. Employee Availability Registration ────────────────────────────────────
@@ -1554,6 +1799,12 @@ async function loadAdminDashboardData() {
   // Render pending swaps preview on dashboard
   renderAdminDashSwapsList(pendingStoreSwaps);
 
+  // Render pending rewards list
+  const pendingRewards = ovResp.pending_rewards || [];
+  const rewBadge = document.getElementById("admin-dash-rewards-badge");
+  if (rewBadge) rewBadge.textContent = pendingRewards.length;
+  renderAdminDashRewardsList(pendingRewards);
+
   // Render active working staff list
   renderAdminDashActiveStaff(activeStaff);
 
@@ -1562,6 +1813,57 @@ async function loadAdminDashboardData() {
   if (matResp && matResp.success && Array.isArray(matResp.materials)) {
     const lowStock = matResp.materials.filter(m => m.min_stock > 0 && m.stock <= m.min_stock);
     document.getElementById("kpi-low-stock").textContent = `${lowStock.length} món`;
+  }
+}
+
+function renderAdminDashRewardsList(rewards) {
+  const container = document.getElementById("admin-dash-rewards-list");
+  if (!container) return;
+
+  if (!rewards || rewards.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding: 16px;"><p>Không có yêu cầu thưởng ca nào đang chờ duyệt.</p></div>`;
+    return;
+  }
+
+  let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+  rewards.forEach(r => {
+    const reqId = r.id || r.request_id;
+    const empsStr = (r.employees || []).join(", ");
+    html += `
+      <div class="reward-request-row">
+        <div>
+          <div class="reward-request-info-title">🎁 Ca ${escapeHtml(r.ca || '')} • +1 ly cho: <strong>${escapeHtml(empsStr)}</strong></div>
+          <div class="reward-request-info-sub">Người gửi: ${escapeHtml(r.sender || 'Nhân viên')} • ${escapeHtml(r.created_at || '')}</div>
+        </div>
+        <div class="reward-request-actions">
+          <button type="button" class="btn btn-success btn-xs" onclick="handleAdminDecideReward('${escapeHtml(reqId)}', true)">
+            ✅ Duyệt
+          </button>
+          <button type="button" class="btn btn-danger btn-xs" onclick="handleAdminDecideReward('${escapeHtml(reqId)}', false)">
+            ❌ Từ chối
+          </button>
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+async function handleAdminDecideReward(requestId, approve) {
+  const actionText = approve ? "duyệt cộng thưởng (+1 ly)" : "từ chối yêu cầu thưởng";
+  if (!confirm(`Bạn có chắc chắn muốn ${actionText} này không?`)) return;
+
+  const resp = await apiRequest("/api/admin/rewards/decide", "POST", {
+    request_id: requestId,
+    approve: approve
+  });
+
+  if (resp && resp.success) {
+    showToast(resp.message || "Đã xử lý yêu cầu thành công!", "success");
+    loadAdminDashboardData();
+  } else {
+    showToast((resp && resp.message) || "Lỗi khi xử lý yêu cầu", "danger");
   }
 }
 
