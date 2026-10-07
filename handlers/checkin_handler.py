@@ -4,6 +4,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from utils.auto_delete import delete_tracked_messages, track_message, get_main_keyboard, get_admin_keyboard, GUIDE_MESSAGE, safe_edit_message
 from utils.admin import is_admin, is_super_admin
+from utils.time_utils import local_now
+from utils.validators import normalize_name
+from webapp.store import get_week_info
 from config import Config
 
 logger = logging.getLogger(__name__)
@@ -14,6 +17,13 @@ def _job_shift_ca(context) -> str:
     job = getattr(context, 'job', None)
     data = getattr(job, 'data', None) or {}
     return data.get('shift_ca', '')
+
+
+def _job_start_time_label(context) -> str:
+    """Lấy nhãn giờ vào ca được gắn vào JobQueue."""
+    job = getattr(context, 'job', None)
+    data = getattr(job, 'data', None) or {}
+    return data.get('start_time_label', '')
 
 
 def _open_sessions_text(sessions: list) -> str:
@@ -99,6 +109,94 @@ async def alert_unclosed_sessions(context):
         logger.info("Đã tự động chốt các phiên mở quá hạn ca %s.", shift_ca)
     except Exception as e:
         logger.error(f"Lỗi khi alert_unclosed_sessions: {e}")
+
+
+async def alert_missing_checkins(context):
+    """Kiểm tra và cảnh báo Admin khi đến giờ vào ca nhưng nhân viên chưa check-in."""
+    shift_ca = _job_shift_ca(context)
+    if not shift_ca:
+        return
+
+    start_label = _job_start_time_label(context) or ("06:30" if shift_ca == "Sáng" else ("12:00" if shift_ca == "Chiều" else "18:00"))
+
+    try:
+        sheets = context.bot_data.get('sheets')
+        store = context.bot_data.get('store')
+        if not sheets:
+            return
+
+        now = local_now()
+        weekday_map = {0: "T2", 1: "T3", 2: "T4", 3: "T5", 4: "T6", 5: "T7", 6: "CN"}
+        day_code = weekday_map.get(now.weekday(), "T2")
+
+        # 1. Lấy danh sách nhân viên xếp ca hôm nay từ Roster (Lịch tuần)
+        scheduled_staff = []
+        if store:
+            w_info = get_week_info(offset_weeks=0, base_date=now)
+            roster = store.get_roster(w_info.get("week_key"))
+            if roster and isinstance(roster.get("shifts"), dict):
+                slot_key = f"{day_code}_{shift_ca}"
+                scheduled_staff = [
+                    str(s).strip() for s in roster["shifts"].get(slot_key, [])
+                    if str(s).strip()
+                ]
+
+        # 2. Lấy danh sách đã check-in hôm nay
+        checkins_today = await asyncio.to_thread(sheets.get_checkin_history_today)
+        checked_in_nicks = set()
+        for r in (checkins_today or []):
+            note = str(r.get("note") or "")
+            t_str = str(r.get("checkin_time") or "")
+            is_match_ca = f"Ca {shift_ca}" in note
+            if not is_match_ca and t_str:
+                try:
+                    h = int(t_str.split(":")[0])
+                    if shift_ca == "Sáng" and 5 <= h < 12:
+                        is_match_ca = True
+                    elif shift_ca == "Chiều" and 11 <= h < 18:
+                        is_match_ca = True
+                    elif shift_ca == "Tối" and 17 <= h <= 23:
+                        is_match_ca = True
+                except Exception:
+                    pass
+            if is_match_ca:
+                checked_in_nicks.add(normalize_name(str(r.get("nickname") or "")))
+
+        # 3. Đối soát
+        if scheduled_staff:
+            missing = [
+                name for name in scheduled_staff
+                if normalize_name(name) not in checked_in_nicks
+            ]
+            if missing:
+                missing_str = ", ".join(missing)
+                msg = (
+                    f"⚠️ **CẢNH BÁO CHƯA CHECK-IN (Ca {shift_ca})**\n\n"
+                    f"⏰ Đã quá giờ vào ca ({start_label}) nhưng nhân viên sau chưa check-in:\n"
+                    f"👉 **{missing_str}**\n\n"
+                    f"Quản lý vui lòng kiểm tra hoặc liên hệ nhân sự!"
+                )
+                await context.bot.send_message(
+                    chat_id=Config.ADMIN_CHAT_ID,
+                    text=msg,
+                    parse_mode="Markdown"
+                )
+                logger.info("Đã gửi cảnh báo chưa check-in Ca %s cho admin: %s", shift_ca, missing_str)
+        else:
+            # Nếu chưa xếp lịch hoặc lịch trống mà ca này hoàn toàn chưa có ai check-in
+            if not checked_in_nicks:
+                msg = (
+                    f"⚠️ **NHẮC NHỞ CA LÀM VIỆC (Ca {shift_ca})**\n\n"
+                    f"⏰ Đã quá giờ vào ca ({start_label}) nhưng hiện tại **chưa có nhân viên nào check-in** tại quán."
+                )
+                await context.bot.send_message(
+                    chat_id=Config.ADMIN_CHAT_ID,
+                    text=msg,
+                    parse_mode="Markdown"
+                )
+                logger.info("Đã gửi nhắc nhở Ca %s trống check-in cho admin.", shift_ca)
+    except Exception as e:
+        logger.error("Lỗi kiểm tra cảnh báo chưa check-in Ca %s: %s", shift_ca, e)
 
 
 async def midnight_auto_cleanup(context):
@@ -350,10 +448,10 @@ async def handle_checkin_employee_selected(query, context: ContextTypes.DEFAULT_
     late_minutes = result['late_minutes']
     date_str  = result['date_str']
 
-    # Gửi admin thông báo check-in
+    # Gửi admin thông báo check-in (báo mọi lượt check-in: đúng giờ hoặc đi muộn)
     try:
         if late_minutes > 0:
-            admin_text = f"📥 {nickname} — {time_str} Ca {ca} | {note}"
+            admin_text = f"📥 [Check-in] {nickname} — {time_str} Ca {ca} | ⚠️ Muộn {late_minutes}p ({note})"
             await context.bot.send_message(
                 chat_id=Config.ADMIN_CHAT_ID,
                 text=admin_text
@@ -369,6 +467,12 @@ async def handle_checkin_employee_selected(query, context: ContextTypes.DEFAULT_
                 chat_id=Config.ADMIN_CHAT_ID,
                 text=f"⚠️ {nickname} muộn {late_minutes}p (Ca {ca}) — báo trước?",
                 reply_markup=late_keyboard
+            )
+        else:
+            admin_text = f"📥 [Check-in] {nickname} — {time_str} Ca {ca} | ✅ Đúng giờ"
+            await context.bot.send_message(
+                chat_id=Config.ADMIN_CHAT_ID,
+                text=admin_text
             )
     except Exception as e:
         logger.warning(f"Không thể báo admin check-in: {e}")

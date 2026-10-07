@@ -13,7 +13,9 @@ from handlers.reward_handler import (
     check_reward, help_command, inline_button_handler, open_mini_app_command,
     quick_report_command, set_pin_command, start_command, use_reward,
 )
-from handlers.checkin_handler import send_checkout_reminder, alert_unclosed_sessions, midnight_auto_cleanup
+from handlers.checkin_handler import (
+    send_checkout_reminder, alert_unclosed_sessions, midnight_auto_cleanup, alert_missing_checkins
+)
 from handlers.endshift_handler import handle_endshift_photo
 from webapp.server import start_webapp_server, stop_webapp_server
 
@@ -74,7 +76,22 @@ async def post_init(application):
         name='midnight_auto_cleanup'
     )
 
-    # 2. Nhắc Check Out lúc kết ca
+    # 2. Quét cảnh báo nhân viên chưa Check-in (sau giờ vào ca 5 phút)
+    checkin_shifts = [
+        ('Sáng', datetime.time(hour=6, minute=35, tzinfo=tz), '06:30'),
+        ('Chiều', datetime.time(hour=12, minute=5, tzinfo=tz), '12:00'),
+        ('Tối', datetime.time(hour=18, minute=5, tzinfo=tz), '18:00'),
+    ]
+
+    for shift_ca, shift_time, start_label in checkin_shifts:
+        application.job_queue.run_daily(
+            alert_missing_checkins,
+            time=shift_time,
+            data={'shift_ca': shift_ca, 'start_time_label': start_label},
+            name=f'alert_missing_checkin_{shift_ca}'
+        )
+
+    # 3. Nhắc Check Out lúc kết ca
     checkout_shifts = [
         ('Sáng', datetime.time(hour=12, minute=0, tzinfo=tz)),
         ('Chiều', datetime.time(hour=18, minute=0, tzinfo=tz)),

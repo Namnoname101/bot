@@ -472,24 +472,31 @@ async def handle_api_checkin(request: web.Request) -> web.Response:
     late_minutes = result.get("late_minutes", 0)
     date_str = result["date_str"]
 
-    if late_minutes > 0 and bot:
-        await _safe_send_admin(
-            bot,
-            f"📥 {nickname} — {time_str} Ca {ca} | {note}",
-            parse_mode=None,
-        )
-        late_kb = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("✅ Đã báo trước", callback_data=f"mark_reported_{date_str}_{nickname}"),
-                InlineKeyboardButton("❌ Không báo trước", callback_data=f"mark_unreported_{date_str}_{nickname}"),
-            ]
-        ])
-        await _safe_send_admin(
-            bot,
-            f"⚠️ {nickname} muộn {late_minutes}p (Ca {ca}) — báo trước?",
-            reply_markup=late_kb,
-            parse_mode=None,
-        )
+    if bot:
+        if late_minutes > 0:
+            await _safe_send_admin(
+                bot,
+                f"📥 [Check-in] {nickname} — {time_str} Ca {ca} | ⚠️ Muộn {late_minutes}p ({note})",
+                parse_mode=None,
+            )
+            late_kb = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("✅ Đã báo trước", callback_data=f"mark_reported_{date_str}_{nickname}"),
+                    InlineKeyboardButton("❌ Không báo trước", callback_data=f"mark_unreported_{date_str}_{nickname}"),
+                ]
+            ])
+            await _safe_send_admin(
+                bot,
+                f"⚠️ {nickname} muộn {late_minutes}p (Ca {ca}) — báo trước?",
+                reply_markup=late_kb,
+                parse_mode=None,
+            )
+        else:
+            await _safe_send_admin(
+                bot,
+                f"📥 [Check-in] {nickname} — {time_str} Ca {ca} | ✅ Đúng giờ",
+                parse_mode=None,
+            )
 
     await _safe_send_group(
         bot,
