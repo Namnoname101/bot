@@ -944,6 +944,7 @@ class WebAppStore:
             "is_admin": is_adm,
             "is_super_admin": False,
             "role": "Quản Lý" if is_adm else assigned_role,
+            "balance": int(matched_emp.get("balance") or 0),
             "authenticated": True,
             "must_change_password": is_default,
         }

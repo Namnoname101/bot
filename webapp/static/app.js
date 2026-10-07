@@ -79,6 +79,18 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+function normalizeName(str) {
+  if (!str) return "";
+  return String(str)
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d")
+    .replace(/\s+/g, " ");
+}
+
 // ── Toast Notifications ──────────────────────────────────────────────────────
 function showToast(message, type = "success") {
   const container = document.getElementById("toast-container");
@@ -225,6 +237,11 @@ async function initApp() {
     AppState.shiftSchedules = bootResp.shift_schedules || {};
     AppState.swaps = bootResp.swaps || [];
     AppState.notifications = bootResp.notifications || [];
+    AppState.employees = bootResp.employees || [];
+    AppState.openSessions = bootResp.open_sessions || [];
+    AppState.materials = bootResp.materials || [];
+    AppState.materialGroups = bootResp.material_groups || [];
+    AppState.pendingRewardsCount = bootResp.pending_rewards_count || 0;
 
     showMainApp();
   } else {
@@ -801,6 +818,16 @@ async function loadEmployeeHomeData() {
     if (hoursEl) hoursEl.textContent = `${s.total_hours || 0}h`;
     if (otEl) otEl.textContent = `${s.overtime_hours || 0}h`;
     if (daysEl) daysEl.textContent = `${(s.recent_checkins || []).length} ca`;
+
+    if (s.balance !== undefined && s.balance !== null) {
+      if (AppState.user) AppState.user.balance = s.balance;
+      const userNorm = normalizeName(nick);
+      const myEmp = (AppState.employees || []).find(e => {
+        return normalizeName(e.nickname || "") === userNorm || normalizeName(e.full_name || "") === userNorm;
+      });
+      if (myEmp) myEmp.balance = s.balance;
+    }
+    renderEmployeeRewardCard();
   }
 
   // 2. Identify next upcoming shift from current roster
@@ -888,8 +915,27 @@ function renderEmployeeRewardCard() {
   if (!AppState.user) return;
   const nick = AppState.user.nickname || AppState.user.username || "";
   const userNorm = normalizeName(nick);
-  const myEmp = (AppState.employees || []).find(e => normalizeName(e.nickname || e.full_name) === userNorm);
-  const balance = (myEmp && myEmp.balance !== undefined && myEmp.balance !== null) ? myEmp.balance : (AppState.user.balance || 0);
+
+  let balance = null;
+  // 1. Kiểm tra từ personalSummary nếu đã tải
+  if (AppState.personalSummary && AppState.personalSummary.balance !== undefined && AppState.personalSummary.balance !== null) {
+    balance = AppState.personalSummary.balance;
+  }
+  // 2. Kiểm tra từ danh sách nhân viên AppState.employees
+  if (balance === null && AppState.employees && AppState.employees.length > 0) {
+    const myEmp = AppState.employees.find(e => {
+      const n1 = normalizeName(e.nickname || "");
+      const n2 = normalizeName(e.full_name || "");
+      return (n1 && n1 === userNorm) || (n2 && n2 === userNorm);
+    });
+    if (myEmp && myEmp.balance !== undefined && myEmp.balance !== null) {
+      balance = myEmp.balance;
+    }
+  }
+  // 3. Fallback về AppState.user.balance hoặc 0
+  if (balance === null) {
+    balance = (AppState.user && AppState.user.balance !== undefined && AppState.user.balance !== null) ? AppState.user.balance : 0;
+  }
 
   const countEl = document.getElementById("emp-reward-count");
   if (countEl) {

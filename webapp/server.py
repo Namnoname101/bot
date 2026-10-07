@@ -361,25 +361,35 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
     pending_rewards = len((bot_data.get("reward_requests") or {})) if user.get("is_admin") else 0
 
     # Phân quyền: Của ai người đó xem! Ẩn số dư thưởng của người khác nếu không phải Quản lý
-    user_norm = normalize_name(user.get("nickname") or user.get("username") or user.get("first_name") or "")
-    is_user_admin = bool(user.get("is_admin"))
+    user_dict = dict(user)
+    user_norm = normalize_name(user_dict.get("nickname") or user_dict.get("username") or user_dict.get("first_name") or "")
+    is_user_admin = bool(user_dict.get("is_admin"))
+    user_balance = 0
     filtered_employees = []
     for emp in (employees or []):
         emp_dict = dict(emp)
-        if not is_user_admin and normalize_name(emp_dict.get("nickname") or emp_dict.get("full_name") or "") != user_norm:
+        emp_norm = normalize_name(emp_dict.get("nickname") or emp_dict.get("full_name") or "")
+        if emp_norm == user_norm and emp_dict.get("balance") is not None:
+            try:
+                user_balance = int(emp_dict.get("balance") or 0)
+            except (ValueError, TypeError):
+                pass
+        if not is_user_admin and emp_norm != user_norm:
             emp_dict["balance"] = None
         filtered_employees.append(emp_dict)
 
+    user_dict["balance"] = user_balance
+
     w_info = get_week_info(0)
     current_roster = store.get_roster(w_info["week_key"])
-    user_nick = user.get("nickname") or user.get("username") or ""
+    user_nick = user_dict.get("nickname") or user_dict.get("username") or ""
     my_notifs = store.get_notifications(user_nick) if user_nick else []
     my_swaps = store.get_swap_requests(nickname=user_nick) if user_nick else []
     pending_swaps_count = len(store.get_swap_requests(status="pending")) if is_user_admin else 0
 
     return web.json_response({
         "success": True,
-        "user": user,
+        "user": user_dict,
         "server_time": {
             "date": now.strftime("%d/%m/%Y"),
             "time": now.strftime("%H:%M"),

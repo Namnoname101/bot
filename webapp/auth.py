@@ -141,6 +141,7 @@ def resolve_request_user(request, bot_data: dict | None = None) -> dict | None:
                 "is_admin": is_adm,
                 "is_super_admin": is_super,
                 "role": token_payload.get("role") or "Pha Chế",
+                "balance": int(token_payload.get("balance") or 0),
                 "authenticated": True,
                 "web_mode": True,
             }
