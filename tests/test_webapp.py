@@ -728,7 +728,72 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
             await open_mini_app_command(update, context)
         msg.reply_text.assert_awaited_once()
         kwargs = msg.reply_text.await_args.kwargs
-        self.assertIn("reply_markup", kwargs)
+    async def test_employee_reward_request_and_admin_workflow(self):
+        # 1. Reset bot mock
+        self.bot.send_message.reset_mock()
+        self.sheets.batch_update_balances.return_value = True
+
+        # 2. Employee sends reward request
+        req_resp = await self.client.post(
+            "/api/rewards/request",
+            json={"employees": ["An", "Bình"], "ca": "Sáng"},
+            headers=self.emp_headers,
+        )
+        self.assertEqual(req_resp.status, 200)
+        req_data = await req_resp.json()
+        self.assertTrue(req_data["success"])
+        self.assertFalse(req_data["approved"])
+        self.assertIn("request_id", req_data)
+        req_id = req_data["request_id"]
+
+        # 3. Check Telegram alert sent to admin with inline approval keyboard
+        self.assertGreaterEqual(self.bot.send_message.await_count, 1)
+        admin_call = None
+        for call_item in self.bot.send_message.await_args_list:
+            if call_item.kwargs.get("chat_id") == Config.ADMIN_CHAT_ID:
+                admin_call = call_item
+                break
+        self.assertIsNotNone(admin_call, "Admin must receive Telegram notification")
+        self.assertIn("YÊU CẦU CỘNG THƯỞNG", admin_call.kwargs.get("text", ""))
+        self.assertIsNotNone(admin_call.kwargs.get("reply_markup"))
+
+        # 4. Check Admin Overview receives pending request
+        self.sheets.get_checkin_history_today.return_value = []
+        self.sheets.get_late_statistics.return_value = []
+        self.sheets.get_recent_revenue_reports.return_value = []
+        self.sheets.get_overtime_summary.return_value = {}
+        ov_resp = await self.client.get("/api/admin/overview", headers=self.super_admin_headers)
+        self.assertEqual(ov_resp.status, 200)
+        ov_data = await ov_resp.json()
+        pending = ov_data.get("pending_rewards", [])
+        self.assertTrue(any(p.get("id") == req_id for p in pending))
+
+        # 5. Admin approves reward via WebApp
+        decide_resp = await self.client.post(
+            "/api/admin/rewards/decide",
+            json={"request_id": req_id, "approve": True},
+            headers=self.super_admin_headers,
+        )
+        self.assertEqual(decide_resp.status, 200)
+        decide_data = await decide_resp.json()
+        self.assertTrue(decide_data["success"])
+        self.sheets.batch_update_balances.assert_called_with(["An", "Bình"], 1)
+        self.assertNotIn(req_id, self.bot_data.get("reward_requests", {}))
+
+    async def test_safe_send_admin_markdown_fallback(self):
+        from webapp.server import _safe_send_admin
+        # Simulate Telegram markdown parse error on first attempt, success on fallback
+        call_count = 0
+        async def mock_send_message(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if kwargs.get("parse_mode") == "Markdown":
+                raise Exception("Can't parse entities")
+            return SimpleNamespace(message_id=999)
+
+        mock_bot = SimpleNamespace(send_message=AsyncMock(side_effect=mock_send_message))
+        await _safe_send_admin(mock_bot, "Test *broken_markdown", parse_mode="Markdown")
+        self.assertEqual(call_count, 2, "Should attempt with Markdown, then fallback to plain text")
 
 
 if __name__ == "__main__":

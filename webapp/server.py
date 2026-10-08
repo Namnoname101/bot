@@ -109,6 +109,17 @@ async def _safe_send_group(bot, text: str, parse_mode: str | None = "Markdown"):
             parse_mode=parse_mode,
         )
     except Exception as e:
+        if parse_mode is not None:
+            try:
+                await bot.send_message(
+                    chat_id=Config.GROUP_CHAT_ID,
+                    text=text,
+                    parse_mode=None,
+                )
+                return
+            except Exception as e2:
+                logger.warning("Không gửi được thông báo Mini App vào group (kể cả plain text): %s", e2)
+                return
         logger.warning("Không gửi được thông báo Mini App vào group: %s", e)
 
 
@@ -123,6 +134,18 @@ async def _safe_send_admin(bot, text: str, reply_markup=None, parse_mode: str | 
             parse_mode=parse_mode,
         )
     except Exception as e:
+        if parse_mode is not None:
+            try:
+                await bot.send_message(
+                    chat_id=Config.ADMIN_CHAT_ID,
+                    text=text,
+                    reply_markup=reply_markup,
+                    parse_mode=None,
+                )
+                return
+            except Exception as e2:
+                logger.warning("Không gửi được thông báo Mini App cho admin (kể cả plain text): %s", e2)
+                return
         logger.warning("Không gửi được thông báo Mini App cho admin: %s", e)
 
 
@@ -892,14 +915,16 @@ async def handle_api_reward_request(request: web.Request) -> web.Response:
             "employees": employees,
         })
 
-    request_id = f"webapp_{user['id']}_{int(now.timestamp())}"
+    user_ident = user.get("id") or user.get("nickname") or user.get("username") or "staff"
+    request_id = f"webapp_{user_ident}_{int(now.timestamp())}"
+    sender_name = user.get("full_name") or user.get("nickname") or "Nhân viên"
     temp_requests = bot_data.setdefault("reward_requests", {})
     temp_requests[request_id] = {
         "request_id": request_id,
         "group_chat_id": Config.GROUP_CHAT_ID,
         "employees": selected,
         "ca": ca,
-        "sender": user.get("full_name") or "Nhân viên",
+        "sender": sender_name,
         "created_at": now.strftime("%H:%M %d/%m/%Y"),
     }
 
@@ -913,13 +938,14 @@ async def handle_api_reward_request(request: web.Request) -> web.Response:
         await _safe_send_admin(
             bot,
             (
-                f"🎁 **YÊU CẦU CỘNG THƯỞNG**\n\n"
-                f"👤 Người gửi: {user.get('full_name')}\n"
+                f"🎁 YÊU CẦU CỘNG THƯỞNG\n\n"
+                f"👤 Người gửi: {sender_name}\n"
                 f"⏰ Ca: {ca}\n"
                 f"👥 Nhân viên: {', '.join(selected)}\n\n"
                 f"Bạn có đồng ý cộng 1 ly thưởng cho các nhân viên này không?"
             ),
             reply_markup=kb,
+            parse_mode=None,
         )
         await _safe_send_group(
             bot,

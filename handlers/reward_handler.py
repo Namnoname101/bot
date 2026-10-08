@@ -755,7 +755,7 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
             await query.answer("⛔ Chỉ quản lý được duyệt.", show_alert=True)
             return
 
-        action, request_id = data.split('_rew_')
+        action, request_id = data.split('_rew_', 1)
         temp_requests = context.bot_data.get('reward_requests', {})
         req_data = temp_requests.get(request_id)
         

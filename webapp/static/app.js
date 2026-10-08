@@ -138,7 +138,17 @@ function closeModalOnBackdrop(e) {
 }
 
 // ── API Fetch Wrapper ────────────────────────────────────────────────────────
-async function apiRequest(endpoint, options = {}) {
+async function apiRequest(endpoint, methodOrOptions = {}, bodyData = null) {
+  let options = {};
+  if (typeof methodOrOptions === "string") {
+    options = {
+      method: methodOrOptions,
+      body: bodyData,
+    };
+  } else if (methodOrOptions && typeof methodOrOptions === "object") {
+    options = { ...methodOrOptions };
+  }
+
   const headers = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
@@ -347,6 +357,9 @@ async function performRealtimeSync(force = false) {
         if (AppState.pendingRewardsCount !== undefined && AppState.pendingRewardsCount !== resp.pending_rewards_count) {
           if (AppState.activeTab === "tab-admin-dashboard") {
             loadAdminDashboardData();
+          }
+          if (AppState.user && AppState.user.is_admin && resp.pending_rewards_count > AppState.pendingRewardsCount) {
+            showToast(`🎁 Có ${resp.pending_rewards_count} yêu cầu thưởng ca mới cần duyệt!`, "info");
           }
         }
         AppState.pendingRewardsCount = resp.pending_rewards_count;
@@ -1058,9 +1071,12 @@ async function submitRewardRequest() {
     submitBtn.innerHTML = `<span>Đang gửi...</span>`;
   }
 
-  const resp = await apiRequest("/api/rewards/request", "POST", {
-    employees: employees,
-    ca: ca
+  const resp = await apiRequest("/api/rewards/request", {
+    method: "POST",
+    body: {
+      employees: employees,
+      ca: ca
+    }
   });
 
   if (resp && resp.success) {
@@ -1135,7 +1151,10 @@ async function submitUseReward(nick) {
     btn.innerHTML = `<span>Đang trừ...</span>`;
   }
 
-  const resp = await apiRequest("/api/rewards/use", "POST", { nickname: nick });
+  const resp = await apiRequest("/api/rewards/use", {
+    method: "POST",
+    body: { nickname: nick }
+  });
   if (resp && resp.success) {
     closeModal();
     showToast(resp.message || "Đã trừ 1 ly thưởng thành công!", "success");
@@ -1900,9 +1919,12 @@ async function handleAdminDecideReward(requestId, approve) {
   const actionText = approve ? "duyệt cộng thưởng (+1 ly)" : "từ chối yêu cầu thưởng";
   if (!confirm(`Bạn có chắc chắn muốn ${actionText} này không?`)) return;
 
-  const resp = await apiRequest("/api/admin/rewards/decide", "POST", {
-    request_id: requestId,
-    approve: approve
+  const resp = await apiRequest("/api/admin/rewards/decide", {
+    method: "POST",
+    body: {
+      request_id: requestId,
+      approve: approve
+    }
   });
 
   if (resp && resp.success) {
