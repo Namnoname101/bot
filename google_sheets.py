@@ -2562,4 +2562,48 @@ class GoogleSheetsService:
             logger.error("Lỗi khi đọc danh sách tài khoản từ Google Sheets: %s", e)
             return {}
 
+    def sync_sheet_employee_roles(self, roles: dict) -> bool:
+        """Lưu vai trò / vị trí nhân viên vào sheet ViTriNhanVienWeb."""
+        try:
+            ws = self._get_or_create_custom_sheet(
+                "ViTriNhanVienWeb",
+                ["NicknameKey", "Role", "CapNhatLuc"]
+            )
+            if not ws:
+                return False
+            now_str = local_now().strftime("%Y-%m-%d %H:%M:%S")
+            rows = [["NicknameKey", "Role", "CapNhatLuc"]]
+            for k, v in sorted(roles.items()):
+                rows.append([str(k).strip(), str(v).strip(), now_str])
+            ws.clear()
+            ws.update("A1", rows, value_input_option="USER_ENTERED")
+            return True
+        except Exception as e:
+            logger.error("Lỗi khi lưu vị trí nhân viên vào Google Sheets: %s", e)
+            return False
+
+    def load_sheet_employee_roles(self) -> dict:
+        """Đọc vai trò / vị trí nhân viên từ sheet ViTriNhanVienWeb."""
+        try:
+            ws = self._get_or_create_custom_sheet(
+                "ViTriNhanVienWeb",
+                ["NicknameKey", "Role", "CapNhatLuc"]
+            )
+            if not ws:
+                return {}
+            rows = ws.get_all_values()
+            if len(rows) <= 1:
+                return {}
+            roles = {}
+            for r in rows[1:]:
+                if not r or not r[0].strip():
+                    continue
+                k = normalize_name(r[0].strip())
+                role = r[1].strip() if len(r) > 1 and r[1].strip() else "Pha Chế"
+                roles[k] = role
+            return roles
+        except Exception as e:
+            logger.error("Lỗi khi đọc vị trí nhân viên từ Google Sheets: %s", e)
+            return {}
+
 

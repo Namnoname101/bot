@@ -53,7 +53,8 @@ def _get_employees_list(sheets, store=None) -> list:
             if details:
                 if store:
                     for d in details:
-                        d["role"] = store.get_employee_role(d.get("nickname") or d.get("full_name") or "")
+                        custom_role = store.get_employee_role(d.get("nickname") or d.get("full_name") or "")
+                        d["role"] = custom_role or d.get("role") or "Pha Chế"
                 return details
         except Exception:
             pass
@@ -421,6 +422,7 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
         "week_info": w_info,
         "current_roster": current_roster,
         "employees": filtered_employees,
+        "employee_roles": store.get_all_employee_roles(),
         "open_sessions": open_sessions,
         "materials": materials,
         "material_groups": group_items,
@@ -1541,11 +1543,14 @@ async def handle_api_admin_employee_role(request: web.Request) -> web.Response:
         return web.json_response({"success": False, "message": "Thiếu tên nhân viên."}, status=400)
 
     store.set_employee_role(nickname, role)
+    if hasattr(sheets, "_invalidate_cache"):
+        sheets._invalidate_cache("employees_detail")
     employees = await asyncio.to_thread(_get_employees_list, sheets, store)
     return web.json_response({
         "success": True,
         "message": f"✅ Đã xếp vị trí của {nickname} thành {role}!",
         "employees": employees,
+        "employee_roles": store.get_all_employee_roles(),
     })
 
 
@@ -1819,6 +1824,7 @@ async def handle_api_sync(request: web.Request) -> web.Response:
         "notifications": my_notifs,
         "pending_swaps_count": pending_swaps,
         "pending_rewards_count": pending_rewards,
+        "employee_roles": store.get_all_employee_roles(),
         "server_time": local_now().strftime("%H:%M:%S"),
     })
 

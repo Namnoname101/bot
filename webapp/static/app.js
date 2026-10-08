@@ -222,6 +222,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   await initApp();
 });
 
+function setGlobalEmployees(empList) {
+  if (!Array.isArray(empList)) return;
+  AppState.employees = empList;
+  if (!AppState.bootstrapData) AppState.bootstrapData = {};
+  AppState.bootstrapData.employees = empList;
+}
+
 async function initApp() {
   const storedToken = localStorage.getItem("sober_token");
   const hasTelegram = Boolean(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData);
@@ -247,7 +254,8 @@ async function initApp() {
     AppState.shiftSchedules = bootResp.shift_schedules || {};
     AppState.swaps = bootResp.swaps || [];
     AppState.notifications = bootResp.notifications || [];
-    AppState.employees = bootResp.employees || [];
+    AppState.employeeRoles = bootResp.employee_roles || {};
+    setGlobalEmployees(bootResp.employees || []);
     AppState.openSessions = bootResp.open_sessions || [];
     AppState.materials = bootResp.materials || [];
     AppState.materialGroups = bootResp.material_groups || [];
@@ -363,6 +371,29 @@ async function performRealtimeSync(force = false) {
           }
         }
         AppState.pendingRewardsCount = resp.pending_rewards_count;
+      }
+
+      // Live sync vị trí nhân viên do Quản lý cập nhật
+      if (resp.employee_roles) {
+        AppState.employeeRoles = resp.employee_roles;
+        [AppState.employees, (AppState.bootstrapData && AppState.bootstrapData.employees)].forEach(list => {
+          if (Array.isArray(list)) {
+            list.forEach(e => {
+              const norm = normalizeName(e.nickname || e.full_name || "");
+              if (resp.employee_roles[norm]) {
+                e.role = resp.employee_roles[norm];
+              }
+            });
+          }
+        });
+        if (AppState.user && !AppState.user.is_admin) {
+          const myNorm = normalizeName(AppState.user.nickname || AppState.user.username || "");
+          if (resp.employee_roles[myNorm] && AppState.user.role !== resp.employee_roles[myNorm]) {
+            AppState.user.role = resp.employee_roles[myNorm];
+            AppState.role = resp.employee_roles[myNorm];
+            renderNavigation();
+          }
+        }
       }
     }
   } catch (e) {
@@ -965,7 +996,10 @@ function showRewardRequestModal() {
   const currentCa = (AppState.serverTime && AppState.serverTime.inferred_ca) || "Tối";
 
   // List active employees
-  const staffList = (AppState.employees || []).filter(e => e.active !== false);
+  let staffList = (AppState.employees && AppState.employees.length > 0)
+    ? AppState.employees
+    : ((AppState.bootstrapData && AppState.bootstrapData.employees) || []);
+  staffList = staffList.filter(e => e.active !== false);
 
   // Collect checked-in nicknames
   const checkedInNicks = new Set((AppState.openSessions || []).map(s => normalizeName(s.nickname || s.employee_name || "")));
@@ -974,6 +1008,9 @@ function showRewardRequestModal() {
     const isMe = normalizeName(e.nickname || e.full_name) === currentNorm;
     const isCheckedIn = checkedInNicks.has(normalizeName(e.nickname || e.full_name));
     const preChecked = isMe || isCheckedIn;
+    const empRole = (AppState.employeeRoles && AppState.employeeRoles[normalizeName(e.nickname || e.full_name)])
+      || e.role
+      || "Pha Chế";
     return `
       <label class="reward-staff-item ${preChecked ? 'selected' : ''}" id="staff-row-${escapeHtml(e.nickname)}" onclick="toggleRewardStaffRow(this)">
         <div style="display: flex; align-items: center; gap: 10px;">
@@ -982,7 +1019,7 @@ function showRewardRequestModal() {
             <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">
               ${escapeHtml(e.full_name || e.nickname)} ${isMe ? '<span class="badge badge-primary" style="font-size: 10px; margin-left: 4px;">Bạn</span>' : ''}
             </div>
-            <div style="font-size: 12px; color: var(--text-muted);">${escapeHtml(e.role || 'Pha chế')} ${isCheckedIn ? '• <span style="color:var(--success);">Đang check-in</span>' : ''}</div>
+            <div style="font-size: 12px; color: var(--text-muted);">${escapeHtml(empRole)} ${isCheckedIn ? '• <span style="color:var(--success);">Đang check-in</span>' : ''}</div>
           </div>
         </div>
       </label>
@@ -2630,11 +2667,18 @@ async function onInlineRoleChange(nickname, selectEl) {
 
   if (resp && resp.success) {
     showToast(`✅ Đã lưu vị trí ${nickname}: ${role}!`, "success");
+    if (resp.employee_roles) {
+      AppState.employeeRoles = resp.employee_roles;
+    }
     if (resp.employees) {
-      AppState.bootstrapData.employees = resp.employees;
+      setGlobalEmployees(resp.employees);
     } else {
-      const emp = (AppState.bootstrapData.employees || []).find(e => (e.nickname || e.full_name) === nickname);
-      if (emp) emp.role = role;
+      [AppState.employees, (AppState.bootstrapData && AppState.bootstrapData.employees)].forEach(list => {
+        if (Array.isArray(list)) {
+          const emp = list.find(e => (e.nickname || e.full_name) === nickname);
+          if (emp) emp.role = role;
+        }
+      });
     }
   } else {
     showToast(resp.message || "Lỗi cập nhật vị trí", "error");
@@ -2669,10 +2713,14 @@ async function onInlineRateChange(nickname, inputEl) {
     showToast(`✅ Đã lưu mức lương ${nickname}: ${newRate}k/h!`, "success");
     inputEl.setAttribute("data-original", newRate);
     if (resp.employees) {
-      AppState.bootstrapData.employees = resp.employees;
+      setGlobalEmployees(resp.employees);
     } else {
-      const emp = (AppState.bootstrapData.employees || []).find(e => (e.nickname || e.full_name) === nickname);
-      if (emp) emp.rate = newRate;
+      [AppState.employees, (AppState.bootstrapData && AppState.bootstrapData.employees)].forEach(list => {
+        if (Array.isArray(list)) {
+          const emp = list.find(e => (e.nickname || e.full_name) === nickname);
+          if (emp) emp.rate = newRate;
+        }
+      });
     }
   } else {
     showToast(resp.message || "Lỗi cập nhật mức lương", "error");
@@ -2724,7 +2772,7 @@ async function submitAddEmployee() {
     showToast(`Đã thêm nhân viên ${name} (${role})!`, "success");
     closeModal();
     if (resp.employees) {
-      AppState.bootstrapData.employees = resp.employees;
+      setGlobalEmployees(resp.employees);
       renderAdminEmployeesTab();
     }
   } else {
@@ -2766,7 +2814,7 @@ async function submitRenameEmployee(oldNickname) {
     showToast(`✅ Đã đổi tên ${oldNickname} → ${newNickname}!`, "success");
     closeModal();
     if (resp.employees) {
-      AppState.bootstrapData.employees = resp.employees;
+      setGlobalEmployees(resp.employees);
       renderAdminEmployeesTab();
     }
   } else {
@@ -2800,7 +2848,7 @@ async function submitDeleteEmployee(nickname) {
   if (resp && resp.success) {
     showToast(`✅ Đã xóa nhân viên ${nickname}!`, "success");
     if (resp.employees) {
-      AppState.bootstrapData.employees = resp.employees;
+      setGlobalEmployees(resp.employees);
       renderAdminEmployeesTab();
     }
   } else {

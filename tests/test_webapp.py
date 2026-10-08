@@ -378,6 +378,23 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(emp_del.status, 200)
 
+        # 3b. Update employee role and verify sync propagation
+        role_resp = await self.client.post(
+            "/api/admin/employee/role",
+            json={"nickname": "An", "role": "Phục Vụ"},
+            headers=self.sub_admin_headers,
+        )
+        self.assertEqual(role_resp.status, 200)
+        role_data = await role_resp.json()
+        self.assertTrue(role_data["success"])
+        self.assertEqual(role_data["employee_roles"].get("an"), "Phục Vụ")
+
+        # Verify /api/sync sends the updated employee_roles to employee clients
+        sync_resp = await self.client.get("/api/sync", headers=self.emp_headers)
+        self.assertEqual(sync_resp.status, 200)
+        sync_data = await sync_resp.json()
+        self.assertEqual(sync_data["employee_roles"].get("an"), "Phục Vụ")
+
         self.sheets.get_reward_history.return_value = [{"date": "28/09/2026", "ca": "Sáng", "revenue": "1,500,000"}]
         rew_hist = await self.client.get(
             "/api/admin/employee/reward-history?nickname=An",

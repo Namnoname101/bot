@@ -238,6 +238,15 @@ class WebAppStore:
                             self._data["accounts"] = sheet_accs
                             self._save_unlocked()
 
+                # 6. Vị trí nhân viên do Quản lý ấn định
+                if hasattr(self.sheets, "load_sheet_employee_roles"):
+                    sheet_roles = self.sheets.load_sheet_employee_roles()
+                    if isinstance(sheet_roles, dict) and sheet_roles:
+                        with self._lock:
+                            cur_roles = self._data.setdefault("employee_roles", {})
+                            cur_roles.update(sheet_roles)
+                            self._save_unlocked()
+
                 logger.info("✅ Đã nạp dữ liệu WebApp từ Google Sheets thành công.")
             except Exception as e:
                 logger.warning("Không thể nạp dữ liệu từ Google Sheets: %s", e)
@@ -836,6 +845,10 @@ class WebAppStore:
             roles = self._data.setdefault("employee_roles", {})
             return roles.get(norm)
 
+    def get_all_employee_roles(self) -> dict:
+        with self._lock:
+            return dict(self._data.get("employee_roles") or {})
+
     def set_employee_role(self, nickname: str, role: str) -> str:
         norm = normalize_name(nickname)
         clean_role = str(role or "Pha Chế").strip()
@@ -843,6 +856,11 @@ class WebAppStore:
             roles = self._data.setdefault("employee_roles", {})
             roles[norm] = clean_role
             self._save_unlocked()
+            cur_roles = dict(roles)
+
+        if self.sheets and hasattr(self.sheets, "sync_sheet_employee_roles"):
+            self._async_sheet_call(self.sheets.sync_sheet_employee_roles, cur_roles)
+
         return clean_role
 
     def verify_login(
