@@ -995,19 +995,28 @@ function showRewardRequestModal() {
   // Inferred shift (Sáng, Chiều, Tối)
   const currentCa = (AppState.serverTime && AppState.serverTime.inferred_ca) || "Tối";
 
+  // Today and Yesterday date strings in dd/mm/yyyy
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const todayStr = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+  
+  const yest = new Date(now.getTime() - 86400000);
+  const yestStr = `${pad(yest.getDate())}/${pad(yest.getMonth() + 1)}/${yest.getFullYear()}`;
+
   // List active employees
   let staffList = (AppState.employees && AppState.employees.length > 0)
     ? AppState.employees
     : ((AppState.bootstrapData && AppState.bootstrapData.employees) || []);
   staffList = staffList.filter(e => e.active !== false);
 
-  // Collect checked-in nicknames
+  // Collect checked-in nicknames (for badges only, NOT for auto-ticking)
   const checkedInNicks = new Set((AppState.openSessions || []).map(s => normalizeName(s.nickname || s.employee_name || "")));
 
   let staffHtml = staffList.map(e => {
     const isMe = normalizeName(e.nickname || e.full_name) === currentNorm;
     const isCheckedIn = checkedInNicks.has(normalizeName(e.nickname || e.full_name));
-    const preChecked = isMe || isCheckedIn;
+    // CHỈ TỰ ĐỘNG CHỌN CHÍNH USER BÁO, TUYỆT ĐỐI KHÔNG TỰ TICK NHÂN VIÊN CA HIỆN TẠI!
+    const preChecked = isMe;
     const empRole = (AppState.employeeRoles && AppState.employeeRoles[normalizeName(e.nickname || e.full_name)])
       || e.role
       || "Pha Chế";
@@ -1027,8 +1036,21 @@ function showRewardRequestModal() {
   }).join('');
 
   const bodyHtml = `
-    <div style="margin-bottom: 16px;">
-      <label class="form-label" style="margin-bottom: 8px;">1. Chọn ca làm việc:</label>
+    <div style="margin-bottom: 14px;">
+      <label class="form-label" style="margin-bottom: 8px;">1. Ngày đạt doanh thu thưởng:</label>
+      <div class="reward-shift-selector" id="reward-date-picker">
+        <div class="reward-shift-chip active" onclick="selectRewardDate(this, '${todayStr}')">📅 Hôm nay (${pad(now.getDate())}/${pad(now.getMonth() + 1)})</div>
+        <div class="reward-shift-chip" onclick="selectRewardDate(this, '${yestStr}')">⏮️ Hôm qua (${pad(yest.getDate())}/${pad(yest.getMonth() + 1)})</div>
+        <div class="reward-shift-chip" onclick="selectCustomRewardDate(this)">🗓️ Ngày khác</div>
+      </div>
+      <div id="reward-custom-date-container" class="hidden" style="margin-top: 8px;">
+        <input type="date" id="reward-custom-date-input" class="form-input" style="padding: 6px 10px; font-size: 13px;" onchange="onCustomRewardDateChange(this)">
+      </div>
+      <input type="hidden" id="selected-reward-date" value="${todayStr}">
+    </div>
+
+    <div style="margin-bottom: 14px;">
+      <label class="form-label" style="margin-bottom: 8px;">2. Ca làm việc:</label>
       <div class="reward-shift-selector" id="reward-shift-picker">
         <div class="reward-shift-chip ${currentCa === 'Sáng' ? 'active' : ''}" onclick="selectRewardShift(this, 'Sáng')">🌅 Ca Sáng</div>
         <div class="reward-shift-chip ${currentCa === 'Chiều' ? 'active' : ''}" onclick="selectRewardShift(this, 'Chiều')">☀️ Ca Chiều</div>
@@ -1038,9 +1060,12 @@ function showRewardRequestModal() {
     </div>
 
     <div style="margin-bottom: 12px;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-        <label class="form-label" style="margin-bottom: 0;">2. Chọn các bạn cùng trực ca (+1 ly):</label>
-        <button type="button" class="btn btn-ghost btn-xs" onclick="quickSelectActiveOnly()">Chọn bạn check-in</button>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+        <label class="form-label" style="margin-bottom: 0;">3. Chọn nhân viên trực ca nhận thưởng (+1 ly):</label>
+        <div style="display: flex; gap: 4px;">
+          <button type="button" class="btn btn-ghost btn-xs" onclick="quickSelectActiveOnly()" title="Chỉ chọn những bạn đang check-in hôm nay">Chọn bạn check-in</button>
+          <button type="button" class="btn btn-ghost btn-xs" onclick="quickSelectOnlyMe()" title="Bỏ chọn tất cả, chỉ giữ lại tôi">Chỉ chọn tôi</button>
+        </div>
       </div>
       <div class="reward-staff-list" id="reward-staff-list">
         ${staffHtml}
@@ -1062,6 +1087,36 @@ function showRewardRequestModal() {
   openModal("Báo Thưởng Doanh Thu", bodyHtml, actionsHtml);
 }
 
+function selectRewardDate(chip, dateStr) {
+  document.querySelectorAll("#reward-date-picker .reward-shift-chip").forEach(c => c.classList.remove("active"));
+  chip.classList.add("active");
+  const hiddenInput = document.getElementById("selected-reward-date");
+  if (hiddenInput) hiddenInput.value = dateStr;
+  const customContainer = document.getElementById("reward-custom-date-container");
+  if (customContainer) customContainer.classList.add("hidden");
+}
+
+function selectCustomRewardDate(chip) {
+  document.querySelectorAll("#reward-date-picker .reward-shift-chip").forEach(c => c.classList.remove("active"));
+  chip.classList.add("active");
+  const customContainer = document.getElementById("reward-custom-date-container");
+  if (customContainer) {
+    customContainer.classList.remove("hidden");
+    const input = document.getElementById("reward-custom-date-input");
+    if (input) input.focus();
+  }
+}
+
+function onCustomRewardDateChange(input) {
+  if (!input.value) return;
+  const parts = input.value.split("-");
+  if (parts.length === 3) {
+    const formatted = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    const hiddenInput = document.getElementById("selected-reward-date");
+    if (hiddenInput) hiddenInput.value = formatted;
+  }
+}
+
 function selectRewardShift(chip, ca) {
   document.querySelectorAll("#reward-shift-picker .reward-shift-chip").forEach(c => c.classList.remove("active"));
   chip.classList.add("active");
@@ -1074,6 +1129,17 @@ function toggleRewardStaffRow(row) {
   if (!cb) return;
   cb.checked = !cb.checked;
   row.classList.toggle("selected", cb.checked);
+}
+
+function quickSelectOnlyMe() {
+  const currentNick = AppState.user ? normalizeName(AppState.user.nickname || AppState.user.username || "") : "";
+  document.querySelectorAll("#reward-staff-list .reward-staff-item").forEach(row => {
+    const cb = row.querySelector("input[type=checkbox]");
+    if (!cb) return;
+    const isMe = normalizeName(cb.value) === currentNick;
+    cb.checked = isMe;
+    row.classList.toggle("selected", isMe);
+  });
 }
 
 function quickSelectActiveOnly() {
@@ -1093,6 +1159,8 @@ function quickSelectActiveOnly() {
 async function submitRewardRequest() {
   const caInput = document.getElementById("selected-reward-ca");
   const ca = caInput ? caInput.value : "Tối";
+  const dateInput = document.getElementById("selected-reward-date");
+  const dateStr = dateInput ? dateInput.value : "";
 
   const selectedBoxes = Array.from(document.querySelectorAll("#reward-staff-list input[type=checkbox]:checked"));
   const employees = selectedBoxes.map(b => b.value);
@@ -1112,7 +1180,8 @@ async function submitRewardRequest() {
     method: "POST",
     body: {
       employees: employees,
-      ca: ca
+      ca: ca,
+      date: dateStr,
     }
   });
 
@@ -1931,10 +2000,11 @@ function renderAdminDashRewardsList(rewards) {
   rewards.forEach(r => {
     const reqId = r.id || r.request_id;
     const empsStr = (r.employees || []).join(", ");
+    const dateLabel = r.date ? `Ngày ${escapeHtml(r.date)} • ` : '';
     html += `
       <div class="reward-request-row">
         <div>
-          <div class="reward-request-info-title">🎁 Ca ${escapeHtml(r.ca || '')} • +1 ly cho: <strong>${escapeHtml(empsStr)}</strong></div>
+          <div class="reward-request-info-title">🎁 ${dateLabel}Ca ${escapeHtml(r.ca || '')} • +1 ly cho: <strong>${escapeHtml(empsStr)}</strong></div>
           <div class="reward-request-info-sub">Người gửi: ${escapeHtml(r.sender || 'Nhân viên')} • ${escapeHtml(r.created_at || '')}</div>
         </div>
         <div class="reward-request-actions">

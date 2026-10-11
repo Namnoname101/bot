@@ -766,25 +766,27 @@ async def inline_button_handler(update: Update, context: ContextTypes.DEFAULT_TY
         group_chat_id = req_data['group_chat_id']
         selected = req_data['employees']
         ca = req_data['ca']
+        date_str = req_data.get('date', '')
+        date_label = f"({date_str} - Ca {ca})" if date_str else f"(Ca {ca})"
         
         if action == "appr":
             sheets_service = context.bot_data['sheets']
             success = await asyncio.to_thread(sheets_service.batch_update_balances, selected, 1)
             
             if success:
-                await safe_edit_message(query, f"✅ ĐÃ DUYỆT CỘNG THƯỞNG.\nNhân viên: {', '.join(selected)}\nCa: {ca}")
+                await safe_edit_message(query, f"✅ ĐÃ DUYỆT CỘNG THƯỞNG.\nNhân viên: {', '.join(selected)}\n{date_label}")
                 await context.bot.send_message(
                     chat_id=group_chat_id,
-                    text=f"🎉 **Quản lý đã DUYỆT cộng thưởng!**\n🎁 +1 ly → {', '.join(selected)} (Ca {ca})",
+                    text=f"🎉 **Quản lý đã DUYỆT cộng thưởng!**\n🎁 +1 ly → {', '.join(selected)} {date_label}",
                     parse_mode='Markdown'
                 )
             else:
                 await safe_edit_message(query, "❌ Lỗi khi cộng thưởng vào Google Sheets.")
         else:
-            await safe_edit_message(query, f"❌ ĐÃ TỪ CHỐI CỘNG THƯỞNG.\nNhân viên: {', '.join(selected)}\nCa: {ca}")
+            await safe_edit_message(query, f"❌ ĐÃ TỪ CHỐI CỘNG THƯỞNG.\nNhân viên: {', '.join(selected)}\n{date_label}")
             await context.bot.send_message(
                 chat_id=group_chat_id,
-                text=f"❌ **Quản lý đã TỪ CHỐI cộng thưởng!**\nNhân viên: {', '.join(selected)} (Ca {ca})",
+                text=f"❌ **Quản lý đã TỪ CHỐI cộng thưởng!**\nNhân viên: {', '.join(selected)} {date_label}",
                 parse_mode='Markdown'
             )
             

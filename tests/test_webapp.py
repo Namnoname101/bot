@@ -753,7 +753,7 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         # 2. Employee sends reward request
         req_resp = await self.client.post(
             "/api/rewards/request",
-            json={"employees": ["An", "Bình"], "ca": "Sáng"},
+            json={"employees": ["An", "Bình"], "ca": "Sáng", "date": "10/10/2026"},
             headers=self.emp_headers,
         )
         self.assertEqual(req_resp.status, 200)
@@ -762,6 +762,7 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(req_data["approved"])
         self.assertIn("request_id", req_data)
         req_id = req_data["request_id"]
+        self.assertEqual(self.bot_data["reward_requests"][req_id]["date"], "10/10/2026")
 
         # 3. Check Telegram alert sent to admin with inline approval keyboard
         self.assertGreaterEqual(self.bot.send_message.await_count, 1)
@@ -772,6 +773,7 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
                 break
         self.assertIsNotNone(admin_call, "Admin must receive Telegram notification")
         self.assertIn("YÊU CẦU CỘNG THƯỞNG", admin_call.kwargs.get("text", ""))
+        self.assertIn("10/10/2026", admin_call.kwargs.get("text", ""))
         self.assertIsNotNone(admin_call.kwargs.get("reply_markup"))
 
         # 4. Check Admin Overview receives pending request

@@ -903,17 +903,19 @@ async def handle_api_reward_request(request: web.Request) -> web.Response:
 
     now = local_now()
     ca = str(data.get("ca") or "").strip() or _infer_ca(now)
+    date_str = str(data.get("date") or "").strip() or now.strftime("%d/%m/%Y")
+    shift_label = f"{date_str} - Ca {ca}"
 
     if user.get("is_admin"):
         ok = await asyncio.to_thread(sheets.batch_update_balances, selected, 1)
         if not ok:
             return web.json_response({"success": False, "message": "❌ Không thể cộng thưởng vào Google Sheets."}, status=500)
-        await _safe_send_group(bot, f"✅ +1 ly → {', '.join(selected)} (Ca {ca})", parse_mode=None)
+        await _safe_send_group(bot, f"✅ +1 ly → {', '.join(selected)} ({shift_label})", parse_mode=None)
         employees = await asyncio.to_thread(_get_employees_list, sheets)
         return web.json_response({
             "success": True,
             "approved": True,
-            "message": f"✅ Đã cộng +1 ly thưởng cho: {', '.join(selected)} (Ca {ca})!",
+            "message": f"✅ Đã cộng +1 ly thưởng cho: {', '.join(selected)} ({shift_label})!",
             "employees": employees,
         })
 
@@ -926,6 +928,7 @@ async def handle_api_reward_request(request: web.Request) -> web.Response:
         "group_chat_id": Config.GROUP_CHAT_ID,
         "employees": selected,
         "ca": ca,
+        "date": date_str,
         "sender": sender_name,
         "created_at": now.strftime("%H:%M %d/%m/%Y"),
     }
@@ -942,7 +945,7 @@ async def handle_api_reward_request(request: web.Request) -> web.Response:
             (
                 f"🎁 YÊU CẦU CỘNG THƯỞNG\n\n"
                 f"👤 Người gửi: {sender_name}\n"
-                f"⏰ Ca: {ca}\n"
+                f"📅 Ngày: {date_str}  ⏰ Ca: {ca}\n"
                 f"👥 Nhân viên: {', '.join(selected)}\n\n"
                 f"Bạn có đồng ý cộng 1 ly thưởng cho các nhân viên này không?"
             ),
@@ -951,7 +954,7 @@ async def handle_api_reward_request(request: web.Request) -> web.Response:
         )
         await _safe_send_group(
             bot,
-            f"✅ Đã gửi yêu cầu cộng 1 ly thưởng cho: {', '.join(selected)} (Ca {ca}). Đang chờ Quản lý duyệt!",
+            f"✅ Đã gửi yêu cầu cộng 1 ly thưởng cho: {', '.join(selected)} ({shift_label}). Đang chờ Quản lý duyệt!",
             parse_mode=None,
         )
 
@@ -959,7 +962,7 @@ async def handle_api_reward_request(request: web.Request) -> web.Response:
         "success": True,
         "approved": False,
         "request_id": request_id,
-        "message": f"✅ Đã gửi yêu cầu cộng 1 ly thưởng cho {', '.join(selected)} tới Quản lý!",
+        "message": f"✅ Đã gửi yêu cầu cộng 1 ly thưởng cho {', '.join(selected)} ({shift_label}) tới Quản lý!",
     })
 
 
@@ -1304,21 +1307,26 @@ async def handle_api_admin_reward_decide(request: web.Request) -> web.Response:
     selected = req_data["employees"]
     ca = req_data["ca"]
 
+    date_str = req_data.get("date") or ""
+    date_label = f"({date_str} - Ca {ca})" if date_str else f"(Ca {ca})"
+
     if approve:
         ok = await asyncio.to_thread(sheets.batch_update_balances, selected, 1)
         if not ok:
             return web.json_response({"success": False, "message": "❌ Lỗi khi cộng thưởng vào Google Sheets."}, status=500)
         await _safe_send_group(
             bot,
-            f"🎉 **Quản lý đã DUYỆT cộng thưởng!**\n🎁 +1 ly → {', '.join(selected)} (Ca {ca})",
+            f"🎉 Quản lý đã DUYỆT cộng thưởng!\n🎁 +1 ly → {', '.join(selected)} {date_label}",
+            parse_mode=None,
         )
-        msg = f"✅ Đã duyệt cộng +1 ly cho {', '.join(selected)} (Ca {ca})."
+        msg = f"✅ Đã duyệt cộng +1 ly cho {', '.join(selected)} {date_label}."
     else:
         await _safe_send_group(
             bot,
-            f"❌ **Quản lý đã TỪ CHỐI cộng thưởng!**\nNhân viên: {', '.join(selected)} (Ca {ca})",
+            f"❌ Quản lý đã TỪ CHỐI cộng thưởng!\nNhân viên: {', '.join(selected)} {date_label}",
+            parse_mode=None,
         )
-        msg = f"❌ Đã từ chối yêu cầu thưởng của {', '.join(selected)}."
+        msg = f"❌ Đã từ chối yêu cầu thưởng của {', '.join(selected)} {date_label}."
 
     temp_requests.pop(request_id, None)
     return web.json_response({"success": True, "message": msg})
