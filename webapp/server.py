@@ -897,16 +897,15 @@ async def handle_api_reward_request(request: web.Request) -> web.Response:
     user = request[USER_KEY]
     data = await request.json()
 
-    selected = deduplicate_employees([str(x).strip() for x in (data.get("employees") or []) if str(x).strip()])
-    if not selected:
-        return web.json_response({"success": False, "message": "⚠️ Bạn chưa chọn nhân viên nào!"}, status=400)
-
     now = local_now()
     ca = str(data.get("ca") or "").strip() or _infer_ca(now)
     date_str = str(data.get("date") or "").strip() or now.strftime("%d/%m/%Y")
     shift_label = f"{date_str} - Ca {ca}"
 
     if user.get("is_admin"):
+        selected = deduplicate_employees([str(x).strip() for x in (data.get("employees") or []) if str(x).strip()])
+        if not selected:
+            return web.json_response({"success": False, "message": "⚠️ Bạn chưa chọn nhân viên nào!"}, status=400)
         ok = await asyncio.to_thread(sheets.batch_update_balances, selected, 1)
         if not ok:
             return web.json_response({"success": False, "message": "❌ Không thể cộng thưởng vào Google Sheets."}, status=500)
@@ -919,9 +918,15 @@ async def handle_api_reward_request(request: web.Request) -> web.Response:
             "employees": employees,
         })
 
+    # For non-admin employees: STRICTLY personal report only! Cannot report on behalf of others.
+    user_nick = user.get("nickname") or user.get("username") or user.get("first_name") or user.get("full_name")
+    if not user_nick:
+        return web.json_response({"success": False, "message": "⚠️ Không xác định được nickname nhân viên của bạn!"}, status=400)
+    selected = [user_nick]
+
     user_ident = user.get("id") or user.get("nickname") or user.get("username") or "staff"
     request_id = f"webapp_{user_ident}_{int(now.timestamp())}"
-    sender_name = user.get("full_name") or user.get("nickname") or "Nhân viên"
+    sender_name = user.get("full_name") or user.get("first_name") or user.get("nickname") or "Nhân viên"
     temp_requests = bot_data.setdefault("reward_requests", {})
     temp_requests[request_id] = {
         "request_id": request_id,
@@ -946,8 +951,8 @@ async def handle_api_reward_request(request: web.Request) -> web.Response:
                 f"🎁 YÊU CẦU CỘNG THƯỞNG\n\n"
                 f"👤 Người gửi: {sender_name}\n"
                 f"📅 Ngày: {date_str}  ⏰ Ca: {ca}\n"
-                f"👥 Nhân viên: {', '.join(selected)}\n\n"
-                f"Bạn có đồng ý cộng 1 ly thưởng cho các nhân viên này không?"
+                f"👥 Nhân viên nhận thưởng: {', '.join(selected)} (+1 ly)\n\n"
+                f"Bạn có đồng ý duyệt +1 ly thưởng doanh thu cho nhân viên này không?"
             ),
             reply_markup=kb,
             parse_mode=None,

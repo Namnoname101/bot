@@ -991,6 +991,10 @@ function showRewardRequestModal() {
   if (!AppState.user) return;
   const currentNick = AppState.user.nickname || AppState.user.username || "";
   const currentNorm = normalizeName(currentNick);
+  const myName = AppState.user.full_name || AppState.user.nickname || AppState.user.username || "Nhân viên";
+  const myRole = (AppState.employeeRoles && AppState.employeeRoles[currentNorm])
+    || AppState.user.role
+    || "Pha Chế";
 
   // Inferred shift (Sáng, Chiều, Tối)
   const currentCa = (AppState.serverTime && AppState.serverTime.inferred_ca) || "Tối";
@@ -1002,38 +1006,6 @@ function showRewardRequestModal() {
   
   const yest = new Date(now.getTime() - 86400000);
   const yestStr = `${pad(yest.getDate())}/${pad(yest.getMonth() + 1)}/${yest.getFullYear()}`;
-
-  // List active employees
-  let staffList = (AppState.employees && AppState.employees.length > 0)
-    ? AppState.employees
-    : ((AppState.bootstrapData && AppState.bootstrapData.employees) || []);
-  staffList = staffList.filter(e => e.active !== false);
-
-  // Collect checked-in nicknames (for badges only, NOT for auto-ticking)
-  const checkedInNicks = new Set((AppState.openSessions || []).map(s => normalizeName(s.nickname || s.employee_name || "")));
-
-  let staffHtml = staffList.map(e => {
-    const isMe = normalizeName(e.nickname || e.full_name) === currentNorm;
-    const isCheckedIn = checkedInNicks.has(normalizeName(e.nickname || e.full_name));
-    // CHỈ TỰ ĐỘNG CHỌN CHÍNH USER BÁO, TUYỆT ĐỐI KHÔNG TỰ TICK NHÂN VIÊN CA HIỆN TẠI!
-    const preChecked = isMe;
-    const empRole = (AppState.employeeRoles && AppState.employeeRoles[normalizeName(e.nickname || e.full_name)])
-      || e.role
-      || "Pha Chế";
-    return `
-      <label class="reward-staff-item ${preChecked ? 'selected' : ''}" id="staff-row-${escapeHtml(e.nickname)}" onclick="toggleRewardStaffRow(this)">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <input type="checkbox" name="reward_staff" value="${escapeHtml(e.nickname)}" ${preChecked ? 'checked' : ''} style="pointer-events: none;">
-          <div>
-            <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">
-              ${escapeHtml(e.full_name || e.nickname)} ${isMe ? '<span class="badge badge-primary" style="font-size: 10px; margin-left: 4px;">Bạn</span>' : ''}
-            </div>
-            <div style="font-size: 12px; color: var(--text-muted);">${escapeHtml(empRole)} ${isCheckedIn ? '• <span style="color:var(--success);">Đang check-in</span>' : ''}</div>
-          </div>
-        </div>
-      </label>
-    `;
-  }).join('');
 
   const bodyHtml = `
     <div style="margin-bottom: 14px;">
@@ -1059,21 +1031,23 @@ function showRewardRequestModal() {
       <input type="hidden" id="selected-reward-ca" value="${escapeHtml(currentCa)}">
     </div>
 
-    <div style="margin-bottom: 12px;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
-        <label class="form-label" style="margin-bottom: 0;">3. Chọn nhân viên trực ca nhận thưởng (+1 ly):</label>
-        <div style="display: flex; gap: 4px;">
-          <button type="button" class="btn btn-ghost btn-xs" onclick="quickSelectActiveOnly()" title="Chỉ chọn những bạn đang check-in hôm nay">Chọn bạn check-in</button>
-          <button type="button" class="btn btn-ghost btn-xs" onclick="quickSelectOnlyMe()" title="Bỏ chọn tất cả, chỉ giữ lại tôi">Chỉ chọn tôi</button>
+    <div style="margin-bottom: 14px;">
+      <label class="form-label" style="margin-bottom: 8px;">3. Nhân viên nhận thưởng:</label>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: var(--radius-md);">
+        <div style="font-size: 24px;">🎁</div>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; font-size: 15px; color: var(--text-main);">
+            ${escapeHtml(myName)} <span class="badge badge-primary" style="font-size: 10px; margin-left: 4px;">Tài khoản của bạn</span>
+          </div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+            ${escapeHtml(myRole)} • <strong>+1 ly thưởng doanh thu</strong>
+          </div>
         </div>
-      </div>
-      <div class="reward-staff-list" id="reward-staff-list">
-        ${staffHtml}
       </div>
     </div>
 
     <div style="padding: 10px 12px; background: var(--bg-card-subtle); border-radius: var(--radius-md); font-size: 12px; color: var(--text-muted);">
-      ℹ️ <strong>Lưu ý:</strong> Sau khi bấm gửi, yêu cầu sẽ được chuyển đến Quản lý phê duyệt (qua Telegram & WebApp) trước khi cộng vào số dư ly thưởng.
+      ℹ️ <strong>Lưu ý:</strong> Mỗi cá nhân tự gửi yêu cầu cho ca làm việc của mình (không báo hộ). Yêu cầu sẽ được chuyển đến Quản lý duyệt trước khi cộng ly.
     </div>
   `;
 
@@ -1124,51 +1098,18 @@ function selectRewardShift(chip, ca) {
   if (hiddenInput) hiddenInput.value = ca;
 }
 
-function toggleRewardStaffRow(row) {
-  const cb = row.querySelector("input[type=checkbox]");
-  if (!cb) return;
-  cb.checked = !cb.checked;
-  row.classList.toggle("selected", cb.checked);
-}
-
-function quickSelectOnlyMe() {
-  const currentNick = AppState.user ? normalizeName(AppState.user.nickname || AppState.user.username || "") : "";
-  document.querySelectorAll("#reward-staff-list .reward-staff-item").forEach(row => {
-    const cb = row.querySelector("input[type=checkbox]");
-    if (!cb) return;
-    const isMe = normalizeName(cb.value) === currentNick;
-    cb.checked = isMe;
-    row.classList.toggle("selected", isMe);
-  });
-}
-
-function quickSelectActiveOnly() {
-  const checkedInNicks = new Set((AppState.openSessions || []).map(s => normalizeName(s.nickname || s.employee_name || "")));
-  const currentNick = AppState.user ? normalizeName(AppState.user.nickname || AppState.user.username || "") : "";
-
-  document.querySelectorAll("#reward-staff-list .reward-staff-item").forEach(row => {
-    const cb = row.querySelector("input[type=checkbox]");
-    if (!cb) return;
-    const nickNorm = normalizeName(cb.value);
-    const shouldCheck = checkedInNicks.has(nickNorm) || nickNorm === currentNick;
-    cb.checked = shouldCheck;
-    row.classList.toggle("selected", shouldCheck);
-  });
-}
-
 async function submitRewardRequest() {
+  if (!AppState.user) return;
+  const currentNick = AppState.user.nickname || AppState.user.username || "";
+  if (!currentNick) {
+    showToast("Không xác định được tài khoản nhân viên của bạn!", "danger");
+    return;
+  }
+
   const caInput = document.getElementById("selected-reward-ca");
   const ca = caInput ? caInput.value : "Tối";
   const dateInput = document.getElementById("selected-reward-date");
   const dateStr = dateInput ? dateInput.value : "";
-
-  const selectedBoxes = Array.from(document.querySelectorAll("#reward-staff-list input[type=checkbox]:checked"));
-  const employees = selectedBoxes.map(b => b.value);
-
-  if (employees.length === 0) {
-    showToast("Vui lòng chọn ít nhất 1 nhân viên trong ca!", "warning");
-    return;
-  }
 
   const submitBtn = document.getElementById("btn-submit-reward-req");
   if (submitBtn) {
@@ -1179,7 +1120,7 @@ async function submitRewardRequest() {
   const resp = await apiRequest("/api/rewards/request", {
     method: "POST",
     body: {
-      employees: employees,
+      employees: [currentNick],
       ca: ca,
       date: dateStr,
     }

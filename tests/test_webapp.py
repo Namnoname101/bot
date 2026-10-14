@@ -763,6 +763,7 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("request_id", req_data)
         req_id = req_data["request_id"]
         self.assertEqual(self.bot_data["reward_requests"][req_id]["date"], "10/10/2026")
+        self.assertEqual(self.bot_data["reward_requests"][req_id]["employees"], ["An"])
 
         # 3. Check Telegram alert sent to admin with inline approval keyboard
         self.assertGreaterEqual(self.bot.send_message.await_count, 1)
@@ -796,7 +797,7 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(decide_resp.status, 200)
         decide_data = await decide_resp.json()
         self.assertTrue(decide_data["success"])
-        self.sheets.batch_update_balances.assert_called_with(["An", "Bình"], 1)
+        self.sheets.batch_update_balances.assert_called_with(["An"], 1)
         self.assertNotIn(req_id, self.bot_data.get("reward_requests", {}))
 
     async def test_safe_send_admin_markdown_fallback(self):
