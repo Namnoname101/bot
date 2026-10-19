@@ -2077,6 +2077,15 @@ function renderDesktopRosterGrid() {
   const tbody = document.getElementById("desktop-roster-tbody");
   if (!tbody || !AppState.currentRoster) return;
 
+  const table = document.getElementById("desktop-roster-table");
+  if (table) {
+    if (AppState.highlightedEmployee) {
+      table.classList.add("has-emp-highlight");
+    } else {
+      table.classList.remove("has-emp-highlight");
+    }
+  }
+
   const roster = AppState.currentRoster;
   const shifts = roster.shifts || {};
   const targets = roster.targets || {};
@@ -2129,7 +2138,10 @@ function renderDesktopRosterGrid() {
               <button type="button" class="btn btn-icon btn-ghost btn-sm" style="width: 22px; height: 22px; min-height: 22px;" title="Xếp người">+</button>
             </div>
             <div class="shift-staff-chips">
-              ${staffList.map(name => `<span class="shift-assigned-chip">${escapeHtml(name)}</span>`).join("")}
+              ${staffList.map(name => {
+                const isMatch = AppState.highlightedEmployee && (name || "").trim().toLowerCase() === AppState.highlightedEmployee.toLowerCase();
+                return `<span class="shift-assigned-chip ${isMatch ? 'highlighted' : ''}">${escapeHtml(name)}</span>`;
+              }).join("")}
             </div>
           </div>
         </td>
@@ -2139,6 +2151,7 @@ function renderDesktopRosterGrid() {
   });
 
   tbody.innerHTML = html;
+  renderRosterEmployeeSummary();
 }
 
 function selectAdminRosterSlot(day, ca, slotKey) {
@@ -2781,6 +2794,109 @@ async function saveAdminBatchShiftAndNext(goNext = true) {
   }
 }
 
+// ── Weekly Employee Shift Summary & Filter ──────────────────────────────────
+function renderRosterEmployeeSummary() {
+  const container = document.getElementById("roster-emp-summary-chips");
+  const badgeTotal = document.getElementById("roster-emp-total-assigned-badge");
+  const clearBtn = document.getElementById("roster-emp-highlight-clear-btn");
+  if (!container) return;
+
+  const roster = AppState.currentRoster;
+  if (!roster) {
+    container.innerHTML = `<span style="font-size: 12px; color: var(--text-dim);">Chưa có dữ liệu lịch tuần.</span>`;
+    return;
+  }
+
+  const shifts = roster.shifts || {};
+  const employees = AppState.employees || [];
+
+  // Calculate shift counts per employee
+  const countsByNick = {};
+  let totalAssigned = 0;
+
+  // Initialize for all active employees
+  employees.forEach(emp => {
+    const nick = emp.nickname || emp.full_name || emp.username;
+    if (nick) {
+      countsByNick[nick] = 0;
+    }
+  });
+
+  // Count from shifts
+  Object.values(shifts).forEach(list => {
+    if (Array.isArray(list)) {
+      list.forEach(name => {
+        if (!name) return;
+        totalAssigned++;
+        const match = Object.keys(countsByNick).find(k => k.trim().toLowerCase() === name.trim().toLowerCase());
+        if (match) {
+          countsByNick[match]++;
+        } else {
+          countsByNick[name] = (countsByNick[name] || 0) + 1;
+        }
+      });
+    }
+  });
+
+  if (badgeTotal) {
+    badgeTotal.textContent = `${totalAssigned} ca đã xếp`;
+  }
+
+  if (clearBtn) {
+    clearBtn.style.display = AppState.highlightedEmployee ? "inline-flex" : "none";
+  }
+
+  // Sort employees: unassigned (0 shifts) first, then by count descending
+  const sortedNames = Object.keys(countsByNick).sort((a, b) => {
+    const countA = countsByNick[a];
+    const countB = countsByNick[b];
+    if (countA === 0 && countB > 0) return -1;
+    if (countB === 0 && countA > 0) return 1;
+    return countB - countA;
+  });
+
+  if (sortedNames.length === 0) {
+    container.innerHTML = `<span style="font-size: 12px; color: var(--text-dim);">Chưa có nhân viên nào trong hệ thống.</span>`;
+    return;
+  }
+
+  let html = "";
+  sortedNames.forEach(nick => {
+    const count = countsByNick[nick];
+    const isZero = count === 0;
+    const isActive = AppState.highlightedEmployee && AppState.highlightedEmployee.trim().toLowerCase() === nick.trim().toLowerCase();
+
+    let icon = isZero ? "⚠️" : "👤";
+
+    html += `
+      <div class="emp-summary-chip ${isZero ? 'zero-shifts' : ''} ${isActive ? 'active' : ''}" 
+           onclick="toggleRosterEmployeeHighlight('${escapeHtml(nick)}')"
+           title="${isZero ? 'Chưa được xếp ca nào trong tuần' : `Đã được xếp ${count} ca tuần này (bấm để xem vị trí ca)`}">
+        <span>${icon} ${escapeHtml(nick)}</span>
+        <span class="chip-badge">${count} ca</span>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+function toggleRosterEmployeeHighlight(nick) {
+  if (AppState.highlightedEmployee && AppState.highlightedEmployee.trim().toLowerCase() === (nick || "").trim().toLowerCase()) {
+    AppState.highlightedEmployee = null;
+  } else {
+    AppState.highlightedEmployee = nick;
+  }
+  renderDesktopRosterGrid();
+  renderMobileAdminSchedule();
+}
+
+function clearRosterEmployeeHighlight() {
+  AppState.highlightedEmployee = null;
+  renderDesktopRosterGrid();
+  renderMobileAdminSchedule();
+}
+
 
 // ── Mobile Responsive Admin Schedule ─────────────────────────────────────────
 function renderMobileAdminSchedule() {
@@ -2835,7 +2951,10 @@ function renderMobileAdminSchedule() {
           <strong style="font-size: 15px; color: var(--text-main);">Ca ${ca.code}</strong>
           <div style="font-size: 12px; color: var(--text-muted);">${ca.time}</div>
           <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">
-            ${staffList.map(name => `<span class="badge badge-primary">${escapeHtml(name)}</span>`).join("")}
+            ${staffList.map(name => {
+              const isMatch = AppState.highlightedEmployee && (name || "").trim().toLowerCase() === AppState.highlightedEmployee.toLowerCase();
+              return `<span class="badge ${isMatch ? 'badge-primary' : (AppState.highlightedEmployee ? 'badge-muted' : 'badge-primary')}" style="${isMatch ? 'font-weight: 800; transform: scale(1.08); box-shadow: 0 0 0 2px var(--primary);' : ''}">${escapeHtml(name)}</span>`;
+            }).join("")}
           </div>
         </div>
         <div style="text-align: right;">
@@ -2849,6 +2968,7 @@ function renderMobileAdminSchedule() {
   });
 
   shiftsList.innerHTML = cardsHtml;
+  renderRosterEmployeeSummary();
 }
 
 function selectAdminMobileDay(day) {

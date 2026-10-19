@@ -965,6 +965,23 @@
             <!-- Rendered via JS -->
           </div>
 
+          <!-- Employee Weekly Shift Count Summary Bar -->
+          <div class="card roster-emp-summary-card" id="roster-emp-summary-card" style="margin-bottom: 16px; padding: 12px 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">📊 Phân bổ ca trong tuần:</span>
+                <span id="roster-emp-total-assigned-badge" class="badge badge-muted" style="font-size: 11px;">0 ca</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span id="roster-emp-highlight-clear-btn" class="badge badge-secondary" style="font-size: 11px; cursor: pointer; display: none;" onclick="clearRosterEmployeeHighlight()">✕ Bỏ lọc</span>
+                <small style="font-size: 11px; color: var(--text-dim);">💡 Bấm vào tên để xem nhanh ca trên lịch</small>
+              </div>
+            </div>
+            <div class="roster-emp-summary-chips" id="roster-emp-summary-chips">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
           <!-- 70/30 Layout Container -->
           <div class="schedule-planning-layout">
             <!-- Left 70%: Weekly Schedule Grid -->
