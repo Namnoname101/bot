@@ -72,6 +72,45 @@ class RosterAndSwapsTests(unittest.TestCase):
         self.assertIn("An", suggested["shifts"]["T2_Sáng"])
         self.assertIn("Bình", suggested["shifts"]["T2_Sáng"])
 
+    def test_suggestion_engine_uses_existing_roster_shifts_when_no_registrations(self):
+        """Khi quản lý điền ca trực tiếp vào lịch nháp (hoặc qua modal),
+        hệ thống tự động chia đều ca phải kế thừa các ca này thay vì xóa sạch."""
+        w_key = "2026-W43"
+        # Manager filled shifts into draft, but shift_schedules is empty
+        self.store.save_roster_draft(
+            week_key=w_key,
+            shifts={
+                "T2_Sáng": ["An"],
+                "T3_Chiều": ["An"],
+                "T2_Sáng": ["An", "Bình"],
+                "T4_Tối": ["Bình"],
+            },
+            week_label="Tuần này",
+        )
+        employees = [
+            {"nickname": "An", "role": "Barista"},
+            {"nickname": "Bình", "role": "Barista"},
+        ]
+
+        suggested = self.store.suggest_roster(w_key, employees)
+        self.assertEqual(suggested["status"], "draft")
+        # Ensure it didn't wipe out to empty
+        all_assigned = [emp for staff in suggested["shifts"].values() for emp in staff]
+        self.assertIn("An", all_assigned)
+        self.assertIn("Bình", all_assigned)
+        self.assertIn("An", suggested["shifts"]["T2_Sáng"])
+        self.assertIn("Bình", suggested["shifts"]["T2_Sáng"])
+
+    def test_suggestion_engine_raises_error_if_zero_availability_everywhere(self):
+        """Nếu hoàn toàn không có ca rảnh nào từ trước lẫn trong bản nháp, báo lỗi rõ ràng."""
+        w_key = "2026-W99"
+        employees = [
+            {"nickname": "An", "role": "Barista"},
+            {"nickname": "Bình", "role": "Barista"},
+        ]
+        with self.assertRaises(ValueError):
+            self.store.suggest_roster(w_key, employees)
+
     def test_shift_swap_workflow_atomic(self):
         w_key = "2026-10-05"
         # Setup roster with An on T4 Tối and Bình on T4 Sáng

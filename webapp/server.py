@@ -1960,10 +1960,17 @@ async def handle_api_admin_roster_suggest(request: web.Request) -> web.Response:
         week_key = get_week_info(0)["week_key"]
 
     employees = await asyncio.to_thread(_get_employees_list, sheets)
-    suggested = store.suggest_roster(week_key, employees)
+    try:
+        suggested = store.suggest_roster(week_key, employees)
+    except ValueError as ve:
+        return web.json_response({
+            "success": False,
+            "message": f"⚠️ {ve}",
+        }, status=400)
+
     return web.json_response({
         "success": True,
-        "message": "💡 Đã tạo bản nháp gợi ý phân bổ ca cân bằng!",
+        "message": "💡 Đã tự động chia đều ca cân bằng dựa trên lịch rảnh và các ca đã chọn!",
         "roster": suggested,
     })
 

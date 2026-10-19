@@ -546,38 +546,61 @@ class WebAppStore:
 
     def suggest_roster(self, week_key: str, employees: list) -> dict:
         """Gợi ý xếp lịch tự động (Tạo DRAFT, không tự chốt) dựa trên:
-        - Nguyện vọng đăng ký (availability)
+        - Nguyện vọng đăng ký (availability) từ shift_schedules
+        - Các ca đã có trên bản nháp hiện tại (nếu quản lý đã điền trực tiếp)
         - Vị trí/role
-        - Số ca mong muốn
-        - Số ca đã được xếp (phân bổ tương đối cân bằng)
+        - Số ca mong muốn & cân bằng số ca đã xếp
         - Tránh trùng lịch trong ngày
         """
         with self._lock:
             rosters = self._data.setdefault("roster_schedules", {})
-            current = self._create_default_roster(week_key)
+            existing = rosters.get(week_key) or {}
+            existing_shifts = existing.get("shifts") or {}
+
             schedules = dict(self._data.get("shift_schedules") or {})
-            targets = dict(current.get("targets") or {})
+            norm_schedules = {
+                str(k).strip().lower(): v
+                for k, v in schedules.items()
+                if isinstance(v, dict)
+            }
+
+            default_roster = self._create_default_roster(week_key)
+            targets = dict(existing.get("targets") or default_roster.get("targets") or {})
 
             emp_state = {}
             for emp in employees:
                 nick = emp.get("nickname") or emp.get("full_name") or ""
                 if not nick:
                     continue
-                reg = schedules.get(nick) or {}
+                norm = nick.strip().lower()
+                reg = schedules.get(nick) or norm_schedules.get(norm) or {}
                 slots = reg.get("slots") or {}
                 reg_set = set()
+
+                # 1. Thu thập ca rảnh từ đăng ký nguyện vọng
                 for d, ca_list in slots.items():
                     if isinstance(ca_list, list):
                         for ca_name in ca_list:
                             reg_set.add(f"{d}_{ca_name}")
+
+                # 2. Kế thừa các ca quản lý đã xếp trước đó trên bản nháp tuần này
+                for slot_key, staff_list in existing_shifts.items():
+                    if isinstance(staff_list, list):
+                        if any((s or "").strip().lower() == norm for s in staff_list):
+                            reg_set.add(slot_key)
+
                 emp_state[nick] = {
                     "nickname": nick,
                     "role": emp.get("role") or reg.get("role") or "Pha Chế",
-                    "target_shifts": int(reg.get("target_shifts") or 5),
+                    "target_shifts": int(reg.get("target_shifts") or max(len(reg_set), 4)),
                     "assigned_count": 0,
                     "registered_slots": reg_set,
                     "assigned_days": set(),
                 }
+
+            total_avail = sum(len(st["registered_slots"]) for st in emp_state.values())
+            if total_avail == 0:
+                raise ValueError("Chưa có dữ liệu đăng ký ca rảnh hoặc ca nháp nào của nhân viên để tự động chia ca!")
 
             new_shifts = {}
             for d in DAYS_ORDER:
@@ -586,13 +609,13 @@ class WebAppStore:
                     needed = targets.get(slot_key, 2 if ca != "Tối" else 3)
                     slot_staff = []
 
-                    # CHỈ xếp nhân viên ĐÃ ĐĂNG KÝ rảnh ca này và chưa làm ca nào trong ngày d
+                    # CHỈ xếp nhân viên ĐÃ ĐĂNG KÝ / ĐƯỢC CHỌN rảnh ca này và chưa làm ca nào trong ngày d
                     candidates = [
                         st for st in emp_state.values()
                         if slot_key in st["registered_slots"] and d not in st["assigned_days"]
                     ]
                     # Sắp xếp ưu tiên: người có số ca đã xếp ít nhất để chia đều ca trong tuần
-                    candidates.sort(key=lambda x: x["assigned_count"])
+                    candidates.sort(key=lambda x: (x["assigned_count"], -x["target_shifts"]))
 
                     for cand in candidates:
                         if len(slot_staff) >= needed:
@@ -603,6 +626,9 @@ class WebAppStore:
 
                     new_shifts[slot_key] = slot_staff
 
+            current = dict(existing) if existing else default_roster
+            current["week_key"] = week_key
+            current["targets"] = targets
             current["shifts"] = new_shifts
             current["status"] = "draft"
             current["updated_at"] = local_now().strftime("%H:%M %d/%m/%Y")

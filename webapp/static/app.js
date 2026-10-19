@@ -2332,7 +2332,28 @@ async function handleUnassignStaff(nickname) {
   }
 }
 
-async function handleSuggestRosterDraft() {
+function handleSuggestRosterDraft() {
+  if (!AppState.currentRoster) return;
+  const shifts = AppState.currentRoster.shifts || {};
+  const currentCount = Object.values(shifts).reduce((acc, list) => acc + (Array.isArray(list) ? list.length : 0), 0);
+
+  if (currentCount > 0) {
+    openModal(
+      "⚡ Tự động chia đều ca",
+      `<p>Hệ thống sẽ dựa trên <strong>ca rảnh đã đăng ký</strong> và <strong>các ca đã điền hiện tại</strong> để tự động cân bằng số ca cho từng nhân viên, tránh trùng ca trong cùng ngày.</p>
+       <p style="font-size: 13px; color: var(--text-dim); margin-top: 8px;">Bạn có muốn hệ thống tự động tối ưu và chia đều lại các ca không?</p>`,
+      `
+        <button class="btn btn-secondary btn-sm" onclick="closeModal()">Hủy</button>
+        <button class="btn btn-primary btn-sm" onclick="executeSuggestRosterDraft()">Tiến hành chia ca</button>
+      `
+    );
+  } else {
+    executeSuggestRosterDraft();
+  }
+}
+
+async function executeSuggestRosterDraft() {
+  closeModal();
   if (!AppState.currentRoster) return;
   const weekKey = AppState.currentRoster.week_key;
 
@@ -2345,9 +2366,9 @@ async function handleSuggestRosterDraft() {
     AppState.currentRoster = resp.roster;
     renderDesktopRosterGrid();
     renderContextualAssignmentDrawer();
-    showToast("✅ Đã tự động chia đều ca theo lịch rảnh của nhân viên!", "success");
+    showToast(resp.message || "✅ Đã tự động chia đều ca thành công!", "success");
   } else {
-    showToast(resp.message || "Không thể tạo gợi ý", "error");
+    showToast((resp && resp.message) || "Không thể tạo gợi ý chia ca", "error");
   }
 }
 
@@ -2696,6 +2717,27 @@ async function saveAdminBatchShiftAndNext(goNext = true) {
     if (resp && resp.success) {
       if (resp.roster) AppState.currentRoster = resp.roster;
       showToast(`✅ Đã xếp ${totalChosen} ca cho ${nick}!`, "success");
+
+      // Đồng bộ đồng thời vào nguyện vọng ca rảnh để công cụ tự động chia ca luôn có dữ liệu
+      apiRequest("/api/schedule/register", {
+        method: "POST",
+        body: {
+          nickname: nick,
+          role: emp.role || "Nhân viên",
+          slots: chosenSlotsByDay,
+          week_label: weekLabel,
+          note: "Quản lý điền theo tin nhắn",
+          target_shifts: totalChosen,
+        }
+      }).catch(e => console.warn("Lỗi sync ca rảnh:", e));
+
+      if (!AppState.shiftSchedules) AppState.shiftSchedules = {};
+      AppState.shiftSchedules[nick] = {
+        role: emp.role || "Nhân viên",
+        slots: chosenSlotsByDay,
+        week_label: weekLabel,
+        target_shifts: totalChosen,
+      };
     } else {
       showToast(resp.message || "Lỗi khi lưu lịch", "error");
       return;
