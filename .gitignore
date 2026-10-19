@@ -23,3 +23,12 @@ backups/
 sheet_research*.txt
 report_out.txt
 logs/
+*.zip
+*_output*.txt
+output*.txt
+mapping_output*.txt
+rates_output*.txt
+test_output*.txt
+migration_info.txt
+*.coverage
+
