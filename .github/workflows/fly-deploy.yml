@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - master
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -15,7 +16,7 @@ jobs:
           python-version: '3.11'
           cache: pip
       - run: pip install -r requirements.txt
-      - run: python -m compileall -q main.py config.py google_sheets.py google_drive.py handlers utils
+      - run: python -m compileall -q main.py config.py google_sheets.py google_drive.py handlers utils services
         env:
           BOT_TOKEN: test-token
           GROUP_CHAT_ID: '-1001234567890'
