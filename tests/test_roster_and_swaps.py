@@ -111,6 +111,24 @@ class RosterAndSwapsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.store.suggest_roster(w_key, employees)
 
+    def test_suggestion_engine_allows_multiple_shifts_per_day(self):
+        """1 người làm 2-3 ca liên tiếp trong cùng 1 ngày vẫn được xếp."""
+        w_key = "2026-W44"
+        self.store.save_shift_schedule(
+            nickname="An",
+            role="Barista",
+            slots={"T2": ["Sáng", "Chiều", "Tối"]},
+            target_shifts=5,
+        )
+        employees = [{"nickname": "An", "role": "Barista"}]
+        suggested = self.store.suggest_roster(w_key, employees)
+        # An should be assigned to multiple shifts on T2
+        assigned_t2 = [
+            ca for ca in ("Sáng", "Chiều", "Tối")
+            if "An" in suggested["shifts"].get(f"T2_{ca}", [])
+        ]
+        self.assertGreaterEqual(len(assigned_t2), 2)
+
     def test_shift_swap_workflow_atomic(self):
         w_key = "2026-10-05"
         # Setup roster with An on T4 Tối and Bình on T4 Sáng

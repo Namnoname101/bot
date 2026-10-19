@@ -595,7 +595,7 @@ class WebAppStore:
                     "target_shifts": int(reg.get("target_shifts") or max(len(reg_set), 4)),
                     "assigned_count": 0,
                     "registered_slots": reg_set,
-                    "assigned_days": set(),
+                    "day_shifts": {},  # đếm số ca trong ngày d (tối đa 3 ca)
                 }
 
             total_avail = sum(len(st["registered_slots"]) for st in emp_state.values())
@@ -609,20 +609,27 @@ class WebAppStore:
                     needed = targets.get(slot_key, 2 if ca != "Tối" else 3)
                     slot_staff = []
 
-                    # CHỈ xếp nhân viên ĐÃ ĐĂNG KÝ / ĐƯỢC CHỌN rảnh ca này và chưa làm ca nào trong ngày d
+                    # Cho phép nhân viên làm 2-3 ca trong ngày nếu đã đăng ký (tối đa 3 ca/ngày)
                     candidates = [
                         st for st in emp_state.values()
-                        if slot_key in st["registered_slots"] and d not in st["assigned_days"]
+                        if slot_key in st["registered_slots"] and st["day_shifts"].get(d, 0) < 3
                     ]
-                    # Sắp xếp ưu tiên: người có số ca đã xếp ít nhất để chia đều ca trong tuần
-                    candidates.sort(key=lambda x: (x["assigned_count"], -x["target_shifts"]))
+                    # Sắp xếp ưu tiên:
+                    # 1. Người có ít ca trong ngày hôm nay hơn (ưu tiên người chưa có ca)
+                    # 2. Người có tổng số ca trong tuần ít hơn (để chia đều ca)
+                    # 3. Người có nguyện vọng target_shifts cao hơn
+                    candidates.sort(key=lambda x: (
+                        x["day_shifts"].get(d, 0),
+                        x["assigned_count"],
+                        -x["target_shifts"]
+                    ))
 
                     for cand in candidates:
                         if len(slot_staff) >= needed:
                             break
                         slot_staff.append(cand["nickname"])
                         cand["assigned_count"] += 1
-                        cand["assigned_days"].add(d)
+                        cand["day_shifts"][d] = cand["day_shifts"].get(d, 0) + 1
 
                     new_shifts[slot_key] = slot_staff
 

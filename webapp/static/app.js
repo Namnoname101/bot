@@ -2202,8 +2202,8 @@ function renderContextualAssignmentDrawer() {
       if (list.includes(nick)) weeklyAssignedCount++;
     });
 
-    // Check conflict (working another ca on the same day)
-    const worksOtherCaToday = ["Sáng", "Chiều", "Tối"].some(c => c !== ca && (shifts[`${day}_${c}`] || []).includes(nick));
+    // Check other ca today (working another ca on the same day)
+    const otherCasToday = ["Sáng", "Chiều", "Tối"].filter(c => c !== ca && (shifts[`${day}_${c}`] || []).includes(nick));
     const targetShifts = reg.target_shifts || 5;
 
     const candData = {
@@ -2212,7 +2212,7 @@ function renderContextualAssignmentDrawer() {
       isAssignedHere,
       weeklyAssignedCount,
       targetShifts,
-      worksOtherCaToday,
+      otherCasToday,
     };
 
     if (daySlots.includes(ca)) {
@@ -2266,7 +2266,7 @@ function renderContextualAssignmentDrawer() {
       const shiftBadgeClass = c.weeklyAssignedCount === 0 ? 'badge-info' : (c.weeklyAssignedCount <= 3 ? 'badge-success' : 'badge-warning');
 
       html += `
-        <div class="candidate-card ${c.worksOtherCaToday ? 'disabled' : ''}">
+        <div class="candidate-card">
           <div style="display: flex; align-items: center; gap: 10px;">
             <div class="user-avatar" style="width: 32px; height: 32px; font-size: 13px;">${c.nickname.charAt(0).toUpperCase()}</div>
             <div class="candidate-meta">
@@ -2277,10 +2277,10 @@ function renderContextualAssignmentDrawer() {
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 6px;">
-            ${c.worksOtherCaToday ? '<span class="badge badge-danger">Trùng ngày</span>' : ''}
+            ${c.otherCasToday.length > 0 ? `<span class="badge badge-secondary" title="Đã có ca ${c.otherCasToday.join(', ')} trong ngày" style="font-size: 11px;">+Ca ${c.otherCasToday.join('+')}</span>` : ''}
             ${c.isAssignedHere ?
               `<button class="btn btn-danger btn-sm" onclick="handleUnassignStaff('${c.nickname}')">Bỏ ca</button>` :
-              `<button class="btn btn-primary btn-sm" ${c.worksOtherCaToday ? 'disabled' : ''} onclick="handleAssignStaff('${c.nickname}')">+ Xếp ca</button>`
+              `<button class="btn btn-primary btn-sm" onclick="handleAssignStaff('${c.nickname}')">+ Xếp ca</button>`
             }
           </div>
         </div>
