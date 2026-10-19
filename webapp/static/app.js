@@ -2387,6 +2387,359 @@ async function confirmPublishRoster() {
   }
 }
 
+// ── Admin Batch Shift Entry By Employee ──────────────────────────────────────
+AppState.adminBatchEntry = {
+  activeIndex: 0,
+  mode: "roster",
+  employees: [],
+};
+
+function openAdminBatchEntryModal() {
+  const modal = document.getElementById("modal-emp-roster-entry");
+  if (!modal) return;
+
+  let emps = [];
+  if (AppState.bootstrapData && Array.isArray(AppState.bootstrapData.employees)) {
+    emps = AppState.bootstrapData.employees;
+  } else if (Array.isArray(AppState.employeesDetail)) {
+    emps = AppState.employeesDetail;
+  }
+
+  if (!emps || emps.length === 0) {
+    const nicks = (AppState.bootstrapData && AppState.bootstrapData.all_nicknames) || [];
+    emps = nicks.map(n => ({ nickname: n, role: "Nhân viên" }));
+  }
+
+  if (emps.length === 0) {
+    showToast("Chưa có danh sách nhân viên để xếp lịch.", "warning");
+    return;
+  }
+
+  AppState.adminBatchEntry.employees = emps;
+  AppState.adminBatchEntry.activeIndex = 0;
+  AppState.adminBatchEntry.mode = "roster";
+
+  setAdminBatchMode("roster", false);
+  renderAdminBatchEmpChips();
+  renderAdminBatchSlotGrid();
+
+  modal.classList.add("active");
+}
+
+function closeAdminBatchEntryModal() {
+  const modal = document.getElementById("modal-emp-roster-entry");
+  if (modal) modal.classList.remove("active");
+  renderDesktopRosterGrid();
+}
+
+function closeAdminBatchEntryModalOnBackdrop(e) {
+  if (e.target && e.target.id === "modal-emp-roster-entry") {
+    closeAdminBatchEntryModal();
+  }
+}
+
+function setAdminBatchMode(mode, refreshGrid = true) {
+  AppState.adminBatchEntry.mode = mode;
+  const btnRoster = document.getElementById("btn-batch-mode-roster");
+  const btnAvail = document.getElementById("btn-batch-mode-avail");
+  const titleEl = document.getElementById("batch-slots-title");
+
+  if (btnRoster && btnAvail) {
+    btnRoster.classList.toggle("active", mode === "roster");
+    btnAvail.classList.toggle("active", mode === "avail");
+  }
+
+  if (titleEl) {
+    titleEl.textContent = mode === "roster" 
+      ? "2. Chọn các ca bạn này làm trong tuần (Lịch chính thức)"
+      : "2. Chọn các ca bạn này rảnh trong tuần (Nguyện vọng)";
+  }
+
+  if (refreshGrid) {
+    renderAdminBatchEmpChips();
+    renderAdminBatchSlotGrid();
+  }
+}
+
+function getEmployeeBatchShiftCount(nickname, mode) {
+  const norm = (nickname || "").trim().toLowerCase();
+  if (!norm) return 0;
+
+  if (mode === "roster") {
+    const shifts = (AppState.currentRoster && AppState.currentRoster.shifts) || {};
+    let count = 0;
+    Object.values(shifts).forEach(list => {
+      if (Array.isArray(list) && list.some(s => (s || "").toLowerCase() === norm)) {
+        count++;
+      }
+    });
+    return count;
+  } else {
+    const sched = (AppState.shiftSchedules || {})[nickname] || (AppState.shiftSchedules || {})[norm] || {};
+    const slots = sched.slots || {};
+    let count = 0;
+    Object.values(slots).forEach(list => {
+      if (Array.isArray(list)) count += list.length;
+    });
+    return count;
+  }
+}
+
+function renderAdminBatchEmpChips() {
+  const container = document.getElementById("batch-emp-chips-container");
+  if (!container) return;
+
+  const emps = AppState.adminBatchEntry.employees || [];
+  const activeIdx = AppState.adminBatchEntry.activeIndex || 0;
+  const mode = AppState.adminBatchEntry.mode || "roster";
+
+  let html = "";
+  emps.forEach((emp, idx) => {
+    const nick = emp.nickname || emp.full_name || emp.username || `NV ${idx + 1}`;
+    const isActive = idx === activeIdx;
+    const shiftCount = getEmployeeBatchShiftCount(nick, mode);
+    const hasShifts = shiftCount > 0;
+
+    html += `
+      <div class="batch-emp-chip ${isActive ? 'active' : ''} ${hasShifts ? 'has-shifts' : ''}" onclick="selectAdminBatchEmployee(${idx})">
+        <span style="font-weight: 700;">${escapeHtml(nick)}</span>
+        <span class="chip-badge">${shiftCount} ca</span>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+
+  const activeEl = container.querySelector(".batch-emp-chip.active");
+  if (activeEl) {
+    activeEl.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }
+}
+
+function selectAdminBatchEmployee(index) {
+  AppState.adminBatchEntry.activeIndex = index;
+  renderAdminBatchEmpChips();
+  renderAdminBatchSlotGrid();
+}
+
+function renderAdminBatchSlotGrid() {
+  const container = document.getElementById("batch-slots-grid-container");
+  if (!container) return;
+
+  const emps = AppState.adminBatchEntry.employees || [];
+  const activeIdx = AppState.adminBatchEntry.activeIndex || 0;
+  const emp = emps[activeIdx];
+  if (!emp) {
+    container.innerHTML = `<p style="padding: 16px; color: var(--text-dim);">Chưa chọn nhân viên.</p>`;
+    return;
+  }
+
+  const nick = emp.nickname || emp.full_name || emp.username;
+  const norm = (nick || "").trim().toLowerCase();
+  const mode = AppState.adminBatchEntry.mode || "roster";
+
+  const wInfo = AppState.weekInfo;
+  const days = (wInfo && wInfo.days) ? wInfo.days : [
+    { code: "T2", label: "Thứ Hai", date_str: "T2" },
+    { code: "T3", label: "Thứ Ba", date_str: "T3" },
+    { code: "T4", label: "Thứ Tư", date_str: "T4" },
+    { code: "T5", label: "Thứ Năm", date_str: "T5" },
+    { code: "T6", label: "Thứ Sáu", date_str: "T6" },
+    { code: "T7", label: "Thứ Bảy", date_str: "T7" },
+    { code: "CN", label: "Chủ Nhật", date_str: "CN" },
+  ];
+
+  let selectedSlotsMap = {};
+  if (mode === "roster") {
+    const shifts = (AppState.currentRoster && AppState.currentRoster.shifts) || {};
+    days.forEach(d => {
+      selectedSlotsMap[d.code] = [];
+      ["Sáng", "Chiều", "Tối"].forEach(ca => {
+        const slotKey = `${d.code}_${ca}`;
+        const staff = shifts[slotKey] || [];
+        if (staff.some(s => (s || "").toLowerCase() === norm)) {
+          selectedSlotsMap[d.code].push(ca);
+        }
+      });
+    });
+  } else {
+    const sched = (AppState.shiftSchedules || {})[nick] || (AppState.shiftSchedules || {})[norm] || {};
+    selectedSlotsMap = sched.slots || {};
+  }
+
+  let html = "";
+  days.forEach(d => {
+    const caList = selectedSlotsMap[d.code] || [];
+    html += `
+      <div class="reg-day-row">
+        <div class="reg-day-info">
+          <span class="reg-day-name">${d.label}</span>
+          <span class="reg-day-date">${d.date_str}</span>
+        </div>
+        <div class="reg-slots-options" data-day="${d.code}">
+          <div class="slot-toggle-pill ${caList.includes('Sáng') ? 'checked' : ''}" onclick="toggleBatchSlotPill(this)" data-ca="Sáng">
+            <span>🌅 Sáng</span>
+            <small style="font-size: 11px; opacity: 0.85;">6:30–12h</small>
+          </div>
+          <div class="slot-toggle-pill ${caList.includes('Chiều') ? 'checked' : ''}" onclick="toggleBatchSlotPill(this)" data-ca="Chiều">
+            <span>☀️ Chiều</span>
+            <small style="font-size: 11px; opacity: 0.85;">12h–18h</small>
+          </div>
+          <div class="slot-toggle-pill ${caList.includes('Tối') ? 'checked' : ''}" onclick="toggleBatchSlotPill(this)" data-ca="Tối">
+            <span>🌙 Tối</span>
+            <small style="font-size: 11px; opacity: 0.85;">18h–22h30</small>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  updateAdminBatchCounter();
+}
+
+function toggleBatchSlotPill(el) {
+  el.classList.toggle("checked");
+  updateAdminBatchCounter();
+}
+
+function updateAdminBatchCounter() {
+  const count = document.querySelectorAll("#batch-slots-grid-container .slot-toggle-pill.checked").length;
+  const badge = document.getElementById("batch-selected-count-badge");
+  if (badge) {
+    badge.textContent = `${count} ca`;
+    badge.className = count > 0 ? "badge badge-primary" : "badge badge-muted";
+  }
+}
+
+function quickSelectBatchShifts(type) {
+  const container = document.getElementById("batch-slots-grid-container");
+  if (!container) return;
+
+  container.querySelectorAll(".reg-slots-options").forEach(row => {
+    const pills = row.querySelectorAll(".slot-toggle-pill");
+    if (type === "all") {
+      pills.forEach(p => p.classList.add("checked"));
+    } else if (type === "evening") {
+      pills[0].classList.remove("checked");
+      pills[1].classList.remove("checked");
+      pills[2].classList.add("checked");
+    } else if (type === "clear") {
+      pills.forEach(p => p.classList.remove("checked"));
+    }
+  });
+  updateAdminBatchCounter();
+}
+
+async function saveAdminBatchShiftAndNext(goNext = true) {
+  const emps = AppState.adminBatchEntry.employees || [];
+  const activeIdx = AppState.adminBatchEntry.activeIndex || 0;
+  const emp = emps[activeIdx];
+  if (!emp) return;
+
+  const nick = emp.nickname || emp.full_name || emp.username;
+  const norm = (nick || "").trim().toLowerCase();
+  const mode = AppState.adminBatchEntry.mode || "roster";
+  const container = document.getElementById("batch-slots-grid-container");
+  if (!container) return;
+
+  const chosenSlotsByDay = {};
+  let totalChosen = 0;
+  container.querySelectorAll(".reg-slots-options").forEach(row => {
+    const day = row.getAttribute("data-day");
+    chosenSlotsByDay[day] = [];
+    row.querySelectorAll(".slot-toggle-pill.checked").forEach(pill => {
+      const ca = pill.getAttribute("data-ca");
+      chosenSlotsByDay[day].push(ca);
+      totalChosen++;
+    });
+  });
+
+  const weekInfo = AppState.weekInfo || {};
+  const weekLabel = weekInfo.week_label || "Tuần này";
+  const weekKey = (AppState.currentRoster && AppState.currentRoster.week_key) || weekInfo.week_key || "2026-W43";
+
+  if (mode === "roster") {
+    if (!AppState.currentRoster) {
+      AppState.currentRoster = { week_key: weekKey, shifts: {}, targets: {}, week_label: weekLabel };
+    }
+    if (!AppState.currentRoster.shifts) {
+      AppState.currentRoster.shifts = {};
+    }
+
+    const days = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+    const cas = ["Sáng", "Chiều", "Tối"];
+
+    days.forEach(d => {
+      const dayChosenCas = chosenSlotsByDay[d] || [];
+      cas.forEach(ca => {
+        const slotKey = `${d}_${ca}`;
+        let list = AppState.currentRoster.shifts[slotKey] || [];
+        list = list.filter(name => (name || "").toLowerCase() !== norm);
+        if (dayChosenCas.includes(ca)) {
+          list.push(nick);
+        }
+        AppState.currentRoster.shifts[slotKey] = list;
+      });
+    });
+
+    const resp = await apiRequest("/api/admin/roster/save-draft", {
+      method: "POST",
+      body: {
+        week_key: weekKey,
+        shifts: AppState.currentRoster.shifts,
+        targets: AppState.currentRoster.targets,
+        week_label: weekLabel,
+      }
+    });
+
+    if (resp && resp.success) {
+      if (resp.roster) AppState.currentRoster = resp.roster;
+      showToast(`✅ Đã xếp ${totalChosen} ca cho ${nick}!`, "success");
+    } else {
+      showToast(resp.message || "Lỗi khi lưu lịch", "error");
+      return;
+    }
+  } else {
+    const resp = await apiRequest("/api/schedule/register", {
+      method: "POST",
+      body: {
+        nickname: nick,
+        role: emp.role || "Nhân viên",
+        slots: chosenSlotsByDay,
+        week_label: weekLabel,
+        note: "Quản lý điền theo tin nhắn",
+        target_shifts: totalChosen,
+      }
+    });
+
+    if (resp && resp.success) {
+      if (!AppState.shiftSchedules) AppState.shiftSchedules = {};
+      AppState.shiftSchedules[nick] = {
+        role: emp.role || "Nhân viên",
+        slots: chosenSlotsByDay,
+        week_label: weekLabel,
+        target_shifts: totalChosen,
+      };
+      showToast(`✅ Đã lưu lịch rảnh (${totalChosen} ca) cho ${nick}!`, "success");
+    } else {
+      showToast(resp.message || "Lỗi khi lưu lịch rảnh", "error");
+      return;
+    }
+  }
+
+  renderAdminBatchEmpChips();
+
+  if (goNext) {
+    if (activeIdx < emps.length - 1) {
+      selectAdminBatchEmployee(activeIdx + 1);
+    } else {
+      showToast("🎉 Đã hoàn thành đến nhân viên cuối cùng!", "info");
+    }
+  }
+}
+
+
 // ── Mobile Responsive Admin Schedule ─────────────────────────────────────────
 function renderMobileAdminSchedule() {
   const dayPicker = document.getElementById("admin-mobile-day-picker");

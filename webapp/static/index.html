@@ -945,6 +945,10 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
                 <span>Làm mới</span>
               </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openAdminBatchEntryModal()" title="Điền ca làm việc theo từng nhân viên">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span>👤 Điền theo nhân viên</span>
+              </button>
               <button type="button" class="btn btn-secondary btn-sm" onclick="handleSuggestRosterDraft()">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="M2 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="M12 22v-4"/><path d="m19.07 19.07-2.83-2.83"/><path d="M22 12h-4"/><path d="m19.07 4.93-2.83 2.83"/></svg>
                 <span>⚡ Tự động chia đều ca</span>
@@ -1302,6 +1306,69 @@
       </div>
       <div id="modal-body"></div>
       <div id="modal-actions" class="modal-actions"></div>
+    </div>
+  </div>
+
+  <!-- Modal Điền Lịch Theo Nhân Viên (Admin Batch Entry) -->
+  <div id="modal-emp-roster-entry" class="modal-overlay" onclick="closeAdminBatchEntryModalOnBackdrop(event)">
+    <div class="modal-dialog modal-dialog-wide">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Điền lịch làm việc theo nhân viên</h3>
+          <p style="font-size: 13px; color: var(--text-dim); margin-top: 2px;">Đọc tin nhắn nhân viên và chạm tick ca nhanh chóng</p>
+        </div>
+        <button type="button" class="btn btn-icon btn-ghost btn-sm" onclick="closeAdminBatchEntryModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <!-- 1. Employee Selection Bar -->
+      <div style="margin-bottom: 16px;">
+        <label style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">1. Chọn nhân viên đang đọc tin nhắn</label>
+        <div id="batch-emp-chips-container" class="batch-emp-chips-scroll">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- 2. Target Mode & Quick Toolbar -->
+      <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding: 12px; background: var(--bg-card-subtle); border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 13px; font-weight: 700; color: var(--text-main);">Chế độ lưu:</span>
+          <div class="segmented-control">
+            <button type="button" id="btn-batch-mode-roster" class="seg-btn active" onclick="setAdminBatchMode('roster')">✅ Xếp vào lịch tuần</button>
+            <button type="button" id="btn-batch-mode-avail" class="seg-btn" onclick="setAdminBatchMode('avail')">📋 Lưu lịch rảnh</button>
+          </div>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button type="button" class="btn btn-secondary btn-xs" onclick="quickSelectBatchShifts('all')">⚡ Cả tuần</button>
+          <button type="button" class="btn btn-secondary btn-xs" onclick="quickSelectBatchShifts('evening')">🌙 Chỉ tối</button>
+          <button type="button" class="btn btn-secondary btn-xs" onclick="quickSelectBatchShifts('clear')">🧹 Xóa chọn</button>
+        </div>
+      </div>
+
+      <!-- 3. Week Days Slot Picker Grid -->
+      <div style="margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+          <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;" id="batch-slots-title">2. Chọn các ca bạn này làm trong tuần</span>
+          <span id="batch-selected-count-badge" class="badge badge-primary">0 ca</span>
+        </div>
+        <div id="batch-slots-grid-container" class="reg-slots-table">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- 4. Action Footer -->
+      <div class="modal-actions" style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 16px;">
+        <button type="button" class="btn btn-secondary" onclick="closeAdminBatchEntryModal()">Đóng</button>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-primary" onclick="saveAdminBatchShiftAndNext(false)">
+            <span>💾 Lưu thay đổi</span>
+          </button>
+          <button type="button" class="btn btn-primary" onclick="saveAdminBatchShiftAndNext(true)" style="background: var(--success); border-color: var(--success);">
+            <span>💾 Lưu & Sang bạn tiếp theo ➔</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
