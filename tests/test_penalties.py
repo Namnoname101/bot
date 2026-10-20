@@ -117,6 +117,28 @@ class PenaltyStoreTests(unittest.TestCase):
         filtered_after = self.store.get_penalties(start_date=date(2026, 5, 15))
         self.assertEqual(len(filtered_after), 2)
 
+    def test_get_penalties_filter_unparseable_date_with_end_date_only(self):
+        # Add a valid penalty
+        self.store.add_penalty(nickname="An", reason="Valid", admin_name="Admin", created_at="08:00 10/05/2026")
+
+        # Inject a penalty record with an unparseable date into store
+        with self.store._lock:
+            self.store._data["penalties"].append({
+                "id": "pen_corrupt",
+                "nickname": "An",
+                "amount": 10000,
+                "reason": "Corrupt date",
+                "admin_name": "Admin",
+                "date": "invalid-date",
+                "created_at": "unknown",
+            })
+            self.store._save_unlocked()
+
+        # Filter with only end_date specified -> unparseable date must be excluded
+        filtered = self.store.get_penalties(end_date=date(2026, 5, 20))
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0]["reason"], "Valid")
+
     def test_get_penalties_leaderboard(self):
         # 3 penalties for Huy (30k)
         self.store.add_penalty(nickname="Huy", reason="L1", admin_name="Admin", created_at="08:00 10/05/2026")

@@ -973,12 +973,11 @@ class WebAppStore:
                     continue
             if s_date or e_date:
                 p_date = _to_date_obj(p.get("date") or p.get("created_at"))
-                if p_date:
-                    if s_date and p_date < s_date:
-                        continue
-                    if e_date and p_date > e_date:
-                        continue
-                elif s_date:
+                if not p_date:
+                    continue
+                if s_date and p_date < s_date:
+                    continue
+                if e_date and p_date > e_date:
                     continue
             filtered.append(dict(p))
 
