@@ -17,6 +17,7 @@ from handlers.checkin_handler import (
     send_checkout_reminder, alert_unclosed_sessions, midnight_auto_cleanup, alert_missing_checkins
 )
 from handlers.endshift_handler import handle_endshift_photo
+from handlers.management_handler import phat_command, bangphat_command, xemphat_command
 from webapp.server import start_webapp_server, stop_webapp_server
 
 logger = logging.getLogger(__name__)
@@ -205,7 +206,9 @@ def main():
     )
 
     # Truyền service vào bot_data để các handlers có thể gọi được mà không cần khởi tạo lại
+    from webapp.store import WebAppStore
     app.bot_data['sheets'] = sheets_service
+    app.bot_data['store'] = WebAppStore(sheets_service=sheets_service)
     app.bot_data['processed_reports'] = set()
 
     # 3. Đăng ký các Handlers
@@ -217,6 +220,9 @@ def main():
     app.add_handler(CommandHandler("thuong", check_reward))
     app.add_handler(CommandHandler("bangthuong", check_all_rewards))
     app.add_handler(CommandHandler("baodoanhthu", quick_report_command))
+    app.add_handler(CommandHandler("phat", phat_command))
+    app.add_handler(CommandHandler("bangphat", bangphat_command))
+    app.add_handler(CommandHandler("xemphat", xemphat_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("announce", announce_command))
     app.add_handler(CommandHandler("setpin", set_pin_command))

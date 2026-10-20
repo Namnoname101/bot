@@ -28,7 +28,8 @@ from handlers.management_handler import (
     handle_late_stats_button, handle_edit_report_button,
     handle_add_employee_input, handle_edit_revenue_input, handle_edit_salary_rate_input,
 
-    handle_mgmt_callback, handle_edit_employee_name_input
+    handle_mgmt_callback, handle_edit_employee_name_input,
+    handle_fine_reason_input
 )
 from handlers.endshift_handler import (
     handle_endshift_button, handle_endshift_ca_selected,
@@ -341,6 +342,11 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         if handled:
             return
 
+    if context.user_data.get('awaiting_penalty_reason'):
+        handled = await handle_fine_reason_input(update, context)
+        if handled:
+            return
+
     if context.user_data.get('awaiting_edit_emp_name'):
         handled = await handle_edit_employee_name_input(update, context)
         if handled:
@@ -444,6 +450,7 @@ async def button_click_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     context.user_data.pop('awaiting_edit_emp_name', None)
     context.user_data.pop('awaiting_edit_report_revenue', None)
     context.user_data.pop('awaiting_feedback', None)
+    context.user_data.pop('awaiting_penalty_reason', None)
     context.user_data.pop('awaiting_admin_id', None)
     context.user_data.pop('awaiting_material_qty', None)
     context.user_data.pop('smart_export_state', None)

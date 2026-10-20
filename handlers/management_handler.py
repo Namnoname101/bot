@@ -6,7 +6,7 @@ from telegram.ext import ContextTypes
 from config import Config
 from utils.auto_delete import track_message, delete_tracked_messages, get_admin_keyboard, safe_edit_message
 from utils.admin import is_admin, is_super_admin
-from utils.validators import _parse_amount_str, validate_nickname
+from utils.validators import _parse_amount_str, validate_nickname, normalize_name
 from utils.time_utils import local_now
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,8 @@ async def handle_manage_nv_button(update: Update, context: ContextTypes.DEFAULT_
          InlineKeyboardButton("❌ Xóa Nhân Viên", callback_data="mgmt_rem_list")],
         [InlineKeyboardButton("✏️ Sửa Tên Nhân Viên", callback_data="mgmt_edit_list"),
          InlineKeyboardButton("💵 Sửa Mức Lương", callback_data="mgmt_salary_list")],
-        [InlineKeyboardButton("🎁 Lịch Sử Thưởng NV", callback_data="mgmt_rwd_list")],
+        [InlineKeyboardButton("🎁 Lịch Sử Thưởng NV", callback_data="mgmt_rwd_list"),
+         InlineKeyboardButton("⚠️ Phạt Nhân Viên (10k)", callback_data="mgmt_fine_list")],
         [InlineKeyboardButton("✖ Đóng", callback_data="mgmt_cancel")]
     ])
     reply = await update.message.reply_text(
@@ -456,6 +457,14 @@ async def handle_mgmt_callback(query, context: ContextTypes.DEFAULT_TYPE):
         await _start_edit_salary_rate(query, context, data[len('mgmt_salary_sel_'):])
         return
 
+    if data == 'mgmt_fine_list':
+        await _show_fine_list(query, context)
+        return
+
+    if data.startswith('mgmt_fine_sel_'):
+        await _start_fine_employee(query, context, data[len('mgmt_fine_sel_'):])
+        return
+
 # ── Private callback implementations ──
 
 
@@ -677,3 +686,337 @@ async def handle_edit_salary_rate_input(update: Update, context: ContextTypes.DE
         )
     track_message(context, reply.message_id)
     return True
+
+
+# ─────────────────────────────────────────────────────────────────
+# Employee Penalty Management (10k fixed amount)
+# ─────────────────────────────────────────────────────────────────
+
+async def _get_active_nicknames(context) -> list[str]:
+    nicknames = []
+    sheets = context.bot_data.get('sheets') if getattr(context, 'bot_data', None) else None
+    if sheets and hasattr(sheets, 'get_all_balances'):
+        try:
+            balances = await asyncio.to_thread(sheets.get_all_balances)
+            if balances:
+                nicknames = list(balances.keys())
+        except Exception as e:
+            logger.warning("Lỗi lấy danh sách nhân viên từ sheets: %s", e)
+    if not nicknames and getattr(context, 'bot_data', None):
+        store = context.bot_data.get('store')
+        if not store:
+            try:
+                from webapp.store import WebAppStore
+                store = WebAppStore(sheets_service=sheets)
+                context.bot_data['store'] = store
+            except Exception:
+                store = None
+        if store and hasattr(store, 'get_all_employee_roles'):
+            roles = store.get_all_employee_roles()
+            if roles:
+                nicknames = list(roles.keys())
+    return nicknames
+
+
+async def _show_fine_list(query, context: ContextTypes.DEFAULT_TYPE):
+    nicknames = await _get_active_nicknames(context)
+    if not nicknames:
+        msg = "❌ Chưa có nhân viên nào trong hệ thống."
+        if hasattr(query, 'edit_message_text'):
+            await safe_edit_message(query, msg)
+        elif hasattr(query, 'reply_text'):
+            await query.reply_text(msg)
+        elif hasattr(query, 'message') and hasattr(query.message, 'reply_text'):
+            await query.message.reply_text(msg)
+        return
+
+    keyboard, row = [], []
+    for nick in nicknames:
+        row.append(InlineKeyboardButton(f"⚠️ {nick}", callback_data=f"mgmt_fine_sel_{nick}"))
+        if len(row) == 2:
+            keyboard.append(row)
+            row = []
+    if row:
+        keyboard.append(row)
+    keyboard.append([InlineKeyboardButton("❌ Hủy", callback_data="mgmt_cancel")])
+
+    text = "⚠️ *LẬP BIÊN BẢN PHẠT (10K/LẦN)*\nChọn nhân viên cần lập biên bản phạt:"
+    markup = InlineKeyboardMarkup(keyboard)
+    if hasattr(query, 'edit_message_text'):
+        await safe_edit_message(query, text, reply_markup=markup, parse_mode='Markdown')
+    elif hasattr(query, 'reply_text'):
+        await query.reply_text(text, reply_markup=markup, parse_mode='Markdown')
+    elif hasattr(query, 'message') and hasattr(query.message, 'reply_text'):
+        await query.message.reply_text(text, reply_markup=markup, parse_mode='Markdown')
+
+
+async def _start_fine_employee(query, context: ContextTypes.DEFAULT_TYPE, nickname: str):
+    context.user_data['awaiting_penalty_reason'] = {'nickname': nickname}
+    text = (
+        f"⚠️ *Lập biên bản phạt: {nickname}*\n"
+        f"💵 Mức phạt cố định: *10.000đ* (tự động trừ vào lương tháng)\n"
+        f"📝 Vui lòng nhập lý do/nội dung vi phạm:\n"
+        f"_(Gõ /cancel nếu muốn hủy)_"
+    )
+    if hasattr(query, 'edit_message_text'):
+        await safe_edit_message(query, text, parse_mode='Markdown')
+    elif hasattr(query, 'reply_text'):
+        await query.reply_text(text, parse_mode='Markdown')
+    elif hasattr(query, 'message') and hasattr(query.message, 'reply_text'):
+        await query.message.reply_text(text, parse_mode='Markdown')
+
+
+async def handle_fine_reason_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    fine_state = context.user_data.get('awaiting_penalty_reason')
+    if not fine_state:
+        return False
+
+    text = update.message.text.strip() if update.message and update.message.text else ""
+
+    if text.startswith('/cancel'):
+        context.user_data.pop('awaiting_penalty_reason', None)
+        if update.message:
+            await update.message.reply_text(
+                "❌ Đã hủy thao tác lập biên bản phạt.",
+                reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id)) if update.effective_user and is_admin(update.effective_user.id, context) else None
+            )
+        return True
+
+    if not text:
+        if update.message:
+            await update.message.reply_text(
+                "❌ Lý do vi phạm không được để trống. Vui lòng nhập lại (hoặc gõ /cancel để hủy):"
+            )
+        return True
+
+    target = fine_state['nickname'] if isinstance(fine_state, dict) else str(fine_state)
+    context.user_data.pop('awaiting_penalty_reason', None)
+
+    store = context.bot_data.get('store') if getattr(context, 'bot_data', None) else None
+    if not store:
+        from webapp.store import WebAppStore
+        sheets = context.bot_data.get('sheets') if getattr(context, 'bot_data', None) else None
+        store = WebAppStore(sheets_service=sheets)
+        if getattr(context, 'bot_data', None):
+            context.bot_data['store'] = store
+
+    admin_user = update.effective_user
+    admin_name = (
+        admin_user.first_name
+        or admin_user.full_name
+        or admin_user.username
+        or "Admin"
+    ) if admin_user else "Admin"
+
+    penalty = store.add_penalty(nickname=target, reason=text, admin_name=admin_name)
+    created_at = penalty.get('created_at', local_now().strftime("%H:%M %d/%m/%Y"))
+
+    if update.message:
+        await update.message.reply_text(
+            f"✅ Đã lập biên bản phạt 10.000đ cho *{target}*!",
+            parse_mode='Markdown',
+            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id)) if update.effective_user and is_admin(update.effective_user.id, context) else None
+        )
+
+    if Config.GROUP_CHAT_ID:
+        try:
+            announcement = (
+                f"⚠️ *THÔNG BÁO KỶ LUẬT VI PHẠM*\n"
+                f"👤 Nhân viên: *{target}*\n"
+                f"💸 Mức phạt: *10.000đ* (tự động trừ vào lương kỳ này)\n"
+                f"📝 Lý do: {text}\n"
+                f"👮 Người lập: {admin_name}\n"
+                f"📅 Thời gian: {created_at}"
+            )
+            await context.bot.send_message(
+                chat_id=Config.GROUP_CHAT_ID,
+                text=announcement,
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.warning("Lỗi gửi thông báo phạt vào nhóm chung: %s", e)
+
+    return True
+
+
+async def phat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not _is_admin(update, context):
+        if getattr(update, 'callback_query', None):
+            await update.callback_query.answer("⛔ Bạn không có quyền thao tác!", show_alert=True)
+        elif getattr(update, 'message', None):
+            await update.message.reply_text("⛔ Lệnh này chỉ dành cho Quản lý.")
+        return
+
+    args = getattr(context, 'args', None) or []
+    if not args:
+        await _show_fine_list(update, context)
+        return
+
+    known_nicks = await _get_active_nicknames(context)
+    full_arg = " ".join(args).strip()
+
+    # Check if full_arg is an existing nickname with no reason provided
+    matched_full = next((n for n in known_nicks if normalize_name(n) == normalize_name(full_arg)), None)
+    if matched_full:
+        await _start_fine_employee(update, context, matched_full)
+        return
+
+    if len(args) == 1:
+        await _start_fine_employee(update, context, args[0])
+        return
+
+    # Prefix match for nickname
+    target = None
+    reason = None
+    for i in range(len(args) - 1, 0, -1):
+        prefix = " ".join(args[:i])
+        for n in known_nicks:
+            if normalize_name(n) == normalize_name(prefix):
+                target = n
+                reason = " ".join(args[i:]).strip()
+                break
+        if target:
+            break
+
+    if not target:
+        target = args[0]
+        reason = " ".join(args[1:]).strip()
+
+    store = context.bot_data.get('store') if getattr(context, 'bot_data', None) else None
+    if not store:
+        from webapp.store import WebAppStore
+        sheets = context.bot_data.get('sheets') if getattr(context, 'bot_data', None) else None
+        store = WebAppStore(sheets_service=sheets)
+        if getattr(context, 'bot_data', None):
+            context.bot_data['store'] = store
+
+    admin_user = update.effective_user
+    admin_name = (
+        admin_user.first_name
+        or admin_user.full_name
+        or admin_user.username
+        or "Admin"
+    ) if admin_user else "Admin"
+
+    penalty = store.add_penalty(nickname=target, reason=reason, admin_name=admin_name)
+    created_at = penalty.get('created_at', local_now().strftime("%H:%M %d/%m/%Y"))
+
+    if update.message:
+        await update.message.reply_text(
+            f"✅ Đã lập biên bản phạt 10.000đ cho *{target}*!",
+            parse_mode='Markdown',
+            reply_markup=get_admin_keyboard(is_super_admin=is_super_admin(update.effective_user.id)) if update.effective_user and is_admin(update.effective_user.id, context) else None
+        )
+
+    if Config.GROUP_CHAT_ID:
+        try:
+            announcement = (
+                f"⚠️ *THÔNG BÁO KỶ LUẬT VI PHẠM*\n"
+                f"👤 Nhân viên: *{target}*\n"
+                f"💸 Mức phạt: *10.000đ* (tự động trừ vào lương kỳ này)\n"
+                f"📝 Lý do: {reason}\n"
+                f"👮 Người lập: {admin_name}\n"
+                f"📅 Thời gian: {created_at}"
+            )
+            await context.bot.send_message(
+                chat_id=Config.GROUP_CHAT_ID,
+                text=announcement,
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.warning("Lỗi gửi thông báo phạt vào nhóm chung: %s", e)
+
+
+async def bangphat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from handlers.overtime_handler import _salary_window
+    now = local_now()
+    start_dt, end_dt = _salary_window(now)
+    start_date = start_dt.date()
+    end_date = end_dt.date()
+
+    store = context.bot_data.get('store') if getattr(context, 'bot_data', None) else None
+    if not store:
+        from webapp.store import WebAppStore
+        sheets = context.bot_data.get('sheets') if getattr(context, 'bot_data', None) else None
+        store = WebAppStore(sheets_service=sheets)
+        if getattr(context, 'bot_data', None):
+            context.bot_data['store'] = store
+
+    leaderboard = store.get_penalties_leaderboard(start_date, end_date)
+
+    period_str = f"{start_date.strftime('%d/%m/%Y')} → {end_date.strftime('%d/%m/%Y')}"
+    if not leaderboard:
+        reply = (
+            f"🏆 *BẢNG XẾP HẠNG VI PHẠM (KỶ LUẬT)*\n"
+            f"📅 Kỳ lương: *{period_str}*\n\n"
+            f"🎉 Chưa có nhân viên nào bị phạt trong kỳ này!"
+        )
+    else:
+        medals = ["🥇", "🥈", "🥉"]
+        total_fines = sum(item["count"] for item in leaderboard)
+        total_amount = sum(item["total_amount"] for item in leaderboard)
+        lines = [
+            "🏆 *BẢNG XẾP HẠNG VI PHẠM (KỶ LUẬT)*",
+            f"📅 Kỳ lương: *{period_str}*",
+            f"💰 Tổng phạt kỳ này: *{total_fines}* lần (*{total_amount:,}đ*)",
+            "─" * 28,
+        ]
+        for rank, item in enumerate(leaderboard, start=1):
+            icon = medals[rank - 1] if rank <= 3 else f"#{rank}"
+            lines.append(f"{icon} *{item['nickname']}*: {item['count']} lần ({item['total_amount']:,}đ)")
+        reply = "\n".join(lines)
+
+    if update.message:
+        await update.message.reply_text(reply, parse_mode='Markdown')
+
+
+async def xemphat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = getattr(context, 'args', None) or []
+    target = " ".join(args).strip() if args else None
+
+    if not target:
+        user = update.effective_user
+        if user:
+            known_nicks = await _get_active_nicknames(context)
+            for candidate in [user.first_name, user.full_name, user.username]:
+                if not candidate:
+                    continue
+                matched = next((n for n in known_nicks if normalize_name(n) == normalize_name(candidate)), None)
+                if matched:
+                    target = matched
+                    break
+            if not target:
+                target = user.first_name or user.username or "Tôi"
+
+    store = context.bot_data.get('store') if getattr(context, 'bot_data', None) else None
+    if not store:
+        from webapp.store import WebAppStore
+        sheets = context.bot_data.get('sheets') if getattr(context, 'bot_data', None) else None
+        store = WebAppStore(sheets_service=sheets)
+        if getattr(context, 'bot_data', None):
+            context.bot_data['store'] = store
+
+    records = store.get_penalties(nickname=target) if target else store.get_penalties(limit=10)
+
+    display_name = target or "Gần Đây"
+    if not records:
+        reply = f"📋 *LỊCH SỬ PHẠT — {display_name}*\n\n✅ Không có bản ghi phạt nào."
+    else:
+        total_fines = len(records)
+        total_amount = total_fines * 10000
+        lines = [
+            f"📋 *LỊCH SỬ PHẠT — {display_name}*",
+            f"⚠️ Tổng số: *{total_fines}* lần (*{total_amount:,}đ*)",
+            "─" * 28,
+        ]
+        for r in records[:15]:
+            dt = r.get("created_at") or r.get("date") or ""
+            reason = r.get("reason", "")
+            lines.append(f"• *{dt}*: {reason} (-10.000đ)")
+        if len(records) > 15:
+            lines.append(f"_... và {len(records) - 15} lần khác_")
+        reply = "\n".join(lines)
+
+    if update.message:
+        await update.message.reply_text(reply, parse_mode='Markdown')
+

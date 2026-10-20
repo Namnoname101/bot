@@ -6,10 +6,13 @@ from pathlib import Path
 import tempfile
 import threading
 import time
+from types import SimpleNamespace
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+from config import Config
 from services.sheets.sync import SyncSheetsMixin
+from utils.time_utils import local_now
 from webapp.store import WebAppStore
 
 
@@ -444,4 +447,375 @@ class PayrollPenaltyDeductionTests(unittest.TestCase):
         self.assertEqual(summary["penalty_amount"], 0)
         self.assertEqual(summary["penalties"], [])
         self.assertEqual(summary["estimated_pay_k"], 200.0)
+
+
+class BotPenaltyFlowTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.db_path = Path(self.tmp.name) / "store.json"
+        self.store = WebAppStore(path=self.db_path)
+        self.admin_user = SimpleNamespace(id=Config.ADMIN_CHAT_ID, first_name="Quản Lý", full_name="Quản Lý Sober", username="admin_sober")
+        self.staff_user = SimpleNamespace(id=88888, first_name="Huy", full_name="Gia Huy", username="huy_staff")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _make_context(self, user_data=None, args=None, balances=None):
+        sheets = MagicMock()
+        sheets.get_all_balances.return_value = balances if balances is not None else {"Huy": 2, "Thảo": 0}
+        sheets.get_admin_list.return_value = [Config.ADMIN_CHAT_ID]
+        bot = MagicMock()
+        bot.send_message = AsyncMock()
+        return SimpleNamespace(
+            bot=bot,
+            user_data=user_data if user_data is not None else {},
+            bot_data={
+                "sheets": sheets,
+                "store": self.store,
+                "admin_ids": {Config.ADMIN_CHAT_ID},
+            },
+            args=args or [],
+        )
+
+    async def test_manage_nv_button_contains_penalty_button(self):
+        from handlers.management_handler import handle_manage_nv_button
+        update = SimpleNamespace(
+            effective_user=self.admin_user,
+            effective_chat=SimpleNamespace(id=Config.ADMIN_CHAT_ID),
+            message=SimpleNamespace(reply_text=AsyncMock(return_value=SimpleNamespace(message_id=99))),
+        )
+        context = self._make_context()
+        await handle_manage_nv_button(update, context)
+
+        update.message.reply_text.assert_awaited_once()
+        _, kwargs = update.message.reply_text.await_args
+        reply_markup = kwargs.get("reply_markup")
+        all_buttons = [btn for row in reply_markup.inline_keyboard for btn in row]
+        fine_btn = next((b for b in all_buttons if b.callback_data == "mgmt_fine_list"), None)
+        self.assertIsNotNone(fine_btn)
+        self.assertIn("10k", fine_btn.text)
+
+    async def test_mgmt_callback_routes_fine_list_and_fine_sel(self):
+        from handlers.management_handler import handle_mgmt_callback
+        context = self._make_context()
+
+        # Route mgmt_fine_list
+        query_list = SimpleNamespace(
+            data="mgmt_fine_list",
+            from_user=self.admin_user,
+            edit_message_text=AsyncMock(),
+            answer=AsyncMock(),
+        )
+        await handle_mgmt_callback(query_list, context)
+        query_list.edit_message_text.assert_awaited_once()
+        text_arg = query_list.edit_message_text.await_args[0][0]
+        self.assertIn("LẬP BIÊN BẢN PHẠT", text_arg)
+
+        # Route mgmt_fine_sel_Huy
+        query_sel = SimpleNamespace(
+            data="mgmt_fine_sel_Huy",
+            from_user=self.admin_user,
+            edit_message_text=AsyncMock(),
+            answer=AsyncMock(),
+        )
+        await handle_mgmt_callback(query_sel, context)
+        self.assertEqual(context.user_data.get("awaiting_penalty_reason"), {"nickname": "Huy"})
+        query_sel.edit_message_text.assert_awaited_once()
+        text_arg2 = query_sel.edit_message_text.await_args[0][0]
+        self.assertIn("10.000đ", text_arg2)
+        self.assertIn("Huy", text_arg2)
+
+    async def test_show_fine_list_renders_employees_and_cancel(self):
+        from handlers.management_handler import _show_fine_list
+        context = self._make_context(balances={"Huy": 1, "Thảo": 2, "Nam": 0})
+        query = SimpleNamespace(
+            edit_message_text=AsyncMock(),
+        )
+        await _show_fine_list(query, context)
+        query.edit_message_text.assert_awaited_once()
+        args, kwargs = query.edit_message_text.await_args
+        self.assertIn("LẬP BIÊN BẢN PHẠT (10K/LẦN)", args[0])
+        markup = kwargs.get("reply_markup")
+        callbacks = [btn.callback_data for row in markup.inline_keyboard for btn in row]
+        self.assertIn("mgmt_fine_sel_Huy", callbacks)
+        self.assertIn("mgmt_fine_sel_Thảo", callbacks)
+        self.assertIn("mgmt_fine_sel_Nam", callbacks)
+        self.assertIn("mgmt_cancel", callbacks)
+
+    async def test_start_fine_employee_sets_state(self):
+        from handlers.management_handler import _start_fine_employee
+        context = self._make_context()
+        query = SimpleNamespace(
+            edit_message_text=AsyncMock(),
+        )
+        await _start_fine_employee(query, context, "Thảo")
+        self.assertEqual(context.user_data.get("awaiting_penalty_reason"), {"nickname": "Thảo"})
+        query.edit_message_text.assert_awaited_once()
+        args, _ = query.edit_message_text.await_args
+        self.assertIn("Thảo", args[0])
+        self.assertIn("10.000đ", args[0])
+
+    async def test_handle_fine_reason_input_success_and_group_announcement(self):
+        from handlers.management_handler import handle_fine_reason_input
+        context = self._make_context(user_data={"awaiting_penalty_reason": {"nickname": "Huy"}})
+        update = SimpleNamespace(
+            effective_user=self.admin_user,
+            effective_chat=SimpleNamespace(id=Config.ADMIN_CHAT_ID),
+            message=SimpleNamespace(
+                text="Quên tắt đèn quầy bar",
+                reply_text=AsyncMock(),
+            ),
+        )
+
+        handled = await handle_fine_reason_input(update, context)
+        self.assertTrue(handled)
+        self.assertNotIn("awaiting_penalty_reason", context.user_data)
+
+        # Check penalty recorded in store
+        penalties = self.store.get_penalties(nickname="Huy")
+        self.assertEqual(len(penalties), 1)
+        self.assertEqual(penalties[0]["amount"], 10000)
+        self.assertEqual(penalties[0]["reason"], "Quên tắt đèn quầy bar")
+        self.assertEqual(penalties[0]["admin_name"], "Quản Lý")
+
+        # Confirmation to admin
+        update.message.reply_text.assert_awaited_once()
+        admin_reply = update.message.reply_text.await_args[0][0]
+        self.assertIn("Đã lập biên bản phạt 10.000đ cho *Huy*", admin_reply)
+
+        # Public announcement to group
+        context.bot.send_message.assert_awaited_once()
+        call_kwargs = context.bot.send_message.await_args.kwargs
+        self.assertEqual(call_kwargs["chat_id"], Config.GROUP_CHAT_ID)
+        self.assertIn("THÔNG BÁO KỶ LUẬT VI PHẠM", call_kwargs["text"])
+        self.assertIn("Huy", call_kwargs["text"])
+        self.assertIn("10.000đ", call_kwargs["text"])
+        self.assertIn("Quên tắt đèn quầy bar", call_kwargs["text"])
+
+    async def test_handle_fine_reason_input_group_error_resilient(self):
+        from handlers.management_handler import handle_fine_reason_input
+        context = self._make_context(user_data={"awaiting_penalty_reason": {"nickname": "Thảo"}})
+        # Simulate network error on group announcement
+        context.bot.send_message.side_effect = Exception("Telegram Network Error")
+
+        update = SimpleNamespace(
+            effective_user=self.admin_user,
+            effective_chat=SimpleNamespace(id=Config.ADMIN_CHAT_ID),
+            message=SimpleNamespace(
+                text="Đi muộn 20 phút không báo",
+                reply_text=AsyncMock(),
+            ),
+        )
+
+        handled = await handle_fine_reason_input(update, context)
+        self.assertTrue(handled)
+        # Verify penalty still saved despite group error
+        penalties = self.store.get_penalties(nickname="Thảo")
+        self.assertEqual(len(penalties), 1)
+        update.message.reply_text.assert_awaited_once()
+
+    async def test_handle_fine_reason_input_cancel(self):
+        from handlers.management_handler import handle_fine_reason_input
+        context = self._make_context(user_data={"awaiting_penalty_reason": {"nickname": "Huy"}})
+        update = SimpleNamespace(
+            effective_user=self.admin_user,
+            effective_chat=SimpleNamespace(id=Config.ADMIN_CHAT_ID),
+            message=SimpleNamespace(
+                text="/cancel",
+                reply_text=AsyncMock(),
+            ),
+        )
+
+        handled = await handle_fine_reason_input(update, context)
+        self.assertTrue(handled)
+        self.assertNotIn("awaiting_penalty_reason", context.user_data)
+        self.assertEqual(len(self.store.get_penalties()), 0)
+        update.message.reply_text.assert_awaited_once()
+
+    async def test_handle_fine_reason_input_empty_validation(self):
+        from handlers.management_handler import handle_fine_reason_input
+        context = self._make_context(user_data={"awaiting_penalty_reason": {"nickname": "Huy"}})
+        update = SimpleNamespace(
+            effective_user=self.admin_user,
+            effective_chat=SimpleNamespace(id=Config.ADMIN_CHAT_ID),
+            message=SimpleNamespace(
+                text="    ",
+                reply_text=AsyncMock(),
+            ),
+        )
+
+        handled = await handle_fine_reason_input(update, context)
+        self.assertTrue(handled)
+        self.assertIn("awaiting_penalty_reason", context.user_data)
+        self.assertEqual(len(self.store.get_penalties()), 0)
+
+    async def test_phat_command_direct(self):
+        from handlers.management_handler import phat_command
+        context = self._make_context(args=["Huy", "Đi", "muộn", "15", "phút"])
+        update = SimpleNamespace(
+            effective_user=self.admin_user,
+            effective_chat=SimpleNamespace(id=Config.ADMIN_CHAT_ID),
+            message=SimpleNamespace(reply_text=AsyncMock()),
+        )
+
+        await phat_command(update, context)
+
+        penalties = self.store.get_penalties(nickname="Huy")
+        self.assertEqual(len(penalties), 1)
+        self.assertEqual(penalties[0]["amount"], 10000)
+        self.assertEqual(penalties[0]["reason"], "Đi muộn 15 phút")
+        update.message.reply_text.assert_awaited_once()
+        context.bot.send_message.assert_awaited_once()
+
+    async def test_phat_command_name_only_sets_state(self):
+        from handlers.management_handler import phat_command
+        context = self._make_context(args=["Huy"])
+        update = SimpleNamespace(
+            effective_user=self.admin_user,
+            effective_chat=SimpleNamespace(id=Config.ADMIN_CHAT_ID),
+            message=SimpleNamespace(reply_text=AsyncMock()),
+        )
+
+        await phat_command(update, context)
+        self.assertEqual(context.user_data.get("awaiting_penalty_reason"), {"nickname": "Huy"})
+        update.message.reply_text.assert_awaited_once()
+        self.assertEqual(len(self.store.get_penalties()), 0)
+
+    async def test_phat_command_no_args_shows_selection_list(self):
+        from handlers.management_handler import phat_command
+        context = self._make_context(args=[], balances={"Huy": 0, "Thảo": 1})
+        update = SimpleNamespace(
+            effective_user=self.admin_user,
+            effective_chat=SimpleNamespace(id=Config.ADMIN_CHAT_ID),
+            message=SimpleNamespace(reply_text=AsyncMock()),
+        )
+
+        await phat_command(update, context)
+        update.message.reply_text.assert_awaited_once()
+        args, kwargs = update.message.reply_text.await_args
+        self.assertIn("LẬP BIÊN BẢN PHẠT (10K/LẦN)", args[0])
+        self.assertIn("reply_markup", kwargs)
+
+    async def test_phat_command_blocked_for_non_admin(self):
+        from handlers.management_handler import phat_command
+        context = self._make_context(args=["Huy", "Lỗi"])
+        update = SimpleNamespace(
+            effective_user=self.staff_user,
+            effective_chat=SimpleNamespace(id=Config.GROUP_CHAT_ID),
+            message=SimpleNamespace(reply_text=AsyncMock()),
+        )
+
+        await phat_command(update, context)
+        self.assertEqual(len(self.store.get_penalties()), 0)
+
+    async def test_bangphat_command_leaderboard(self):
+        from handlers.management_handler import bangphat_command
+        now = local_now()
+        cur_dmy = now.strftime("%d/%m/%Y")
+        self.store.add_penalty("Huy", "Lỗi 1", "Admin", created_at=f"08:00 {cur_dmy}")
+        self.store.add_penalty("Huy", "Lỗi 2", "Admin", created_at=f"09:00 {cur_dmy}")
+        self.store.add_penalty("Thảo", "Lỗi 3", "Admin", created_at=f"10:00 {cur_dmy}")
+
+        context = self._make_context()
+        update = SimpleNamespace(
+            effective_user=self.staff_user,
+            effective_chat=SimpleNamespace(id=Config.GROUP_CHAT_ID),
+            message=SimpleNamespace(reply_text=AsyncMock()),
+        )
+
+        await bangphat_command(update, context)
+        update.message.reply_text.assert_awaited_once()
+        reply = update.message.reply_text.await_args[0][0]
+        self.assertIn("BẢNG XẾP HẠNG VI PHẠM", reply)
+        self.assertIn("3", reply)  # total 3 penalties
+        self.assertIn("30,000đ", reply)
+        self.assertIn("Huy", reply)
+        self.assertIn("Thảo", reply)
+        self.assertIn("🥇", reply)
+
+    async def test_xemphat_command_specific_user(self):
+        from handlers.management_handler import xemphat_command
+        self.store.add_penalty("Huy", "Quên đóng cửa", "Admin")
+        context = self._make_context(args=["Huy"])
+        update = SimpleNamespace(
+            effective_user=self.staff_user,
+            effective_chat=SimpleNamespace(id=Config.GROUP_CHAT_ID),
+            message=SimpleNamespace(reply_text=AsyncMock()),
+        )
+
+        await xemphat_command(update, context)
+        update.message.reply_text.assert_awaited_once()
+        reply = update.message.reply_text.await_args[0][0]
+        self.assertIn("LỊCH SỬ PHẠT — Huy", reply)
+        self.assertIn("Quên đóng cửa", reply)
+        self.assertIn("-10.000đ", reply)
+
+    async def test_button_click_handler_intercepts_fine_reason(self):
+        from handlers.reward_handler import button_click_handler
+        context = self._make_context(user_data={"awaiting_penalty_reason": {"nickname": "Huy"}})
+        update = SimpleNamespace(
+            effective_user=self.admin_user,
+            effective_chat=SimpleNamespace(id=Config.GROUP_CHAT_ID),
+            message=SimpleNamespace(
+                text="Không dọn rác",
+                reply_text=AsyncMock(),
+                delete=AsyncMock(),
+            ),
+        )
+
+        await button_click_handler(update, context)
+        self.assertNotIn("awaiting_penalty_reason", context.user_data)
+        penalties = self.store.get_penalties(nickname="Huy")
+        self.assertEqual(len(penalties), 1)
+        self.assertEqual(penalties[0]["reason"], "Không dọn rác")
+
+    async def test_bangphat_command_empty_period(self):
+        from handlers.management_handler import bangphat_command
+        context = self._make_context()
+        update = SimpleNamespace(
+            effective_user=self.staff_user,
+            effective_chat=SimpleNamespace(id=Config.GROUP_CHAT_ID),
+            message=SimpleNamespace(reply_text=AsyncMock()),
+        )
+
+        await bangphat_command(update, context)
+        update.message.reply_text.assert_awaited_once()
+        reply = update.message.reply_text.await_args[0][0]
+        self.assertIn("Chưa có nhân viên nào bị phạt", reply)
+
+    async def test_xemphat_command_fallback_to_effective_user(self):
+        from handlers.management_handler import xemphat_command
+        # Staff user first_name is "Huy"
+        self.store.add_penalty("Huy", "Vỡ ly thủy tinh", "Admin")
+        context = self._make_context(args=[], balances={"Huy": 0, "Thảo": 1})
+        update = SimpleNamespace(
+            effective_user=self.staff_user,
+            effective_chat=SimpleNamespace(id=Config.GROUP_CHAT_ID),
+            message=SimpleNamespace(reply_text=AsyncMock()),
+        )
+
+        await xemphat_command(update, context)
+        update.message.reply_text.assert_awaited_once()
+        reply = update.message.reply_text.await_args[0][0]
+        self.assertIn("LỊCH SỬ PHẠT — Huy", reply)
+        self.assertIn("Vỡ ly thủy tinh", reply)
+
+    async def test_phat_command_multiword_nickname(self):
+        from handlers.management_handler import phat_command
+        context = self._make_context(
+            args=["Bình", "An", "Quên", "lau", "máy", "pha"],
+            balances={"Bình An": 0, "Huy": 1},
+        )
+        update = SimpleNamespace(
+            effective_user=self.admin_user,
+            effective_chat=SimpleNamespace(id=Config.ADMIN_CHAT_ID),
+            message=SimpleNamespace(reply_text=AsyncMock()),
+        )
+
+        await phat_command(update, context)
+        penalties = self.store.get_penalties(nickname="Bình An")
+        self.assertEqual(len(penalties), 1)
+        self.assertEqual(penalties[0]["reason"], "Quên lau máy pha")
+        self.assertEqual(penalties[0]["amount"], 10000)
+
 
