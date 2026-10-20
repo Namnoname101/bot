@@ -2415,6 +2415,7 @@ p {
   border-radius: var(--radius-sm);
   transition: background-color 0.15s ease;
   user-select: none;
+  min-height: 38px;
 }
 
 .penalty-breakdown-row:hover {

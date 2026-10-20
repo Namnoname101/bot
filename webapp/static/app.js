@@ -1862,7 +1862,9 @@ async function openPenaltyHistoryModal() {
   modal.classList.add("active");
 
   try {
-    const resp = await apiRequest("/api/penalties");
+    const nick = AppState.user ? (AppState.user.nickname || AppState.user.username) : "";
+    const url = nick ? `/api/penalties?nickname=${encodeURIComponent(nick)}` : "/api/penalties";
+    const resp = await apiRequest(url);
     if (resp && resp.success && Array.isArray(resp.penalties)) {
       AppState.personalPenalties = resp.penalties;
     }
@@ -1943,11 +1945,13 @@ async function openPenaltyLeaderboardModal() {
     return;
   }
 
+  const lb = resp.leaderboard || [];
+  const totalFund = lb.reduce((sum, item) => sum + (item.total_amount || ((item.count || 0) * 10000)), 0);
+
   if (subtitle && resp.period_start && resp.period_end) {
-    subtitle.textContent = `Kỳ: ${resp.period_start} → ${resp.period_end} • Tổng quỹ phạt: ${formatCurrency(resp.total_amount || 0)}`;
+    subtitle.textContent = `Kỳ: ${resp.period_start} → ${resp.period_end} • Tổng quỹ phạt: ${formatCurrency(totalFund)}`;
   }
 
-  const lb = resp.leaderboard || [];
   if (!content) return;
 
   if (lb.length === 0) {
