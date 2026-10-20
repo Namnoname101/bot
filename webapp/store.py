@@ -6,7 +6,8 @@ import os
 import secrets
 import threading
 import time
-from datetime import datetime, timedelta
+import uuid
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from config import Config
@@ -84,6 +85,53 @@ def verify_password(password: str, hashed: str, salt: str) -> bool:
     calc = hashlib.sha256(f"{salt}:{password}".encode("utf-8")).hexdigest()
     return hmac.compare_digest(calc, hashed)
 
+
+def _parse_date_to_dmy(val: str) -> str | None:
+    """Trích xuất chuỗi ngày DD/MM/YYYY từ nhiều định dạng ngày giờ khác nhau."""
+    if not val:
+        return None
+    val = val.strip()
+    for fmt in (
+        "%H:%M %d/%m/%Y",
+        "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%Y %H:%M",
+        "%d/%m/%Y",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+        "%Y-%m-%dT%H:%M:%S",
+    ):
+        try:
+            return datetime.strptime(val, fmt).strftime("%d/%m/%Y")
+        except ValueError:
+            pass
+    return None
+
+
+def _to_date_obj(val: object) -> date | None:
+    """Chuyển đổi date, datetime hoặc chuỗi ngày thành datetime.date."""
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val.date()
+    if isinstance(val, date):
+        return val
+    if isinstance(val, str):
+        val = val.strip()
+        for fmt in (
+            "%d/%m/%Y",
+            "%Y-%m-%d",
+            "%H:%M %d/%m/%Y",
+            "%d/%m/%Y %H:%M",
+            "%d/%m/%Y %H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%dT%H:%M:%S",
+        ):
+            try:
+                return datetime.strptime(val, fmt).date()
+            except ValueError:
+                pass
+    return None
+
 STORE_PATH = Path(__file__).resolve().parent.parent / "data" / "webapp_store.json"
 
 DEFAULT_CHECKLISTS = {
@@ -157,10 +205,15 @@ class WebAppStore:
             "shift_swaps": [],        # [ { "id": ..., "requester": ..., "target": ..., "status": ... } ]
             "notifications": [],      # [ { "id": ..., "recipient": ..., "title": ..., "message": ..., "is_read": ... } ]
             "employee_roles": {},     # { "nickname_norm": "Pha Chế" | "Phục Vụ" | "Thu Ngân" | "Quản Lý" }
+            "penalties": [],          # Danh sách phạt nhân viên (10.000đ/lần)
         }
         self._load()
         if self.sheets:
             self.init_from_sheets(self.sheets)
+
+    @property
+    def data(self) -> dict:
+        return self._data
 
     def _load(self):
         with self._lock:
@@ -179,6 +232,7 @@ class WebAppStore:
                             "shift_swaps",
                             "notifications",
                             "employee_roles",
+                            "penalties",
                         ):
                             if k in raw and raw[k]:
                                 self._data[k] = raw[k]
@@ -246,6 +300,15 @@ class WebAppStore:
                             cur_roles = self._data.setdefault("employee_roles", {})
                             cur_roles.update(sheet_roles)
                             self._save_unlocked()
+
+                # 7. Danh sách phạt nhân viên
+                if hasattr(self.sheets, "load_sheet_penalties"):
+                    sheet_pens = self.sheets.load_sheet_penalties()
+                    if isinstance(sheet_pens, list) and all(isinstance(x, dict) for x in sheet_pens):
+                        if sheet_pens:
+                            with self._lock:
+                                self._data["penalties"] = sheet_pens
+                                self._save_unlocked()
 
                 logger.info("✅ Đã nạp dữ liệu WebApp từ Google Sheets thành công.")
             except Exception as e:
@@ -842,6 +905,134 @@ class WebAppStore:
     def get_petty_expenses(self, limit: int = 30) -> list:
         with self._lock:
             return list(self._data.get("petty_expenses") or [])[:limit]
+
+    # ── Employee Penalties (Phạt nhân viên cố định 10.000đ) ───────────────────
+    def add_penalty(
+        self,
+        nickname: str,
+        reason: str,
+        admin_name: str,
+        created_at: str | None = None,
+    ) -> dict:
+        """Thêm một bản ghi phạt nhân viên với số tiền cố định 10.000đ."""
+        if not nickname or not nickname.strip():
+            raise ValueError("Tên nhân viên không được để trống")
+        if not reason or not reason.strip():
+            raise ValueError("Lý do vi phạm không được để trống")
+
+        now = local_now()
+        now_str = now.strftime("%H:%M %d/%m/%Y")
+        act_created_at = created_at.strip() if created_at and created_at.strip() else now_str
+
+        date_str = None
+        if created_at and created_at.strip():
+            date_str = _parse_date_to_dmy(created_at.strip())
+        if not date_str:
+            date_str = now.strftime("%d/%m/%Y")
+
+        penalty_id = f"pen_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+        item = {
+            "id": penalty_id,
+            "created_at": act_created_at,
+            "date": date_str,
+            "nickname": nickname.strip(),
+            "amount": 10000,
+            "reason": reason.strip(),
+            "admin_name": (admin_name or "").strip(),
+        }
+
+        with self._lock:
+            penalties = self._data.setdefault("penalties", [])
+            penalties.insert(0, item)
+            self._save_unlocked()
+
+        if self.sheets and hasattr(self.sheets, "save_sheet_penalty"):
+            self._async_sheet_call(self.sheets.save_sheet_penalty, item)
+
+        return item
+
+    def get_penalties(
+        self,
+        nickname: str | None = None,
+        start_date: object = None,
+        end_date: object = None,
+    ) -> list[dict]:
+        """Lấy danh sách các bản ghi phạt theo nhân viên và khoảng thời gian, sắp xếp mới nhất lên đầu."""
+        with self._lock:
+            penalties = list(self._data.get("penalties") or [])
+
+        s_date = _to_date_obj(start_date)
+        e_date = _to_date_obj(end_date)
+        norm_nick = normalize_name(nickname) if nickname else ""
+
+        filtered = []
+        for p in penalties:
+            if norm_nick:
+                p_nick = normalize_name(p.get("nickname") or "")
+                if p_nick != norm_nick:
+                    continue
+            if s_date or e_date:
+                p_date = _to_date_obj(p.get("date") or p.get("created_at"))
+                if p_date:
+                    if s_date and p_date < s_date:
+                        continue
+                    if e_date and p_date > e_date:
+                        continue
+                elif s_date:
+                    continue
+            filtered.append(dict(p))
+
+        def _sort_key(rec):
+            pid = str(rec.get("id") or "")
+            ts = 0.0
+            if pid.startswith("pen_"):
+                parts = pid.split("_")
+                if len(parts) >= 2 and parts[1].isdigit():
+                    try:
+                        ts = float(parts[1])
+                    except ValueError:
+                        pass
+            if ts == 0.0:
+                c_at = str(rec.get("created_at") or "")
+                d_obj = _to_date_obj(c_at) or _to_date_obj(rec.get("date"))
+                if d_obj:
+                    ts = datetime(d_obj.year, d_obj.month, d_obj.day).timestamp()
+            return ts
+
+        filtered.sort(key=_sort_key, reverse=True)
+        return filtered
+
+    def get_penalties_leaderboard(
+        self,
+        start_date: object = None,
+        end_date: object = None,
+    ) -> list[dict]:
+        """Bảng xếp hạng vi phạm theo nhân viên, sắp xếp số lần phạt giảm dần."""
+        penalties = self.get_penalties(start_date=start_date, end_date=end_date)
+        grouped: dict[str, dict] = {}
+        for p in penalties:
+            raw_nick = str(p.get("nickname") or "").strip()
+            norm_nick = normalize_name(raw_nick)
+            if not norm_nick:
+                continue
+            if norm_nick not in grouped:
+                grouped[norm_nick] = {
+                    "nickname": raw_nick,
+                    "count": 0,
+                }
+            grouped[norm_nick]["count"] += 1
+
+        leaderboard = []
+        for item in grouped.values():
+            cnt = item["count"]
+            leaderboard.append({
+                "nickname": item["nickname"],
+                "count": cnt,
+                "total_amount": cnt * 10000,
+            })
+
+        leaderboard.sort(key=lambda x: (-x["count"], x["nickname"].lower()))
+        return leaderboard
 
     # ── Web Accounts & Authentication (Username / Pass mặc định 123456789) ──
     def get_account(self, username: str) -> dict | None:

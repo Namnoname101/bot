@@ -441,3 +441,66 @@ class SyncSheetsMixin:
         except Exception as e:
             logger.error("Lỗi khi đọc vị trí nhân viên từ Google Sheets: %s", e)
             return {}
+
+    def save_sheet_penalty(self, penalty_record: dict) -> bool:
+        """Lưu một bản ghi phạt nhân viên (cố định 10.000đ) vào Google Sheets."""
+        try:
+            ws = self._get_or_create_custom_sheet(
+                "Lịch Sử Phạt",
+                ["Mã Phạt", "Thời Gian", "Ngày", "Tên Nhân Viên", "Số Tiền", "Lý Do Vi Phạm", "Người Phạt"]
+            )
+            if not ws:
+                return False
+            row = [
+                str(penalty_record.get("id") or ""),
+                str(penalty_record.get("created_at") or ""),
+                str(penalty_record.get("date") or ""),
+                str(penalty_record.get("nickname") or ""),
+                int(penalty_record.get("amount") or 10000),
+                str(penalty_record.get("reason") or ""),
+                str(penalty_record.get("admin_name") or ""),
+            ]
+            lock = getattr(self, "_write_lock", None)
+            if lock is None:
+                self._write_lock = threading.RLock()
+            with self._write_lock:
+                ws.append_row(row, value_input_option='USER_ENTERED')
+            return True
+        except Exception as e:
+            logger.error("Lỗi khi ghi phạt nhân viên vào Google Sheets: %s", e)
+            return False
+
+    def load_sheet_penalties(self, limit: int = 500) -> list[dict]:
+        """Tải danh sách các bản ghi phạt nhân viên từ Google Sheets."""
+        try:
+            ws = self._get_or_create_custom_sheet(
+                "Lịch Sử Phạt",
+                ["Mã Phạt", "Thời Gian", "Ngày", "Tên Nhân Viên", "Số Tiền", "Lý Do Vi Phạm", "Người Phạt"]
+            )
+            if not ws:
+                return []
+            rows = ws.get_all_values()
+            if len(rows) <= 1:
+                return []
+            items = []
+            for r in rows[1:]:
+                if not r or not r[0].strip():
+                    continue
+                try:
+                    amt = int(str(r[4]).strip().replace(",", "").replace(".", "")) if len(r) > 4 and str(r[4]).strip() else 10000
+                except Exception:
+                    amt = 10000
+                items.append({
+                    "id": r[0].strip(),
+                    "created_at": r[1].strip() if len(r) > 1 else "",
+                    "date": r[2].strip() if len(r) > 2 else "",
+                    "nickname": r[3].strip() if len(r) > 3 else "",
+                    "amount": amt,
+                    "reason": r[5].strip() if len(r) > 5 else "",
+                    "admin_name": r[6].strip() if len(r) > 6 else "",
+                })
+            items.reverse()
+            return items if limit is None else items[:limit]
+        except Exception as e:
+            logger.error("Lỗi khi đọc lịch sử phạt từ Google Sheets: %s", e)
+            return []
