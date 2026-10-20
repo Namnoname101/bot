@@ -1,4 +1,5 @@
 import asyncio
+from datetime import date, datetime
 import json
 import logging
 import re
@@ -43,6 +44,12 @@ def _infer_ca(now) -> str:
     if now.hour < 18:
         return "Chiều"
     return "Tối"
+
+
+def _salary_period(month: int, year: int) -> tuple[date, date]:
+    """Trả về (start_date, end_date) của chu kỳ tính lương tháng/năm."""
+    start = date(year - 1, 12, 17) if month == 1 else date(year, month - 1, 17)
+    return start, date(year, month, 16)
 
 
 def _get_employees_list(sheets, store=None) -> list:
@@ -406,10 +413,16 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
 
     w_info = get_week_info(0)
     current_roster = store.get_roster(w_info["week_key"])
-    user_nick = user_dict.get("nickname") or user_dict.get("username") or ""
+    user_nick = str(user_dict.get("nickname") or user_dict.get("username") or user_dict.get("first_name") or "").strip()
     my_notifs = store.get_notifications(user_nick) if user_nick else []
     my_swaps = store.get_swap_requests(nickname=user_nick) if user_nick else []
     pending_swaps_count = len(store.get_swap_requests(status="pending")) if is_user_admin else 0
+
+    s_start, s_end = _salary_window(now)
+    personal_penalties = store.get_penalties(nickname=user_nick, start_date=s_start, end_date=s_end) if user_nick else []
+    penalties_leaderboard = store.get_penalties_leaderboard(start_date=s_start, end_date=s_end)
+    penalty_count = len(personal_penalties)
+    penalty_amount = penalty_count * 10000
 
     return web.json_response({
         "success": True,
@@ -435,6 +448,10 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
         "leave_requests": store.get_leave_requests(limit=20),
         "notifications": my_notifs,
         "swaps": my_swaps,
+        "personal_penalties": personal_penalties,
+        "penalties_leaderboard": penalties_leaderboard,
+        "penalty_count": penalty_count,
+        "penalty_amount": penalty_amount,
     })
 
 
@@ -1240,6 +1257,10 @@ async def handle_api_admin_overview(request: web.Request) -> web.Response:
     petty_expenses = store.get_petty_expenses(25)
     total_petty = sum(int(x.get("amount") or 0) for x in petty_expenses)
 
+    penalties_leaderboard = store.get_penalties_leaderboard(start_date=ot_start, end_date=ot_end)
+    total_penalties = store.get_penalties(start_date=ot_start, end_date=ot_end)
+    total_penalties_amount = len(total_penalties) * 10000
+
     return web.json_response({
         "success": True,
         "today": now.strftime("%d/%m/%Y"),
@@ -1251,6 +1272,8 @@ async def handle_api_admin_overview(request: web.Request) -> web.Response:
         "leave_requests": store.get_leave_requests(limit=30),
         "shift_schedules": store.get_shift_schedules(),
         "petty_expenses": petty_expenses,
+        "penalties_leaderboard": penalties_leaderboard,
+        "total_penalties_amount": total_penalties_amount,
         "analytics": {
             "total_recent_revenue": total_recent_rev,
             "revenue_by_ca": by_ca,
@@ -2220,6 +2243,128 @@ async def handle_api_admin_kiosk_deactivate(request: web.Request) -> web.Respons
     })
 
 
+# ── Employee Penalties (Phạt vi phạm cố định 10.000đ) ─────────────────────────
+
+async def handle_api_penalties_get(request: web.Request) -> web.Response:
+    store: WebAppStore = request.app[STORE_KEY]
+    user = request.get(USER_KEY) or {}
+
+    month = request.query.get("month")
+    year = request.query.get("year")
+    req_nickname = (request.query.get("nickname") or "").strip()
+
+    if month and year:
+        try:
+            start_date, end_date = _salary_period(int(month), int(year))
+        except (ValueError, TypeError):
+            start_date, end_date = _salary_window(local_now())
+    else:
+        start_date, end_date = _salary_window(local_now())
+
+    is_admin = bool(user.get("is_admin"))
+    user_nick = str(user.get("nickname") or user.get("username") or user.get("first_name") or "").strip()
+
+    if not is_admin:
+        if req_nickname and normalize_name(req_nickname) != normalize_name(user_nick):
+            return web.json_response(
+                {"success": False, "message": "Bạn chỉ có thể xem biên bản phạt của chính mình."},
+                status=403,
+            )
+        target_nick = user_nick
+    else:
+        target_nick = req_nickname if req_nickname else None
+
+    penalties = (
+        store.get_penalties(
+            nickname=target_nick,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if (target_nick or is_admin)
+        else []
+    )
+    leaderboard = store.get_penalties_leaderboard(
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    total_count = len(penalties)
+    total_amount = total_count * 10000
+
+    return web.json_response({
+        "success": True,
+        "penalties": penalties,
+        "leaderboard": leaderboard,
+        "period_start": start_date.strftime("%d/%m/%Y"),
+        "period_end": end_date.strftime("%d/%m/%Y"),
+        "total_count": total_count,
+        "total_amount": total_amount,
+    })
+
+
+async def handle_api_admin_penalties_add(request: web.Request) -> web.Response:
+    user = request.get(USER_KEY) or {}
+    if not user.get("is_admin"):
+        return web.json_response(
+            {"success": False, "message": "Yêu cầu quyền Quản lý."},
+            status=403,
+        )
+
+    bot = request.app.get(BOT_KEY)
+    store: WebAppStore = request.app[STORE_KEY]
+
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+
+    nickname = str(data.get("nickname") or "").strip()
+    reason = str(data.get("reason") or "").strip()
+
+    if not nickname or not reason:
+        return web.json_response(
+            {"success": False, "message": "Vui lòng nhập đầy đủ tên nhân viên và lý do."},
+            status=400,
+        )
+
+    admin_name = (
+        user.get("first_name")
+        or user.get("nickname")
+        or user.get("username")
+        or "Admin"
+    )
+
+    try:
+        penalty_record = store.add_penalty(
+            nickname=nickname,
+            reason=reason,
+            admin_name=admin_name,
+        )
+    except ValueError as e:
+        return web.json_response({"success": False, "message": str(e)}, status=400)
+
+    if bot and Config.GROUP_CHAT_ID:
+        try:
+            created_at = penalty_record.get("created_at") or local_now().strftime("%H:%M %d/%m/%Y")
+            announcement = (
+                f"⚠️ *THÔNG BÁO KỶ LUẬT VI PHẠM*\n"
+                f"👤 Nhân viên: *{nickname}*\n"
+                f"💸 Mức phạt: *10.000đ* (tự động trừ vào lương kỳ này)\n"
+                f"📝 Lý do: {reason}\n"
+                f"👮 Người lập: {admin_name}\n"
+                f"📅 Thời gian: {created_at}"
+            )
+            await _safe_send_group(bot, announcement)
+        except Exception as e:
+            logger.warning("Không thể gửi thông báo phạt vào group: %s", e)
+
+    return web.json_response({
+        "success": True,
+        "message": f"✅ Đã lập biên bản phạt 10.000đ cho {nickname}!",
+        "penalty": penalty_record,
+    })
+
+
 def create_webapp(sheets, bot=None, bot_data: dict | None = None, store: WebAppStore | None = None) -> web.Application:
     """Khởi tạo aiohttp Application cho Sober Telegram Mini App."""
     app = web.Application(
@@ -2234,6 +2379,11 @@ def create_webapp(sheets, bot=None, bot_data: dict | None = None, store: WebAppS
     else:
         store.init_from_sheets(sheets)
     app[STORE_KEY] = store
+    if sheets is not None:
+        try:
+            sheets.store = store
+        except Exception:
+            pass
     if bot_data is not None:
         bot_data["store"] = store
 
@@ -2311,6 +2461,10 @@ def create_webapp(sheets, bot=None, bot_data: dict | None = None, store: WebAppS
     # Notifications
     app.router.add_get("/api/notifications", handle_api_notifications_get)
     app.router.add_post("/api/notifications/mark-read", handle_api_notifications_mark_read)
+
+    # Penalties
+    app.router.add_get("/api/penalties", handle_api_penalties_get)
+    app.router.add_post("/api/admin/penalties/add", handle_api_admin_penalties_add)
 
     if STATIC_DIR.exists():
         app.router.add_static("/static", STATIC_DIR, show_index=False)

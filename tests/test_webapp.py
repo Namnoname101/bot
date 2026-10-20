@@ -815,6 +815,115 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         await _safe_send_admin(mock_bot, "Test *broken_markdown", parse_mode="Markdown")
         self.assertEqual(call_count, 2, "Should attempt with Markdown, then fallback to plain text")
 
+    async def test_penalties_api_and_admin_workflow(self):
+        # 1. Sheets store linkage
+        self.assertEqual(getattr(self.sheets, "store", None), self.store)
+
+        # 2. Seed penalties in store
+        self.store.add_penalty(nickname="An", reason="Đi trễ 20p", admin_name="Admin", created_at="18/09/2026")
+        self.store.add_penalty(nickname="An", reason="Quên dọn quầy", admin_name="Admin", created_at="25/09/2026")
+        self.store.add_penalty(nickname="Bình", reason="Làm vỡ ly", admin_name="Admin", created_at="01/10/2026")
+        self.store.add_penalty(nickname="An", reason="Lỗi tháng trước", admin_name="Admin", created_at="10/09/2026")  # Outside period
+
+        # 3. GET /api/penalties - Admin queries all for month 10 / year 2026
+        adm_resp = await self.client.get("/api/penalties?month=10&year=2026", headers=self.super_admin_headers)
+        self.assertEqual(adm_resp.status, 200)
+        adm_data = await adm_resp.json()
+        self.assertTrue(adm_data["success"])
+        self.assertEqual(adm_data["period_start"], "17/09/2026")
+        self.assertEqual(adm_data["period_end"], "16/10/2026")
+        self.assertEqual(adm_data["total_count"], 3)
+        self.assertEqual(adm_data["total_amount"], 30000)
+        self.assertEqual(len(adm_data["penalties"]), 3)
+        # Leaderboard should have An (2) and Bình (1)
+        self.assertEqual(len(adm_data["leaderboard"]), 2)
+        self.assertEqual(adm_data["leaderboard"][0]["nickname"], "An")
+        self.assertEqual(adm_data["leaderboard"][0]["count"], 2)
+        self.assertEqual(adm_data["leaderboard"][0]["total_amount"], 20000)
+
+        # 4. GET /api/penalties - Admin filters by nickname
+        filter_resp = await self.client.get("/api/penalties?month=10&year=2026&nickname=Bình", headers=self.super_admin_headers)
+        self.assertEqual(filter_resp.status, 200)
+        filter_data = await filter_resp.json()
+        self.assertEqual(filter_data["total_count"], 1)
+        self.assertEqual(filter_data["penalties"][0]["nickname"], "Bình")
+
+        # 5. GET /api/penalties - Non-admin restrictions
+        # Employee An queries own penalties without nickname param
+        emp_resp = await self.client.get("/api/penalties?month=10&year=2026", headers=self.emp_headers)
+        self.assertEqual(emp_resp.status, 200)
+        emp_data = await emp_resp.json()
+        self.assertEqual(emp_data["total_count"], 2)
+        self.assertEqual(emp_data["total_amount"], 20000)
+        self.assertTrue(all(p["nickname"] == "An" for p in emp_data["penalties"]))
+
+        # Employee An queries own penalties with matching nickname param
+        emp_own_resp = await self.client.get("/api/penalties?month=10&year=2026&nickname=An", headers=self.emp_headers)
+        self.assertEqual(emp_own_resp.status, 200)
+
+        # Employee An tries to query Bình's penalties -> 403 Forbidden
+        forbid_resp = await self.client.get("/api/penalties?month=10&year=2026&nickname=Bình", headers=self.emp_headers)
+        self.assertEqual(forbid_resp.status, 403)
+
+        # 6. POST /api/admin/penalties/add - Non-admin rejected
+        non_adm_add = await self.client.post(
+            "/api/admin/penalties/add",
+            json={"nickname": "Bình", "reason": "Không dọn dẹp"},
+            headers=self.emp_headers,
+        )
+        self.assertEqual(non_adm_add.status, 403)
+
+        # 7. POST /api/admin/penalties/add - Validation check
+        val_resp = await self.client.post(
+            "/api/admin/penalties/add",
+            json={"nickname": "", "reason": ""},
+            headers=self.sub_admin_headers,
+        )
+        self.assertEqual(val_resp.status, 400)
+
+        # 8. POST /api/admin/penalties/add - Admin adds successfully
+        self.bot.send_message.reset_mock()
+        add_resp = await self.client.post(
+            "/api/admin/penalties/add",
+            json={"nickname": "Bình", "reason": "Đi làm muộn 30p"},
+            headers=self.sub_admin_headers,
+        )
+        self.assertEqual(add_resp.status, 200)
+        add_data = await add_resp.json()
+        self.assertTrue(add_data["success"])
+        self.assertIn("✅ Đã lập biên bản phạt 10.000đ cho Bình!", add_data["message"])
+        self.assertEqual(add_data["penalty"]["amount"], 10000)
+        self.assertEqual(add_data["penalty"]["nickname"], "Bình")
+        self.assertEqual(add_data["penalty"]["reason"], "Đi làm muộn 30p")
+
+        # Bot notification to group
+        self.assertGreaterEqual(self.bot.send_message.await_count, 1)
+        group_msg = self.bot.send_message.await_args.kwargs
+        self.assertEqual(group_msg.get("chat_id"), Config.GROUP_CHAT_ID)
+        self.assertIn("THÔNG BÁO KỶ LUẬT VI PHẠM", group_msg.get("text", ""))
+        self.assertIn("10.000đ", group_msg.get("text", ""))
+
+        # 9. GET /api/bootstrap contains penalties data
+        boot_resp = await self.client.get("/api/bootstrap", headers=self.emp_headers)
+        self.assertEqual(boot_resp.status, 200)
+        boot_data = await boot_resp.json()
+        self.assertIn("personal_penalties", boot_data)
+        self.assertIn("penalties_leaderboard", boot_data)
+        self.assertIn("penalty_count", boot_data)
+        self.assertIn("penalty_amount", boot_data)
+
+        # 10. GET /api/admin/overview contains penalties overview
+        self.sheets.get_checkin_history_today.return_value = []
+        self.sheets.get_late_statistics.return_value = []
+        self.sheets.get_recent_revenue_reports.return_value = []
+        self.sheets.get_overtime_summary.return_value = {}
+        ov_resp = await self.client.get("/api/admin/overview", headers=self.super_admin_headers)
+        self.assertEqual(ov_resp.status, 200)
+        ov_data = await ov_resp.json()
+        self.assertIn("penalties_leaderboard", ov_data)
+        self.assertIn("total_penalties_amount", ov_data)
+
+
 
 if __name__ == "__main__":
     unittest.main()
