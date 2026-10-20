@@ -209,7 +209,7 @@ class SalarySheetsMixin:
             logger.error("Lỗi lấy danh sách tháng lương: %s", e)
             return []
 
-    def get_salary_report(self, month: int, year: int) -> str:
+    def get_salary_report(self, month: int, year: int, store: Any = None) -> str:
         """Tính kỳ 17→16, đồng bộ sheet báo cáo và trả về Markdown."""
         if not 1 <= int(month) <= 12:
             return "❌ Tháng lương không hợp lệ."
@@ -222,6 +222,8 @@ class SalarySheetsMixin:
                 all_data = ws.get_all_values()
                 rates = self.get_all_salary_rates()
                 start_date, end_date = self._salary_period(month, year)
+                if store is None:
+                    store = getattr(self, "store", None)
 
                 hours_by_key = {}
                 for row in self.ws_checkin.get_all_values()[1:]:
@@ -256,7 +258,11 @@ class SalarySheetsMixin:
                         real_name = old[2].strip() if len(old) > 2 else ""
                         bonus = self._number(old[6]) if len(old) > 6 else 0.0
                         advance = self._number(old[7]) if len(old) > 7 else 0.0
-                    total = round(hours * float(rate) + bonus - advance, 2)
+
+                    emp_penalties = store.get_penalties(nickname=nick, start_date=start_date, end_date=end_date) if store else []
+                    penalty_count = len(emp_penalties)
+                    penalty_amount_k = round(penalty_count * 10.0, 2)
+                    total = round(max(0.0, hours * float(rate) + bonus - advance - penalty_amount_k), 2)
 
                     display_name = (real_name or nick).replace('*', '').replace('_', ' ')
                     lines.extend([
@@ -267,6 +273,8 @@ class SalarySheetsMixin:
                         lines.append(f"  🎁 Thưởng: +{bonus:g}k")
                     if advance:
                         lines.append(f"  💸 Ứng: -{advance:g}k")
+                    if penalty_amount_k > 0:
+                        lines.append(f"  ⚠️ Phạt kỷ luật ({penalty_count} lần): -{penalty_amount_k:g}k")
                     lines.append(f"  👉 *Thực nhận: {total:g}k*\n")
 
                     values = [nick, hours, rate, bonus, advance, total]
@@ -283,7 +291,7 @@ class SalarySheetsMixin:
                 logger.exception("Lỗi tạo báo cáo lương T%s/%s", month, year)
                 return "❌ Không thể tạo bảng lương. Vui lòng kiểm tra log hệ thống."
 
-    def get_salary_data(self, month: int, year: int) -> dict:
+    def get_salary_data(self, month: int, year: int, store: Any = None) -> dict:
         """Trả về dữ liệu bảng lương dạng dict có cấu trúc cho Mini App đồng thời đồng bộ sheet."""
         if not 1 <= int(month) <= 12:
             return {'success': False, 'error': 'Tháng lương không hợp lệ.'}
@@ -292,7 +300,9 @@ class SalarySheetsMixin:
             self._write_lock = threading.RLock()
         with self._write_lock:
             try:
-                report_md = self.get_salary_report(month, year)
+                if store is None:
+                    store = getattr(self, "store", None)
+                report_md = self.get_salary_report(month, year, store=store)
                 ws = self._get_salary_worksheet(month, year, create=False)
                 start_date, end_date = self._salary_period(month, year)
                 items = []
@@ -306,7 +316,14 @@ class SalarySheetsMixin:
                         rate = round(self._number(row[5], Config.DEFAULT_HOURLY_RATE_K) if len(row) > 5 else Config.DEFAULT_HOURLY_RATE_K, 2)
                         bonus = round(self._number(row[6]) if len(row) > 6 else 0.0, 2)
                         advance = round(self._number(row[7]) if len(row) > 7 else 0.0, 2)
-                        total = round(self._number(row[8], hours * rate + bonus - advance) if len(row) > 8 else (hours * rate + bonus - advance), 2)
+
+                        emp_penalties = store.get_penalties(nickname=nick, start_date=start_date, end_date=end_date) if store else []
+                        penalty_count = len(emp_penalties)
+                        penalty_amount_k = round(penalty_count * 10.0, 2)
+                        penalty_amount = penalty_count * 10000
+
+                        calc_total = round(max(0.0, hours * rate + bonus - advance - penalty_amount_k), 2)
+                        total = round(self._number(row[8], calc_total) if len(row) > 8 else calc_total, 2)
                         items.append({
                             'nickname': nick,
                             'display_name': real_name or nick,
@@ -315,6 +332,9 @@ class SalarySheetsMixin:
                             'base_pay': round(hours * rate, 2),
                             'bonus': bonus,
                             'advance': advance,
+                            'penalty_count': penalty_count,
+                            'penalty_amount': penalty_amount,
+                            'penalty_amount_k': penalty_amount_k,
                             'total': total,
                         })
                 return {
@@ -326,13 +346,15 @@ class SalarySheetsMixin:
                     'items': items,
                     'total_hours': round(sum(x['hours'] for x in items), 2),
                     'total_payout': round(sum(x['total'] for x in items), 2),
+                    'total_penalties_count': sum(x['penalty_count'] for x in items),
+                    'total_penalties_amount': sum(x['penalty_amount'] for x in items),
                     'markdown': report_md,
                 }
             except Exception as e:
                 logger.exception("Lỗi lấy dữ liệu lương T%s/%s", month, year)
                 return {'success': False, 'error': str(e)}
 
-    def update_salary_modifier(self, nickname: str, is_bonus: bool, amount: int, month: int, year: int) -> bool:
+    def update_salary_modifier(self, nickname: str, is_bonus: bool, amount: int, month: int, year: int, store: Any = None) -> bool:
         """Cộng ứng/thưởng vào đúng kỳ lương và cập nhật thực nhận."""
         if amount <= 0:
             return False
@@ -341,9 +363,12 @@ class SalarySheetsMixin:
             self._write_lock = threading.RLock()
         with self._write_lock:
             try:
-                self.get_salary_report(month, year)
+                if store is None:
+                    store = getattr(self, "store", None)
+                self.get_salary_report(month, year, store=store)
                 ws = self._get_salary_worksheet(month, year, create=False)
                 rows = ws.get_all_values()
+                start_date, end_date = self._salary_period(month, year)
                 for i, row in enumerate(rows[1:], start=2):
                     if len(row) <= 3 or normalize_name(row[3]) != normalize_name(nickname):
                         continue
@@ -354,9 +379,12 @@ class SalarySheetsMixin:
                     rate = self._number(row[5], Config.DEFAULT_HOURLY_RATE_K) if len(row) > 5 else Config.DEFAULT_HOURLY_RATE_K
                     bonus = new_value if is_bonus else (self._number(row[6]) if len(row) > 6 else 0.0)
                     advance = new_value if not is_bonus else (self._number(row[7]) if len(row) > 7 else 0.0)
+                    emp_penalties = store.get_penalties(nickname=nickname, start_date=start_date, end_date=end_date) if store else []
+                    penalty_amount_k = round(len(emp_penalties) * 10.0, 2)
+                    new_total = round(max(0.0, hours * rate + bonus - advance - penalty_amount_k), 2)
                     ws.batch_update([
                         {'range': f'{self._column_letter(target_col)}{i}', 'values': [[new_value]]},
-                        {'range': f'I{i}', 'values': [[round(hours * rate + bonus - advance, 2)]]},
+                        {'range': f'I{i}', 'values': [[new_total]]},
                     ], value_input_option='USER_ENTERED')
                     return True
                 return False

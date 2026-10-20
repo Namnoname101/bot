@@ -4,6 +4,7 @@ Covers store persistence, validation, filtering, leaderboard, and Google Sheets 
 from datetime import date, datetime
 from pathlib import Path
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import MagicMock, patch
@@ -258,3 +259,189 @@ class PenaltySheetsSyncTests(unittest.TestCase):
 
         items = self.service.load_sheet_penalties()
         self.assertEqual(items, [])
+
+
+class PayrollPenaltyDeductionTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.db_path = Path(self.tmp.name) / "store.json"
+        self.store = WebAppStore(path=self.db_path)
+
+        # Instantiate GoogleSheetsService without calling network-bound __init__
+        from google_sheets import GoogleSheetsService
+        self.service = GoogleSheetsService.__new__(GoogleSheetsService)
+        self.service._write_lock = threading.RLock()
+        self.service._cache_lock = threading.Lock()
+        self.service._cache = {}
+        self.service.store = self.store
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_get_salary_report_with_penalties_deduction(self):
+        # 2 penalties for Huy in period (17/04/2026 -> 16/05/2026)
+        self.store.add_penalty("Huy", "Đi muộn 15p", "Admin", created_at="08:00 20/04/2026")
+        self.store.add_penalty("Huy", "Quên đồng phục", "Admin", created_at="08:00 25/04/2026")
+        # 1 penalty outside period
+        self.store.add_penalty("Huy", "Lỗi cũ", "Admin", created_at="08:00 10/04/2026")
+
+        mock_ws_salary = MagicMock()
+        mock_ws_salary.get_all_values.return_value = [
+            ["Ngày Tạo", "Tháng", "Tên Nhân Viên", "Nickname Bot", "Tổng Giờ Làm", "Mức Lương/Giờ", "Thưởng Tiền", "Ứng Lương", "Nhận Thực Tế"]
+        ]
+        self.service._get_salary_worksheet = MagicMock(return_value=mock_ws_salary)
+        self.service.get_all_salary_rates = MagicMock(return_value={"Huy": 25.0})
+
+        mock_ws_checkin = MagicMock()
+        mock_ws_checkin.get_all_values.return_value = [
+            ["Ngày", "Tên Nhân Viên", "Giờ Vào", "Giờ Ra", "Tổng Giờ", "Ghi Chú"],
+            ["20/04/2026", "Huy", "08:00", "16:00", "8.0", ""],
+            ["22/04/2026", "Huy", "08:00", "20:00", "12.0", ""],
+        ]
+        self.service.ws_checkin = mock_ws_checkin
+
+        report = self.service.get_salary_report(5, 2026)
+
+        # 20h * 25k = 500k; 2 penalties = -20k; Net total = 480k
+        self.assertIn("⚠️ Phạt kỷ luật (2 lần): -20k", report)
+        self.assertIn("👉 *Thực nhận: 480k*", report)
+
+        # Check that ws.append_row or ws.update saved 480.0 into Nhận Thực Tế
+        mock_ws_salary.append_row.assert_called_once()
+        appended_row = mock_ws_salary.append_row.call_args[0][0]
+        self.assertEqual(appended_row[8], 480.0)
+
+    def test_get_salary_report_no_penalties_backward_compatible(self):
+        mock_ws_salary = MagicMock()
+        mock_ws_salary.get_all_values.return_value = [
+            ["Ngày Tạo", "Tháng", "Tên Nhân Viên", "Nickname Bot", "Tổng Giờ Làm", "Mức Lương/Giờ", "Thưởng Tiền", "Ứng Lương", "Nhận Thực Tế"]
+        ]
+        self.service._get_salary_worksheet = MagicMock(return_value=mock_ws_salary)
+        self.service.get_all_salary_rates = MagicMock(return_value={"An": 20.0})
+
+        mock_ws_checkin = MagicMock()
+        mock_ws_checkin.get_all_values.return_value = [
+            ["Ngày", "Tên Nhân Viên", "Giờ Vào", "Giờ Ra", "Tổng Giờ", "Ghi Chú"],
+            ["20/04/2026", "An", "08:00", "18:00", "10.0", ""],
+        ]
+        self.service.ws_checkin = mock_ws_checkin
+
+        report = self.service.get_salary_report(5, 2026)
+
+        # No penalties
+        self.assertNotIn("Phạt kỷ luật", report)
+        self.assertIn("👉 *Thực nhận: 200k*", report)
+
+    def test_get_salary_data_with_penalties_and_summary(self):
+        # Huy: 2 penalties in period (20k)
+        self.store.add_penalty("Huy", "Đi muộn", "Admin", created_at="08:00 20/04/2026")
+        self.store.add_penalty("Huy", "Quên đồng phục", "Admin", created_at="08:00 25/04/2026")
+        # Thảo: 1 penalty in period (10k)
+        self.store.add_penalty("Thảo", "Lỗi pha chế", "Admin", created_at="08:00 22/04/2026")
+
+        mock_ws_salary = MagicMock()
+        mock_ws_salary.get_all_values.return_value = [
+            ["Ngày Tạo", "Tháng", "Tên Nhân Viên", "Nickname Bot", "Tổng Giờ Làm", "Mức Lương/Giờ", "Thưởng Tiền", "Ứng Lương", "Nhận Thực Tế"],
+            ["20/05/2026 10:00", "T5-2026", "Nguyễn Huy", "Huy", "20.0", "25.0", "0", "0", "480.0"],
+            ["20/05/2026 10:00", "T5-2026", "Trần Thảo", "Thảo", "10.0", "20.0", "50.0", "10.0", "230.0"],
+        ]
+        self.service._get_salary_worksheet = MagicMock(return_value=mock_ws_salary)
+        self.service.get_salary_report = MagicMock(return_value="report markdown")
+
+        data = self.service.get_salary_data(5, 2026)
+        self.assertTrue(data["success"])
+        self.assertEqual(len(data["items"]), 2)
+
+        huy = next(i for i in data["items"] if i["nickname"] == "Huy")
+        self.assertEqual(huy["penalty_count"], 2)
+        self.assertEqual(huy["penalty_amount"], 20000)
+        self.assertEqual(huy["penalty_amount_k"], 20.0)
+        self.assertEqual(huy["total"], 480.0)
+
+        thao = next(i for i in data["items"] if i["nickname"] == "Thảo")
+        self.assertEqual(thao["penalty_count"], 1)
+        self.assertEqual(thao["penalty_amount"], 10000)
+        self.assertEqual(thao["penalty_amount_k"], 10.0)
+        self.assertEqual(thao["total"], 230.0)
+
+        # Summary fields
+        self.assertEqual(data["total_penalties_count"], 3)
+        self.assertEqual(data["total_penalties_amount"], 30000)
+        self.assertEqual(data["total_payout"], 710.0)
+
+    def test_get_salary_data_without_store_backward_compatible(self):
+        self.service.store = None
+        mock_ws_salary = MagicMock()
+        mock_ws_salary.get_all_values.return_value = [
+            ["Ngày Tạo", "Tháng", "Tên Nhân Viên", "Nickname Bot", "Tổng Giờ Làm", "Mức Lương/Giờ", "Thưởng Tiền", "Ứng Lương", "Nhận Thực Tế"],
+            ["20/05/2026 10:00", "T5-2026", "Nguyễn Huy", "Huy", "10.0", "25.0", "0", "0", "250.0"],
+        ]
+        self.service._get_salary_worksheet = MagicMock(return_value=mock_ws_salary)
+        self.service.get_salary_report = MagicMock(return_value="report markdown")
+
+        data = self.service.get_salary_data(5, 2026)
+        self.assertTrue(data["success"])
+        item = data["items"][0]
+        self.assertEqual(item["penalty_count"], 0)
+        self.assertEqual(item["penalty_amount"], 0)
+        self.assertEqual(item["penalty_amount_k"], 0.0)
+        self.assertEqual(item["total"], 250.0)
+        self.assertEqual(data["total_penalties_count"], 0)
+        self.assertEqual(data["total_penalties_amount"], 0)
+
+    def test_get_employee_personal_summary_with_penalties(self):
+        self.service._current_salary_month = MagicMock(return_value=(5, 2026))
+        self.service._salary_period = MagicMock(return_value=(date(2026, 4, 17), date(2026, 5, 16)))
+        self.service.get_employees_detail = MagicMock(return_value=[
+            {"nickname": "Huy", "key": "huy", "rate": 25.0, "balance": 5}
+        ])
+
+        # 2 penalties for Huy in period (20k)
+        self.store.add_penalty("Huy", "Lỗi 1", "Admin", created_at="08:00 20/04/2026")
+        self.store.add_penalty("Huy", "Lỗi 2", "Admin", created_at="08:00 25/04/2026")
+
+        mock_ws_checkin = MagicMock()
+        mock_ws_checkin.get_all_values.return_value = [
+            ["Ngày", "Tên Nhân Viên", "Giờ Vào", "Giờ Ra", "Tổng Giờ", "Ghi Chú"],
+            ["20/04/2026", "Huy", "08:15", "18:00", "9.75", "Đi muộn 15p"],
+        ]
+        self.service.ws_checkin = mock_ws_checkin
+        self.service.get_overtime_summary = MagicMock(return_value={})
+
+        summary = self.service.get_employee_personal_summary("Huy")
+        self.assertTrue(summary["success"])
+        # Hours: 9.75 * 25.0 = 243.75 -> base_salary_k = 243.8
+        # Late penalty: 1 * 10k = 10.0
+        # Disciplinary penalties: 2 * 10k = 20.0
+        # estimated_pay_k: max(0.0, 243.8 - 10.0 - 20.0) = 213.8
+        self.assertEqual(summary["penalty_count"], 2)
+        self.assertEqual(summary["penalty_amount_k"], 20.0)
+        self.assertEqual(summary["penalty_amount"], 20000)
+        self.assertEqual(len(summary["penalties"]), 2)
+        self.assertEqual(summary["late_penalty_k"], 10.0)
+        self.assertEqual(summary["estimated_pay_k"], 213.8)
+
+    def test_get_employee_personal_summary_without_store_backward_compatible(self):
+        self.service.store = None
+        self.service._current_salary_month = MagicMock(return_value=(5, 2026))
+        self.service._salary_period = MagicMock(return_value=(date(2026, 4, 17), date(2026, 5, 16)))
+        self.service.get_employees_detail = MagicMock(return_value=[
+            {"nickname": "An", "key": "an", "rate": 20.0, "balance": 0}
+        ])
+
+        mock_ws_checkin = MagicMock()
+        mock_ws_checkin.get_all_values.return_value = [
+            ["Ngày", "Tên Nhân Viên", "Giờ Vào", "Giờ Ra", "Tổng Giờ", "Ghi Chú"],
+            ["20/04/2026", "An", "08:00", "18:00", "10.0", ""],
+        ]
+        self.service.ws_checkin = mock_ws_checkin
+        self.service.get_overtime_summary = MagicMock(return_value={})
+
+        summary = self.service.get_employee_personal_summary("An")
+        self.assertTrue(summary["success"])
+        self.assertEqual(summary["penalty_count"], 0)
+        self.assertEqual(summary["penalty_amount_k"], 0.0)
+        self.assertEqual(summary["penalty_amount"], 0)
+        self.assertEqual(summary["penalties"], [])
+        self.assertEqual(summary["estimated_pay_k"], 200.0)
+

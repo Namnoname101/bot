@@ -414,7 +414,7 @@ class RewardSheetsMixin:
             logger.error(f"Lỗi lấy lịch sử thưởng: {e}")
             return []
 
-    def get_employee_personal_summary(self, nickname: str) -> dict:
+    def get_employee_personal_summary(self, nickname: str, store: Any = None) -> dict:
         """Lấy thống kê cá nhân của 1 nhân viên trong kỳ lương hiện tại (giờ công, OT, lương tạm tính, đi muộn, lịch sử chấm công)."""
         target = normalize_name(nickname)
         if not target:
@@ -422,6 +422,8 @@ class RewardSheetsMixin:
         try:
             month, year = self._current_salary_month()
             start_date, end_date = self._salary_period(month, year)
+            if store is None:
+                store = getattr(self, "store", None)
 
             emp_details = self.get_employees_detail()
             emp_info = next((e for e in emp_details if normalize_name(e.get('nickname', '')) == target), None)
@@ -473,7 +475,13 @@ class RewardSheetsMixin:
             total_hours = round(regular_hours + ot_hours, 2)
             late_penalty_k = round(late_count * 10.0, 1)  # 10k/lần đi muộn
             base_salary_k = round(total_hours * rate, 1)
-            estimated_pay_k = round(max(0.0, base_salary_k - late_penalty_k), 1)
+
+            penalties = store.get_penalties(nickname=target, start_date=start_date, end_date=end_date) if store else []
+            penalty_count = len(penalties)
+            penalty_amount_k = round(penalty_count * 10.0, 1)
+            penalty_amount = penalty_count * 10000
+
+            estimated_pay_k = round(max(0.0, base_salary_k - late_penalty_k - penalty_amount_k), 1)
 
             return {
                 'success': True,
@@ -487,6 +495,10 @@ class RewardSheetsMixin:
                 'rate': rate,
                 'base_salary_k': base_salary_k,
                 'late_penalty_k': late_penalty_k,
+                'penalty_count': penalty_count,
+                'penalty_amount_k': penalty_amount_k,
+                'penalty_amount': penalty_amount,
+                'penalties': penalties[:10],
                 'estimated_pay_k': estimated_pay_k,
                 'balance': balance,
                 'late_count': late_count,
