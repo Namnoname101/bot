@@ -2409,4 +2409,185 @@ p {
   background: rgba(184, 91, 53, 0.08) !important;
 }
 
+/* ── 22. Penalty & Disciplinary System ─────────────────────────────────────── */
+.penalty-breakdown-row {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease;
+  user-select: none;
+}
+
+.penalty-breakdown-row:hover {
+  background-color: rgba(239, 68, 68, 0.08);
+}
+
+.penalty-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 8px;
+  line-height: 1.2;
+}
+
+.penalty-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.penalty-history-card {
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-light);
+  border-left: 4px solid var(--danger);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.penalty-history-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.penalty-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.penalty-history-reason {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.penalty-history-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+}
+
+.leaderboard-item:hover {
+  background: var(--bg-card);
+  border-color: var(--border-medium);
+}
+
+.leaderboard-item.rank-1 {
+  border-left: 4px solid #F59E0B;
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.leaderboard-item.rank-2 {
+  border-left: 4px solid #94A3B8;
+  background: rgba(148, 163, 184, 0.05);
+}
+
+.leaderboard-item.rank-3 {
+  border-left: 4px solid #D97706;
+  background: rgba(217, 119, 6, 0.05);
+}
+
+.leaderboard-rank-medal {
+  font-size: 18px;
+  font-weight: 800;
+  min-width: 28px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.leaderboard-rank-medal.text-rank {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.leaderboard-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  margin: 0 10px;
+}
+
+.leaderboard-nickname {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+.leaderboard-violations {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.leaderboard-fine-amount {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--danger);
+  white-space: nowrap;
+}
+
+.fine-notice-badge {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 480px) {
+  .leaderboard-item {
+    padding: 8px 10px;
+  }
+  .leaderboard-nickname {
+    font-size: 13px;
+  }
+  .leaderboard-user-info {
+    margin: 0 6px;
+    gap: 6px;
+  }
+  .penalty-history-card {
+    padding: 10px 12px;
+  }
+  .penalty-breakdown-row {
+    font-size: 13px !important;
+  }
+}
+
+
 

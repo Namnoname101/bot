@@ -19,6 +19,7 @@ const AppState = {
   swaps: [],                // Shift swap requests
   notifications: [],        // Notifications list
   personalSummary: null,    // Payroll & attendance summary
+  personalPenalties: [],    // Disciplinary penalties for current employee
 
   // Roster Planning Context (Admin)
   selectedSlot: null,       // { day: 'T2', ca: 'Sáng', dateStr: '05/10', key: 'T2_Sáng' }
@@ -1803,17 +1804,26 @@ async function loadEmployeePayrollData() {
   const resp = await apiRequest(`/api/personal/summary?nickname=${encodeURIComponent(nick)}`);
   if (!resp || !resp.success || !resp.summary) return;
 
+  const s = resp.summary;
+  AppState.personalPenalties = s.penalties || [];
+
   const regularPay = Math.round((s.regular_hours || 0) * (s.rate || 0) * 1000);
   const otPay = Math.round((s.overtime_hours || 0) * (s.rate || 0) * 1.5 * 1000);
-  const penalty = (s.late_count || 0) * 10000;
-  const netTotal = Math.max(0, regularPay + otPay - penalty);
+  const latePenalty = (s.late_count || 0) * 10000;
+  const finePenalty = (s.penalty_count || 0) * 10000;
+  const netTotal = Math.max(0, regularPay + otPay - latePenalty - finePenalty);
 
   document.getElementById("emp-payroll-total").textContent = formatCurrency(netTotal);
   document.getElementById("emp-payroll-rate").textContent = `Mức lương: ${s.rate || 0}k/giờ`;
 
   document.getElementById("emp-breakdown-regular").textContent = formatCurrency(regularPay);
   document.getElementById("emp-breakdown-ot").textContent = `+${formatCurrency(otPay)}`;
-  document.getElementById("emp-breakdown-penalty").textContent = `-${formatCurrency(penalty)}`;
+  const lateEl = document.getElementById("emp-breakdown-late-penalty");
+  if (lateEl) lateEl.textContent = `-${formatCurrency(latePenalty)}`;
+  const fineEl = document.getElementById("emp-breakdown-penalty");
+  if (fineEl) fineEl.textContent = `-${formatCurrency(finePenalty)}`;
+  const countEl = document.getElementById("emp-breakdown-penalty-count");
+  if (countEl) countEl.textContent = `${s.penalty_count || 0} lần`;
 
   // Render recent checkins
   const container = document.getElementById("emp-checkin-history-list");
@@ -1838,6 +1848,163 @@ async function loadEmployeePayrollData() {
     `;
   });
   container.innerHTML = html;
+}
+
+// ── Personal Penalty History Modal ───────────────────────────────────────────
+async function openPenaltyHistoryModal() {
+  const modal = document.getElementById("modal-penalty-history");
+  if (!modal) return;
+
+  const content = document.getElementById("penalty-history-content");
+  if (content) {
+    content.innerHTML = `<div style="text-align: center; padding: 24px; color: var(--text-dim);">Đang tải lịch sử vi phạm...</div>`;
+  }
+  modal.classList.add("active");
+
+  try {
+    const resp = await apiRequest("/api/penalties");
+    if (resp && resp.success && Array.isArray(resp.penalties)) {
+      AppState.personalPenalties = resp.penalties;
+    }
+  } catch (err) {
+    console.error("Error fetching personal penalties:", err);
+  }
+
+  const penalties = AppState.personalPenalties || [];
+  if (!content) return;
+
+  if (penalties.length === 0) {
+    content.innerHTML = `
+      <div class="empty-state" style="padding: 24px; text-align: center;">
+        <div style="font-size: 36px; margin-bottom: 8px;">👏</div>
+        <p style="font-weight: 600; color: var(--success); font-size: 14.5px; line-height: 1.5; margin: 0;">
+          Bạn chưa có vi phạm kỷ luật nào trong kỳ này!<br><span style="color: var(--text-muted); font-size: 13px; font-weight: 400;">Giữ vững phong độ nhé!</span>
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = `<div class="penalty-history-list">`;
+  penalties.forEach(p => {
+    const dateTime = p.created_at || p.date || "—";
+    const reason = p.reason || "Vi phạm quy định";
+    const admin = p.admin_name || "Quản lý";
+    const amount = p.amount || 10000;
+
+    html += `
+      <div class="penalty-history-card">
+        <div class="penalty-history-header">
+          <span>🕒 ${escapeHtml(dateTime)}</span>
+          <span class="penalty-badge">-${formatCurrency(amount)}</span>
+        </div>
+        <div class="penalty-history-reason">
+          ${escapeHtml(reason)}
+        </div>
+        <div class="penalty-history-footer">
+          <span>Người lập: <strong>${escapeHtml(admin)}</strong></span>
+          <span style="color: var(--danger); font-weight: 600;">10k/lần</span>
+        </div>
+      </div>
+    `;
+  });
+  html += `</div>`;
+  content.innerHTML = html;
+}
+
+function closePenaltyHistoryModal() {
+  const modal = document.getElementById("modal-penalty-history");
+  if (modal) modal.classList.remove("active");
+}
+
+function closePenaltyHistoryModalOnBackdrop(e) {
+  if (e.target && e.target.id === "modal-penalty-history") {
+    closePenaltyHistoryModal();
+  }
+}
+
+// ── Penalty Leaderboard Modal ────────────────────────────────────────────────
+async function openPenaltyLeaderboardModal() {
+  const modal = document.getElementById("modal-penalty-leaderboard");
+  if (!modal) return;
+
+  const content = document.getElementById("penalty-leaderboard-content");
+  const subtitle = document.getElementById("penalty-leaderboard-subtitle");
+  if (content) {
+    content.innerHTML = `<div style="text-align: center; padding: 24px; color: var(--text-dim);">Đang tải bảng xếp hạng...</div>`;
+  }
+  modal.classList.add("active");
+
+  const resp = await apiRequest("/api/penalties");
+  if (!resp || !resp.success) {
+    if (content) {
+      content.innerHTML = `<div style="text-align: center; padding: 24px; color: var(--danger);">Không thể tải bảng xếp hạng phạt.</div>`;
+    }
+    return;
+  }
+
+  if (subtitle && resp.period_start && resp.period_end) {
+    subtitle.textContent = `Kỳ: ${resp.period_start} → ${resp.period_end} • Tổng quỹ phạt: ${formatCurrency(resp.total_amount || 0)}`;
+  }
+
+  const lb = resp.leaderboard || [];
+  if (!content) return;
+
+  if (lb.length === 0) {
+    content.innerHTML = `
+      <div class="empty-state" style="padding: 24px; text-align: center;">
+        <div style="font-size: 36px; margin-bottom: 8px;">👏</div>
+        <p style="font-weight: 600; color: var(--text-muted); font-size: 14.5px; line-height: 1.5; margin: 0;">
+          Kỳ này chưa có ai vi phạm kỷ luật!<br><span style="color: var(--success); font-size: 13px; font-weight: 500;">Mọi người đang làm việc rất tốt!</span>
+        </p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = `<div class="leaderboard-list" style="max-height: 420px; overflow-y: auto;">`;
+  lb.forEach((item, idx) => {
+    let medal = `<span class="leaderboard-rank-medal text-rank">#${idx + 1}</span>`;
+    let rankClass = "";
+    if (idx === 0) {
+      medal = `<span class="leaderboard-rank-medal">🥇</span>`;
+      rankClass = "rank-1";
+    } else if (idx === 1) {
+      medal = `<span class="leaderboard-rank-medal">🥈</span>`;
+      rankClass = "rank-2";
+    } else if (idx === 2) {
+      medal = `<span class="leaderboard-rank-medal">🥉</span>`;
+      rankClass = "rank-3";
+    }
+
+    const fineAmount = item.total_amount || ((item.count || 0) * 10000);
+
+    html += `
+      <div class="leaderboard-item ${rankClass}">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          ${medal}
+          <div class="leaderboard-user-info" style="margin: 0;">
+            <div class="leaderboard-nickname">${escapeHtml(item.nickname)}</div>
+            <div class="leaderboard-violations">${item.count} lần vi phạm</div>
+          </div>
+        </div>
+        <div class="leaderboard-fine-amount">-${formatCurrency(fineAmount)}</div>
+      </div>
+    `;
+  });
+  html += `</div>`;
+  content.innerHTML = html;
+}
+
+function closePenaltyLeaderboardModal() {
+  const modal = document.getElementById("modal-penalty-leaderboard");
+  if (modal) modal.classList.remove("active");
+}
+
+function closePenaltyLeaderboardModalOnBackdrop(e) {
+  if (e.target && e.target.id === "modal-penalty-leaderboard") {
+    closePenaltyLeaderboardModal();
+  }
 }
 
 // ── 6. Common Notifications Tab ──────────────────────────────────────────────
@@ -1925,6 +2092,168 @@ async function loadAdminDashboardData() {
   if (matResp && matResp.success && Array.isArray(matResp.materials)) {
     const lowStock = matResp.materials.filter(m => m.min_stock > 0 && m.stock <= m.min_stock);
     document.getElementById("kpi-low-stock").textContent = `${lowStock.length} món`;
+  }
+
+  // Render penalties leaderboard
+  renderAdminPenaltiesLeaderboard(ovResp.penalties_leaderboard, ovResp.total_penalties_amount);
+}
+
+// ── Admin Penalties Leaderboard & Quick Fine ─────────────────────────────────
+function renderAdminPenaltiesLeaderboard(leaderboard, totalAmount) {
+  const fundEl = document.getElementById("admin-penalties-fund-total");
+  if (fundEl) {
+    fundEl.textContent = `Tổng quỹ phạt kỳ này: ${formatCurrency(totalAmount || 0)}`;
+  }
+
+  const container = document.getElementById("admin-penalties-leaderboard-list");
+  if (!container) return;
+
+  if (!leaderboard || leaderboard.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 16px; text-align: center;">
+        <p style="color: var(--text-muted); font-size: 13.5px; margin: 0;">👏 Chưa có nhân viên nào bị phạt trong kỳ này!</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '<div class="leaderboard-list">';
+  leaderboard.forEach((item, idx) => {
+    let medal = `<span class="leaderboard-rank-medal text-rank">#${idx + 1}</span>`;
+    let rankClass = "";
+    if (idx === 0) {
+      medal = `<span class="leaderboard-rank-medal">🥇</span>`;
+      rankClass = "rank-1";
+    } else if (idx === 1) {
+      medal = `<span class="leaderboard-rank-medal">🥈</span>`;
+      rankClass = "rank-2";
+    } else if (idx === 2) {
+      medal = `<span class="leaderboard-rank-medal">🥉</span>`;
+      rankClass = "rank-3";
+    }
+
+    const fineAmount = item.total_amount || ((item.count || 0) * 10000);
+
+    html += `
+      <div class="leaderboard-item ${rankClass}">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          ${medal}
+          <div class="leaderboard-user-info" style="margin: 0;">
+            <div class="leaderboard-nickname">${escapeHtml(item.nickname)}</div>
+            <div class="leaderboard-violations">${item.count} lần vi phạm (10k/lần)</div>
+          </div>
+        </div>
+        <div class="leaderboard-fine-amount">-${formatCurrency(fineAmount)}</div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function openAdminQuickFineModal() {
+  const modal = document.getElementById("modal-quick-fine");
+  if (!modal) return;
+
+  const select = document.getElementById("quick-fine-emp-select");
+  const reasonInput = document.getElementById("quick-fine-reason");
+
+  if (reasonInput) reasonInput.value = "";
+
+  if (select) {
+    let emps = [];
+    if (AppState.bootstrapData && Array.isArray(AppState.bootstrapData.employees)) {
+      emps = AppState.bootstrapData.employees;
+    } else if (Array.isArray(AppState.employeesDetail)) {
+      emps = AppState.employeesDetail;
+    } else if (Array.isArray(AppState.employees)) {
+      emps = AppState.employees;
+    }
+
+    let nicks = [];
+    if (emps && emps.length > 0) {
+      nicks = emps.map(e => e.nickname || e.full_name || e.name).filter(Boolean);
+    } else if (AppState.bootstrapData && Array.isArray(AppState.bootstrapData.all_nicknames)) {
+      nicks = AppState.bootstrapData.all_nicknames;
+    }
+
+    // Unique normalized nicknames
+    const seen = new Set();
+    const uniqueNicks = [];
+    nicks.forEach(n => {
+      const norm = normalizeName(n);
+      if (norm && !seen.has(norm)) {
+        seen.add(norm);
+        uniqueNicks.push(n);
+      }
+    });
+
+    let optHtml = `<option value="">-- Chọn nhân viên --</option>`;
+    uniqueNicks.forEach(n => {
+      optHtml += `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`;
+    });
+    select.innerHTML = optHtml;
+  }
+
+  modal.classList.add("active");
+}
+
+function closeAdminQuickFineModal() {
+  const modal = document.getElementById("modal-quick-fine");
+  if (modal) modal.classList.remove("active");
+}
+
+function closeAdminQuickFineModalOnBackdrop(e) {
+  if (e.target && e.target.id === "modal-quick-fine") {
+    closeAdminQuickFineModal();
+  }
+}
+
+async function submitQuickFine() {
+  const select = document.getElementById("quick-fine-emp-select");
+  const reasonInput = document.getElementById("quick-fine-reason");
+  const submitBtn = document.getElementById("btn-submit-quick-fine");
+
+  const nickname = (select && select.value) ? select.value.trim() : "";
+  const reason = (reasonInput && reasonInput.value) ? reasonInput.value.trim() : "";
+
+  if (!nickname) {
+    showToast("Vui lòng chọn nhân viên vi phạm.", "warning");
+    if (select) select.focus();
+    return;
+  }
+
+  if (!reason) {
+    showToast("Vui lòng nhập lý do phạt cụ thể.", "warning");
+    if (reasonInput) reasonInput.focus();
+    return;
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `<span>⏳ Đang ghi nhận...</span>`;
+  }
+
+  try {
+    const resp = await apiRequest("/api/admin/penalties/add", "POST", { nickname, reason });
+    if (resp && resp.success) {
+      showToast(resp.message || `Đã phạt 10.000đ nhân viên ${nickname}!`, "success");
+      closeAdminQuickFineModal();
+      loadAdminDashboardData();
+      if (AppState.activeTab === "tab-admin-payroll") {
+        loadAdminSalaryData();
+      }
+    } else {
+      showToast((resp && resp.message) || "Không thể ghi nhận biên bản phạt.", "danger");
+    }
+  } catch (err) {
+    console.error("Error submitting quick fine:", err);
+    showToast("Lỗi kết nối khi phạt nhân viên.", "danger");
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<span>⚠️ Xác Nhận Phạt 10.000đ</span>`;
+    }
   }
 }
 
@@ -3388,7 +3717,7 @@ async function loadAdminSalaryData() {
   const tbody = document.getElementById("admin-salary-tbody");
   if (!tbody) return;
 
-  tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-dim);">Đang tải dữ liệu bảng lương...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: var(--text-dim);">Đang tải dữ liệu bảng lương...</td></tr>`;
 
   let url = "/api/admin/salary";
   if (select && select.value && select.value !== "current") {
@@ -3401,7 +3730,7 @@ async function loadAdminSalaryData() {
   const resp = await apiRequest(url);
   if (!resp || !resp.success || !resp.salary) {
     const err = (resp && resp.message) || "Không thể tải dữ liệu bảng lương. Vui lòng kiểm tra quyền Admin.";
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--danger);">${escapeHtml(err)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: var(--danger);">${escapeHtml(err)}</td></tr>`;
     return;
   }
 
@@ -3435,7 +3764,7 @@ async function loadAdminSalaryData() {
 
   const items = s.items || s.rows || [];
   if (items.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-dim);">Chưa có dữ liệu bảng lương tháng ${s.month || ''}/${s.year || ''}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: var(--text-dim);">Chưa có dữ liệu bảng lương tháng ${s.month || ''}/${s.year || ''}</td></tr>`;
     return;
   }
 
@@ -3447,6 +3776,8 @@ async function loadAdminSalaryData() {
     const rate = r.rate || 0;
     const bonus = r.bonus || 0;
     const advance = r.advance || 0;
+    const penaltyCount = r.penalty_count || 0;
+    const penaltyAmount = r.penalty_amount || (penaltyCount * 10000);
     const totalAmount = (r.total !== undefined ? r.total : (r.net_salary || 0)) * 1000;
 
     let bonusAdvHtml = "—";
@@ -3456,6 +3787,11 @@ async function loadAdminSalaryData() {
       bonusAdvHtml = `<span style="color: var(--success); font-weight: 600;">+${formatCurrency(bonus * 1000)}</span>`;
     } else if (advance > 0) {
       bonusAdvHtml = `<span style="color: var(--warning); font-weight: 600;">-${formatCurrency(advance * 1000)}</span>`;
+    }
+
+    let penaltyHtml = "—";
+    if (penaltyCount > 0) {
+      penaltyHtml = `<span class="badge badge-danger" style="font-weight: 700;">-${formatCurrency(penaltyAmount)} (${penaltyCount} lần)</span>`;
     }
 
     html += `
@@ -3472,6 +3808,7 @@ async function loadAdminSalaryData() {
         <td style="text-align: center; font-weight: 600;">${hours}h</td>
         <td style="text-align: center; color: var(--text-muted);">${rate}k/h</td>
         <td style="text-align: center;">${bonusAdvHtml}</td>
+        <td style="text-align: center;">${penaltyHtml}</td>
         <td style="text-align: center; font-weight: 700; font-size: 14.5px; color: var(--primary);">${formatCurrency(totalAmount)}</td>
         <td style="text-align: right; padding-right: 14px;">
           <button class="btn btn-secondary btn-sm" onclick="showSalaryModifierModal('${escapeHtml(r.nickname)}')">

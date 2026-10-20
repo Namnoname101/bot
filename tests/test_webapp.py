@@ -923,6 +923,54 @@ class WebAppServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("penalties_leaderboard", ov_data)
         self.assertIn("total_penalties_amount", ov_data)
 
+    async def test_penalty_webapp_frontend_assets(self):
+        # 1. Check index.html elements
+        html_resp = await self.client.get("/")
+        self.assertEqual(html_resp.status, 200)
+        html_text = await html_resp.text()
+
+        self.assertIn("emp-breakdown-late-penalty", html_text)
+        self.assertIn("emp-breakdown-penalty", html_text)
+        self.assertIn("emp-breakdown-penalty-count", html_text)
+        self.assertIn("openPenaltyHistoryModal()", html_text)
+        self.assertIn("openPenaltyLeaderboardModal()", html_text)
+        self.assertIn("modal-penalty-history", html_text)
+        self.assertIn("modal-penalty-leaderboard", html_text)
+        self.assertIn("modal-quick-fine", html_text)
+        self.assertIn("quick-fine-emp-select", html_text)
+        self.assertIn("quick-fine-reason", html_text)
+        self.assertIn("admin-penalties-leaderboard-list", html_text)
+        self.assertIn("admin-penalties-fund-total", html_text)
+        self.assertIn("openAdminQuickFineModal()", html_text)
+        self.assertIn("submitQuickFine()", html_text)
+        self.assertIn("Phạt vi phạm", html_text)
+
+        # 2. Check styles.css classes
+        css_resp = await self.client.get("/static/styles.css")
+        self.assertEqual(css_resp.status, 200)
+        css_text = await css_resp.text()
+
+        self.assertIn(".penalty-badge", css_text)
+        self.assertIn(".penalty-history-card", css_text)
+        self.assertIn(".penalty-history-list", css_text)
+        self.assertIn(".leaderboard-rank-medal", css_text)
+        self.assertIn(".leaderboard-item", css_text)
+
+        # 3. Check app.js functions and handlers
+        js_resp = await self.client.get("/static/app.js")
+        self.assertEqual(js_resp.status, 200)
+        js_text = await js_resp.text()
+
+        self.assertIn("function openPenaltyHistoryModal", js_text)
+        self.assertIn("function closePenaltyHistoryModal", js_text)
+        self.assertIn("function openPenaltyLeaderboardModal", js_text)
+        self.assertIn("function closePenaltyLeaderboardModal", js_text)
+        self.assertIn("function openAdminQuickFineModal", js_text)
+        self.assertIn("function closeAdminQuickFineModal", js_text)
+        self.assertIn("async function submitQuickFine", js_text)
+        self.assertIn("function renderAdminPenaltiesLeaderboard", js_text)
+        self.assertIn("personalPenalties", js_text)
+
 
 
 if __name__ == "__main__":

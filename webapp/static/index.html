@@ -803,7 +803,12 @@
 
           <!-- Payroll Breakdown Card -->
           <div class="card" style="margin-bottom: 20px;">
-            <h3 style="margin-bottom: 14px;">Bóc tách lương tạm tính</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+              <h3 style="margin: 0;">Bóc tách lương tạm tính</h3>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="openPenaltyLeaderboardModal()" style="display: inline-flex; align-items: center; gap: 4px;">
+                🏆 Xem Bảng Xếp Hạng Phạt
+              </button>
+            </div>
             <div style="display: flex; flex-direction: column; gap: 12px;">
               <div style="display: flex; justify-content: space-between; font-size: 14px; padding-bottom: 8px; border-bottom: 1px dashed var(--border-light);">
                 <span style="color: var(--text-muted);">Lương theo giờ làm thường</span>
@@ -817,8 +822,16 @@
                 <span style="color: var(--text-muted);">Thưởng ly / Thưởng tiền</span>
                 <strong id="emp-breakdown-bonus" style="color: var(--success);">+0đ</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; font-size: 14px;">
-                <span style="color: var(--text-muted);">Đi muộn / Phạt (10k/lần)</span>
+              <div style="display: flex; justify-content: space-between; font-size: 14px; padding-bottom: 8px; border-bottom: 1px dashed var(--border-light);">
+                <span style="color: var(--text-muted);">Đi muộn (-10k/lần)</span>
+                <strong id="emp-breakdown-late-penalty" style="color: var(--danger);">-0đ</strong>
+              </div>
+              <div class="penalty-breakdown-row" onclick="openPenaltyHistoryModal()" title="Nhấn để xem chi tiết vi phạm kỷ luật" style="display: flex; justify-content: space-between; align-items: center; font-size: 14px; cursor: pointer; padding: 6px 8px; margin: -2px -8px 0; border-radius: var(--radius-sm); transition: background 0.15s ease;">
+                <span style="color: var(--danger); display: inline-flex; align-items: center; gap: 6px;">
+                  <span>⚠️ Phạt kỷ luật (-10k/lần)</span>
+                  <span id="emp-breakdown-penalty-count" class="badge badge-danger" style="font-size: 11px; padding: 2px 6px;">0 lần</span>
+                  <span style="font-size: 11px; color: var(--text-dim); text-decoration: underline;">(chi tiết)</span>
+                </span>
                 <strong id="emp-breakdown-penalty" style="color: var(--danger);">-0đ</strong>
               </div>
             </div>
@@ -919,7 +932,7 @@
           </div>
 
           <!-- Active Working Staff -->
-          <div class="card">
+          <div class="card" style="margin-bottom: 24px;">
             <div class="card-header">
               <h3 class="card-title">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -928,6 +941,27 @@
               <span id="active-staff-count-badge" class="badge badge-success">0 người</span>
             </div>
             <div id="admin-dash-active-staff" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Penalty Leaderboard Card -->
+          <div class="card" style="margin-bottom: 24px;">
+            <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
+              <div>
+                <h3 class="card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                  🏆 Bảng Xếp Hạng Phạt Kỷ Luật
+                </h3>
+                <p id="admin-penalties-fund-total" style="font-size: 13px; color: var(--danger); font-weight: 600; margin-top: 2px;">
+                  Tổng quỹ phạt kỳ này: 0đ
+                </p>
+              </div>
+              <button type="button" class="btn btn-danger btn-sm" onclick="openAdminQuickFineModal()" style="display: inline-flex; align-items: center; gap: 4px;">
+                <span>⚠️ Phạt Nhân Viên (10k)</span>
+              </button>
+            </div>
+            <div id="admin-penalties-leaderboard-list">
               <!-- Rendered via JS -->
             </div>
           </div>
@@ -1159,6 +1193,7 @@
                   <th>Tổng giờ</th>
                   <th>Mức lương</th>
                   <th>Thưởng/Ứng</th>
+                  <th>Phạt vi phạm</th>
                   <th>Thực nhận</th>
                   <th style="text-align: right; padding-right: 14px;">Thao tác</th>
                 </tr>
@@ -1385,6 +1420,80 @@
             <span>💾 Lưu & Sang bạn tiếp theo ➔</span>
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 1: Lịch Sử Vi Phạm Kỷ Luật (Personal Penalty History) -->
+  <div id="modal-penalty-history" class="modal-overlay" onclick="closePenaltyHistoryModalOnBackdrop(event)">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">⚠️ Lịch Sử Vi Phạm Kỷ Luật (10k/lần)</h3>
+        <button type="button" class="btn btn-icon btn-ghost btn-sm" onclick="closePenaltyHistoryModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="penalty-history-content">
+        <!-- Rendered via JS -->
+      </div>
+      <div class="modal-actions" style="margin-top: 16px; border-top: 1px solid var(--border-light); padding-top: 12px; display: flex; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="closePenaltyHistoryModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Bảng Xếp Hạng Phạt Kỷ Luật (Penalty Leaderboard) -->
+  <div id="modal-penalty-leaderboard" class="modal-overlay" onclick="closePenaltyLeaderboardModalOnBackdrop(event)">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">🏆 Bảng Xếp Hạng Phạt Kỷ Luật</h3>
+          <p id="penalty-leaderboard-subtitle" style="font-size: 13px; color: var(--text-dim); margin-top: 2px;">Tổng quỹ phạt kỳ này: 0đ</p>
+        </div>
+        <button type="button" class="btn btn-icon btn-ghost btn-sm" onclick="closePenaltyLeaderboardModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="penalty-leaderboard-content">
+        <!-- Rendered via JS -->
+      </div>
+      <div class="modal-actions" style="margin-top: 16px; border-top: 1px solid var(--border-light); padding-top: 12px; display: flex; justify-content: flex-end;">
+        <button type="button" class="btn btn-secondary" onclick="closePenaltyLeaderboardModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Phạt Nhanh Nhân Viên (Admin Quick Fine) -->
+  <div id="modal-quick-fine" class="modal-overlay" onclick="closeAdminQuickFineModalOnBackdrop(event)">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">⚠️ Phạt Vi Phạm Kỷ Luật</h3>
+          <p style="font-size: 13px; color: var(--text-dim); margin-top: 2px;">Ghi nhận biên bản phạt nhân viên vào bảng lương</p>
+        </div>
+        <button type="button" class="btn btn-icon btn-ghost btn-sm" onclick="closeAdminQuickFineModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label class="form-label" for="quick-fine-emp-select">Nhân viên vi phạm</label>
+        <select id="quick-fine-emp-select" class="form-select">
+          <option value="">-- Chọn nhân viên --</option>
+        </select>
+      </div>
+      <div class="fine-notice-badge" style="margin-bottom: 14px; padding: 10px 12px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: var(--radius-md); display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 18px;">💵</span>
+        <span style="font-size: 13px; font-weight: 600; color: var(--danger);">Mức phạt: 10.000đ (Cố định theo quy định quán)</span>
+      </div>
+      <div class="form-group" style="margin-bottom: 18px;">
+        <label class="form-label" for="quick-fine-reason">Lý do vi phạm</label>
+        <textarea id="quick-fine-reason" class="form-input" style="height: 80px; resize: vertical;" placeholder="Nhập lý do phạt cụ thể (VD: Không mặc đồng phục, quên tắt thiết bị...)"></textarea>
+      </div>
+      <div class="modal-actions" style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border-light); padding-top: 14px;">
+        <button type="button" class="btn btn-secondary" onclick="closeAdminQuickFineModal()">Hủy</button>
+        <button type="button" class="btn btn-danger" id="btn-submit-quick-fine" onclick="submitQuickFine()">
+          <span>⚠️ Xác Nhận Phạt 10.000đ</span>
+        </button>
       </div>
     </div>
   </div>
