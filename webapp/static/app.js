@@ -798,6 +798,7 @@ function switchTab(tabId) {
       loadAdminDashboardData();
       break;
     case "tab-admin-roster":
+      AppState.justEnteredRosterTab = true;
       loadAdminRosterData();
       break;
     case "tab-admin-matrix":
@@ -2375,6 +2376,25 @@ async function loadAdminRosterData() {
 
     renderDesktopRosterGrid();
     renderMobileAdminSchedule();
+
+    // Tự động hiện popup xếp lịch theo từng nhân viên nếu tuần này chưa từng xếp ca nào
+    const shifts = (resp.roster && resp.roster.shifts) || {};
+    let totalAssigned = 0;
+    Object.values(shifts).forEach(list => {
+      if (Array.isArray(list)) totalAssigned += list.length;
+    });
+
+    if (totalAssigned === 0 && AppState.justEnteredRosterTab) {
+      AppState.justEnteredRosterTab = false;
+      setTimeout(() => {
+        const modal = document.getElementById("modal-emp-roster-entry");
+        if (AppState.activeTab === "tab-admin-roster" && modal && !modal.classList.contains("active")) {
+          openAdminBatchEntryModal();
+        }
+      }, 150);
+    } else {
+      AppState.justEnteredRosterTab = false;
+    }
   }
 }
 
