@@ -595,13 +595,6 @@ function renderNavigation() {
       <li class="sidebar-nav-item" data-tab="tab-admin-roster" onclick="switchTab('tab-admin-roster')">
         ${getIcon("calendar")} <span>Xếp lịch</span>
       </li>
-      <li class="sidebar-nav-item" data-tab="tab-admin-matrix" onclick="switchTab('tab-admin-matrix')">
-        ${getIcon("matrix")} <span>Đăng ký lịch</span>
-      </li>
-      <li class="sidebar-nav-item" data-tab="tab-admin-swaps" onclick="switchTab('tab-admin-swaps')">
-        ${getIcon("swap")} <span>Duyệt đổi ca</span>
-        <span id="sidebar-swap-badge" class="sidebar-nav-badge hidden">0</span>
-      </li>
       <li class="sidebar-nav-item" data-tab="tab-admin-employees" onclick="switchTab('tab-admin-employees')">
         ${getIcon("users")} <span>Nhân sự</span>
       </li>
@@ -629,10 +622,9 @@ function renderNavigation() {
         ${getIcon("calendar", 20)}
         <span>Lịch</span>
       </button>
-      <button class="bottom-nav-item" data-tab="tab-admin-swaps" onclick="switchTab('tab-admin-swaps')">
-        ${getIcon("swap", 20)}
-        <span>Duyệt</span>
-        <span id="bottom-swap-badge" class="bottom-nav-badge hidden">0</span>
+      <button class="bottom-nav-item" data-tab="tab-admin-payroll" onclick="switchTab('tab-admin-payroll')">
+        ${getIcon("dollar", 20)}
+        <span>Lương</span>
       </button>
       <button class="bottom-nav-item" data-tab="tab-admin-employees" onclick="switchTab('tab-admin-employees')">
         ${getIcon("users", 20)}
@@ -651,12 +643,6 @@ function renderNavigation() {
       </li>
       <li class="sidebar-nav-item" data-tab="tab-emp-schedule" onclick="switchTab('tab-emp-schedule')">
         ${getIcon("calendar")} <span>Lịch làm việc</span>
-      </li>
-      <li class="sidebar-nav-item" data-tab="tab-emp-register" onclick="switchTab('tab-emp-register')">
-        ${getIcon("matrix")} <span>Đăng ký lịch</span>
-      </li>
-      <li class="sidebar-nav-item" data-tab="tab-emp-swap" onclick="switchTab('tab-emp-swap')">
-        ${getIcon("swap")} <span>Đổi ca</span>
       </li>
       <li class="sidebar-nav-item" data-tab="tab-emp-payroll" onclick="switchTab('tab-emp-payroll')">
         ${getIcon("dollar")} <span>Công & lương</span>
@@ -680,9 +666,9 @@ function renderNavigation() {
         ${getIcon("calendar", 20)}
         <span>Lịch</span>
       </button>
-      <button class="bottom-nav-item" data-tab="tab-emp-swap" onclick="switchTab('tab-emp-swap')">
-        ${getIcon("swap", 20)}
-        <span>Đổi ca</span>
+      <button class="bottom-nav-item" data-tab="tab-emp-payroll" onclick="switchTab('tab-emp-payroll')">
+        ${getIcon("dollar", 20)}
+        <span>Lương</span>
       </button>
       <button class="bottom-nav-item" data-tab="tab-notifications" onclick="switchTab('tab-notifications')">
         ${getIcon("bell", 20)}
@@ -796,13 +782,11 @@ function switchTab(tabId) {
       loadEmployeeHomeData();
       break;
     case "tab-emp-register":
-      renderAvailabilityForm();
+    case "tab-emp-swap":
+      switchTab("tab-emp-schedule");
       break;
     case "tab-emp-schedule":
       renderEmployeeSchedule();
-      break;
-    case "tab-emp-swap":
-      renderSwapWorkflow();
       break;
     case "tab-emp-payroll":
       loadEmployeePayrollData();
@@ -817,10 +801,8 @@ function switchTab(tabId) {
       loadAdminRosterData();
       break;
     case "tab-admin-matrix":
-      renderAdminAvailabilityMatrix();
-      break;
     case "tab-admin-swaps":
-      renderAdminSwapsTab();
+      switchTab("tab-admin-roster");
       break;
     case "tab-admin-employees":
       renderAdminEmployeesTab();
@@ -1450,10 +1432,7 @@ function renderEmployeeSchedule() {
               <div style="font-size: 14px; font-weight: 700; color: var(--primary);">Ca ${sh.ca} • ${sh.time}</div>
               <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Cùng làm: ${sh.staff.filter(s => s.toLowerCase() !== userNorm).join(", ") || "Một mình"}</div>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="startSwapFromShift('${d.code}', '${sh.ca}', '${d.full_date || d.date_str}', '${sh.time}')">
-              ${getIcon("swap", 14)}
-              <span>Đổi ca này</span>
-            </button>
+            <span class="badge badge-success" style="font-size: 12px;">Đã xếp</span>
           </div>
         `;
       });
@@ -2075,12 +2054,10 @@ async function loadAdminDashboardData() {
   const pendingStoreSwaps = (allSwapsResp && allSwapsResp.success) ? allSwapsResp.swaps : [];
   const totalPending = pendingStoreSwaps.length || pendingSwaps.length;
 
-  document.getElementById("kpi-pending-swaps").textContent = totalPending;
+  const kpiSwaps = document.getElementById("kpi-pending-swaps");
+  if (kpiSwaps) kpiSwaps.textContent = totalPending;
   AppState.swaps = (allSwapsResp && allSwapsResp.success) ? allSwapsResp.swaps : [];
   updateBadgeCounts();
-
-  // Render pending swaps preview on dashboard
-  renderAdminDashSwapsList(pendingStoreSwaps);
 
   // Render pending rewards list
   const pendingRewards = ovResp.pending_rewards || [];
