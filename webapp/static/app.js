@@ -2421,9 +2421,9 @@ function renderDesktopRosterGrid() {
   const targets = roster.targets || {};
   const days = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
   const cas = [
-    { code: "Sáng", time: "07:00-12:00", defaultNeed: 2 },
-    { code: "Chiều", time: "13:00-17:00", defaultNeed: 2 },
-    { code: "Tối", time: "18:00-22:30", defaultNeed: 3 },
+    { code: "Sáng", time: "07:00-12:00" },
+    { code: "Chiều", time: "13:00-17:00" },
+    { code: "Tối", time: "18:00-22:30" },
   ];
 
   // Update table headers with dates
@@ -2447,16 +2447,11 @@ function renderDesktopRosterGrid() {
     days.forEach(d => {
       const slotKey = `${d}_${ca.code}`;
       const staffList = shifts[slotKey] || [];
-      const needed = targets[slotKey] || ca.defaultNeed;
       const assigned = staffList.length;
 
       // Status indicator class
-      let statusClass = "status-ok";
-      if (assigned === 0 || assigned < needed - 1) {
-        statusClass = "status-danger";
-      } else if (assigned < needed) {
-        statusClass = "status-warning";
-      }
+      const statusClass = assigned > 0 ? "status-ok" : "status-empty";
+      const ratioBadgeText = assigned > 0 ? `${assigned} người` : "Trống ca";
 
       const isSelected = AppState.selectedSlot && AppState.selectedSlot.slotKey === slotKey;
 
@@ -2464,7 +2459,7 @@ function renderDesktopRosterGrid() {
         <td>
           <div class="schedule-shift-cell ${statusClass} ${isSelected ? 'selected' : ''}" onclick="selectAdminRosterSlot('${d}', '${ca.code}', '${slotKey}')">
             <div class="shift-cell-header">
-              <span class="shift-ratio-badge">${assigned}/${needed} người</span>
+              <span class="shift-ratio-badge">${ratioBadgeText}</span>
               <button type="button" class="btn btn-icon btn-ghost btn-sm" style="width: 22px; height: 22px; min-height: 22px;" title="Xếp người">+</button>
             </div>
             <div class="shift-staff-chips">
@@ -2503,13 +2498,12 @@ function renderContextualAssignmentDrawer() {
   const shifts = roster.shifts || {};
   const targets = roster.targets || {};
   const assignedStaff = shifts[slotKey] || [];
-  const needed = targets[slotKey] || 2;
 
   const dayLabels = { T2: "Thứ Hai", T3: "Thứ Ba", T4: "Thứ Tư", T5: "Thứ Năm", T6: "Thứ Sáu", T7: "Thứ Bảy", CN: "Chủ Nhật" };
   const caTimes = { Sáng: "07:00 – 12:00", Chiều: "13:00 – 17:00", Tối: "18:00 – 22:30" };
 
   titleEl.textContent = `${dayLabels[day]} • Ca ${ca}`;
-  subtitleEl.textContent = `${caTimes[ca]} | Cần: ${needed} • Đã xếp: ${assignedStaff.length}/${needed}`;
+  subtitleEl.textContent = `${caTimes[ca]} • Đang xếp: ${assignedStaff.length} người`;
 
   // Candidates list logic:
   // Split into 2 tabs: 'Đã đăng ký ca này' vs 'Không đăng ký ca này'
@@ -3264,16 +3258,16 @@ function renderMobileAdminSchedule() {
   const shifts = roster.shifts || {};
   const targets = roster.targets || {};
   const cas = [
-    { code: "Sáng", time: "07:00 – 12:00", defaultNeed: 2 },
-    { code: "Chiều", time: "13:00 – 17:00", defaultNeed: 2 },
-    { code: "Tối", time: "18:00 – 22:30", defaultNeed: 3 },
+    { code: "Sáng", time: "07:00 – 12:00" },
+    { code: "Chiều", time: "13:00 – 17:00" },
+    { code: "Tối", time: "18:00 – 22:30" },
   ];
 
   let cardsHtml = "";
   cas.forEach(ca => {
     const slotKey = `${selectedDay}_${ca.code}`;
     const staffList = shifts[slotKey] || [];
-    const needed = targets[slotKey] || ca.defaultNeed;
+    const assigned = staffList.length;
 
     cardsHtml += `
       <div class="mobile-shift-card" onclick="selectAdminRosterSlot('${selectedDay}', '${ca.code}', '${slotKey}')">
@@ -3288,7 +3282,7 @@ function renderMobileAdminSchedule() {
           </div>
         </div>
         <div style="text-align: right;">
-          <span class="badge ${staffList.length >= needed ? 'badge-success' : 'badge-warning'}">${staffList.length}/${needed}</span>
+          <span class="badge ${assigned > 0 ? 'badge-success' : 'badge-muted'}">${assigned > 0 ? assigned + ' người' : 'Trống ca'}</span>
           <div style="margin-top: 6px;">
             <button class="btn btn-secondary btn-sm">Điều phối</button>
           </div>

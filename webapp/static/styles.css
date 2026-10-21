@@ -1772,8 +1772,13 @@ p {
 }
 
 /* Shift Status Colors */
-.schedule-shift-cell.status-ok {
+.schedule-shift-cell.status-ok,
+.schedule-shift-cell.status-assigned {
   border-left: 4px solid var(--success);
+}
+
+.schedule-shift-cell.status-empty {
+  border-left: 4px solid var(--border-light);
 }
 
 .schedule-shift-cell.status-warning {
@@ -1798,7 +1803,9 @@ p {
   border-radius: var(--radius-xs);
 }
 
-.status-ok .shift-ratio-badge { background: var(--success-bg); color: var(--success); }
+.status-ok .shift-ratio-badge,
+.status-assigned .shift-ratio-badge { background: var(--success-bg); color: var(--success); }
+.status-empty .shift-ratio-badge { background: rgba(0, 0, 0, 0.05); color: var(--text-dim); font-weight: 500; }
 .status-warning .shift-ratio-badge { background: var(--warning-bg); color: var(--warning); }
 .status-danger .shift-ratio-badge { background: var(--danger-bg); color: var(--danger); }
 
