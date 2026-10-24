@@ -4,63 +4,79 @@
    ========================================================================== */
 
 :root {
-  /* Warm Cafe Palette */
-  --bg-app: #F7F5EE;
+  /* ── Sober Coffee Roasters Palette ─────────────────────────────────────── */
+  /* Canvas & Warm Linen Paper */
+  --bg-app: #F8F6F0;
   --bg-card: #FFFFFF;
-  --bg-card-subtle: #F0EDE4;
+  --bg-card-subtle: #F3EFE7;
   --bg-elevated: #FFFFFF;
   --bg-input: #FFFFFF;
 
-  --border-light: #E7E3D8;
-  --border-strong: #D5CFBF;
+  --border-light: #E7E1D4;
+  --border-subtle: #EFE9DE;
+  --border-strong: #D5CDC0;
 
-  --text-main: #1D1A16;
-  --text-muted: #6B655B;
-  --text-dim: #999182;
+  --text-main: #22251F;
+  --text-muted: #64685D;
+  --text-dim: #969B8F;
 
-  /* Primary Accent: Dark Forest Green / Deep Olive */
-  --primary: #284437;
-  --primary-hover: #1E342A;
-  --primary-active: #16261F;
-  --primary-subtle: #E8EFEA;
-  --primary-text: #FFFFFF;
+  /* Signature Sober Colors */
+  --sober-dark: #24261F;
+  --sober-charcoal: #1A1C16;
+  --sober-cream: #FEE4D5;
+  --sober-cream-subtle: #FFF5EE;
+  --sober-sage: #5C6650;
+  --sober-terracotta: #B66642;
 
-  /* Secondary: Subtle Warm Espresso */
-  --espresso: #44352D;
-  --espresso-subtle: #EDE7E1;
+  /* Primary Accent: Roasted Charcoal Olive */
+  --primary: #24261F;
+  --primary-hover: #171914;
+  --primary-active: #0F100D;
+  --primary-subtle: #EBEFE8;
+  --primary-text: #FEE4D5;
 
-  /* Semantics */
-  --success: #2E7D32;
-  --success-bg: #EAF5EB;
-  --success-border: #C8E6C9;
+  /* Secondary: Subtle Warm Espresso & Sage */
+  --espresso: #3D322B;
+  --espresso-subtle: #EFE9E4;
+  --secondary: #5C6650;
 
-  --warning: #D97706;
-  --warning-bg: #FEF3C7;
-  --warning-border: #FDE68A;
+  /* Semantics (Muted Cafe Harmony) */
+  --success: #2E6B47;
+  --success-bg: #EBF5ED;
+  --success-border: #C6E4CD;
 
-  --danger: #DC2626;
-  --danger-bg: #FEE2E2;
-  --danger-border: #FECACA;
+  --warning: #B46914;
+  --warning-bg: #FDF4E6;
+  --warning-border: #F7DFB7;
 
-  --info: #2563EB;
-  --info-bg: #EFF6FF;
-  --info-border: #BFDBFE;
+  --danger: #BD322B;
+  --danger-bg: #FDEEEC;
+  --danger-border: #F9CBC6;
+
+  --info: #2B577A;
+  --info-bg: #EDF4FA;
+  --info-border: #C8DCED;
 
   /* Geometry & Tokens */
   --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-xl: 22px;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 3px rgba(29, 26, 22, 0.05);
-  --shadow-md: 0 4px 14px rgba(29, 26, 22, 0.07);
-  --shadow-lg: 0 12px 28px rgba(29, 26, 22, 0.10);
-  --shadow-drawer: -6px 0 24px rgba(29, 26, 22, 0.12);
+  /* Tactile Craft Shadows */
+  --shadow-sm: 0 1px 3px rgba(36, 38, 31, 0.04);
+  --shadow-md: 0 4px 16px rgba(36, 38, 31, 0.06);
+  --shadow-lg: 0 12px 32px rgba(36, 38, 31, 0.09);
+  --shadow-drawer: -6px 0 28px rgba(36, 38, 31, 0.12);
 
-  --font-family: 'Be Vietnam Pro', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --sidebar-width: 256px;
+  /* Fonts */
+  --font-serif: 'Fraunces', 'Playfair Display', Georgia, serif;
+  --font-sans: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family: var(--font-sans);
+
+  --sidebar-width: 260px;
   --header-height: 64px;
   --bottom-nav-height: 64px;
   --transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -131,10 +147,36 @@ h1, h2, h3, h4, h5 {
   line-height: 1.25;
 }
 
-h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
-h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+h1, h2, .page-title, .brand-font {
+  font-family: var(--font-serif);
+  letter-spacing: -0.015em;
+}
+
+h1 { font-size: 26px; font-weight: 600; }
+h2 { font-size: 21px; font-weight: 600; }
 h3 { font-size: 16px; font-weight: 600; }
 h4 { font-size: 14px; font-weight: 600; }
+
+.brand-slogan-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: rgba(92, 102, 80, 0.14);
+  color: #5C6650;
+  border: 1px solid rgba(92, 102, 80, 0.25);
+}
+
+.brand-slogan-pill.cream {
+  background: rgba(254, 228, 213, 0.16);
+  color: #FEE4D5;
+  border-color: rgba(254, 228, 213, 0.3);
+}
 
 p {
   color: var(--text-muted);
@@ -155,11 +197,13 @@ p {
 .btn-primary {
   background-color: var(--primary);
   color: var(--primary-text);
-  box-shadow: 0 1px 3px rgba(40, 68, 55, 0.2);
+  border: 1px solid rgba(254, 228, 213, 0.15);
+  box-shadow: 0 2px 8px rgba(36, 38, 31, 0.18);
 }
 
 .btn-primary:hover {
   background-color: var(--primary-hover);
+  color: #FFFFFF;
 }
 
 .btn-primary:active {
@@ -287,6 +331,11 @@ p {
   border-radius: var(--radius-lg);
   padding: 18px;
   box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.card:hover {
+  border-color: var(--border-strong);
 }
 
 .card-header {
@@ -298,7 +347,8 @@ p {
 }
 
 .card-title {
-  font-size: 16px;
+  font-family: var(--font-serif);
+  font-size: 17px;
   font-weight: 600;
   color: var(--text-main);
   display: flex;
@@ -786,9 +836,13 @@ p {
 }
 
 .app-header-title {
-  font-size: 18px;
-  font-weight: 800;
+  font-family: var(--font-serif);
+  font-size: 21px;
+  font-weight: 700;
+  font-style: italic;
   letter-spacing: -0.02em;
+  color: var(--text-main);
+  line-height: 1;
 }
 
 .app-header-actions {
@@ -840,9 +894,13 @@ p {
 }
 
 .sidebar-brand-name {
-  font-size: 20px;
-  font-weight: 800;
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 700;
+  font-style: italic;
   letter-spacing: -0.02em;
+  color: var(--text-main);
+  line-height: 1;
 }
 
 .sidebar-user-card {
@@ -923,8 +981,9 @@ p {
 }
 
 .sidebar-nav-item.active {
-  background: var(--primary-subtle);
-  color: var(--primary);
+  background: var(--primary);
+  color: var(--sober-cream);
+  box-shadow: 0 2px 8px rgba(36, 38, 31, 0.16);
 }
 
 .sidebar-nav-badge {
@@ -957,9 +1016,9 @@ p {
   right: 0;
   height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(248, 246, 240, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border-top: 1px solid var(--border-light);
   display: flex;
   align-items: center;
@@ -991,6 +1050,12 @@ p {
 
 .bottom-nav-item.active {
   color: var(--primary);
+  font-weight: 700;
+}
+
+.bottom-nav-item.active svg {
+  transform: scale(1.1);
+  stroke-width: 2.3;
 }
 
 .bottom-nav-badge {
@@ -1086,11 +1151,12 @@ p {
 
 /* Hero Salary Card */
 .salary-hero-card {
-  background: linear-gradient(135deg, #2D4C3E 0%, #1A2E25 100%);
+  background: linear-gradient(145deg, #24261F 0%, #151712 100%);
   color: #FFFFFF;
+  border: 1px solid rgba(254, 228, 213, 0.15);
   border-radius: var(--radius-xl);
   padding: 24px;
-  box-shadow: 0 8px 24px rgba(40, 68, 55, 0.22);
+  box-shadow: 0 8px 24px rgba(26, 28, 22, 0.28);
   margin-bottom: 20px;
   position: relative;
   overflow: hidden;
@@ -1104,20 +1170,22 @@ p {
   width: 140px;
   height: 140px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(254, 228, 213, 0.04);
   pointer-events: none;
 }
 
 .salary-hero-title {
   font-size: 13px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--sober-cream);
+  opacity: 0.85;
   margin-bottom: 8px;
 }
 
 .salary-hero-amount {
   font-size: 36px;
-  font-weight: 800;
+  font-weight: 700;
+  font-family: var(--font-serif);
   letter-spacing: -0.02em;
   color: #FFFFFF;
   margin-bottom: 12px;
@@ -1664,6 +1732,13 @@ p {
   display: flex;
   align-items: center;
   gap: 14px;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.kpi-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
 }
 
 .kpi-icon-wrap {
@@ -1681,8 +1756,9 @@ p {
 .kpi-icon-wrap.blue  { background: var(--info-bg); color: var(--info); }
 
 .kpi-val {
-  font-size: 24px;
-  font-weight: 800;
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 700;
   line-height: 1;
   color: var(--text-main);
 }

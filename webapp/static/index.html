@@ -7,11 +7,11 @@
   <meta name="theme-color" content="#F7F5EE">
   <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
   <link rel="manifest" href="/manifest.json">
-  <!-- Typography: Be Vietnam Pro & Inter -->
+  <!-- Typography: Fraunces (Bespoke Editorial Serif for Sober brand) & Be Vietnam Pro (Clean Crisp UI) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/styles.css?v=20261022_v1">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..800;1,9..144,400..700&family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css?v=20261024_soberbrand">
   <style>
     /* Critical Login Styling (Ensures perfect display across all cache states) */
     .login-view {
@@ -41,11 +41,12 @@
     }
     .login-visual-panel {
       display: none;
-      background: linear-gradient(165deg, #22372D 0%, #172820 100%);
+      background: linear-gradient(180deg, rgba(28, 30, 24, 0.78) 0%, rgba(18, 20, 16, 0.94) 100%), url('/static/brand-banner.jpg') center/cover no-repeat;
       color: #FFFFFF;
-      padding: 40px 32px;
+      padding: 44px 34px;
       flex-direction: column;
       justify-content: space-between;
+      position: relative;
     }
     @media (min-width: 800px) {
       .login-visual-panel {
@@ -58,30 +59,49 @@
       gap: 12px;
     }
     .login-brand-logo {
-      width: 42px;
-      height: 42px;
+      width: 44px;
+      height: 44px;
       border-radius: 10px;
       object-fit: cover;
-      border: 2px solid rgba(255,255,255,0.15);
+      border: 1.5px solid rgba(254, 228, 213, 0.25);
     }
     .login-brand-name {
-      font-size: 26px;
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      color: #FFFFFF;
+      font-family: var(--font-serif);
+      font-size: 28px;
+      font-weight: 700;
+      font-style: italic;
+      letter-spacing: -0.02em;
+      color: #FEE4D5;
+      line-height: 1;
+    }
+    .brand-slogan-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(254, 228, 213, 0.14);
+      color: #FEE4D5;
+      border: 1px solid rgba(254, 228, 213, 0.28);
+      backdrop-filter: blur(4px);
     }
     .login-quote {
-      font-size: 19px;
+      font-family: var(--font-serif);
+      font-size: 20px;
       font-style: italic;
-      font-weight: 300;
-      line-height: 1.45;
-      color: #E6EAE7;
-      margin: 36px 0 10px 0;
+      font-weight: 400;
+      line-height: 1.5;
+      color: #FEE4D5;
+      margin: 32px 0 10px 0;
     }
     .login-visual-footer {
-      font-size: 12px;
-      color: rgba(255,255,255,0.6);
-      letter-spacing: 0.03em;
+      font-size: 11.5px;
+      color: rgba(254, 228, 213, 0.7);
+      letter-spacing: 0.04em;
     }
     .login-form-panel {
       padding: 28px 24px;
@@ -106,9 +126,10 @@
       }
     }
     .login-form-title {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--text-main, #1D2320);
+      font-family: var(--font-serif);
+      font-size: 23px;
+      font-weight: 600;
+      color: var(--text-main, #22251F);
       margin: 0 0 6px 0;
       letter-spacing: -0.02em;
     }
@@ -345,24 +366,35 @@
       <div class="login-container">
         <!-- Visual Brand Panel (Desktop) -->
         <div class="login-visual-panel">
-          <div class="login-brand-head">
-            <img src="/static/brand-logo.jpg" alt="Sober Coffee" class="login-brand-logo" onerror="this.style.display='none'">
-            <span class="login-brand-name">sober.</span>
+          <div>
+            <div class="login-brand-head">
+              <img src="/static/brand-logo.jpg" alt="Sober Coffee" class="login-brand-logo" onerror="this.style.display='none'">
+              <div>
+                <span class="login-brand-name">sober.</span>
+                <div style="font-size: 11px; color: rgba(254, 228, 213, 0.75); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500;">Specialty Coffee Roasters</div>
+              </div>
+            </div>
+            <div style="margin-top: 14px;">
+              <span class="brand-slogan-badge">● STAY SOBER – STAY VERTICAL ●</span>
+            </div>
           </div>
           <div class="login-visual-body">
-            <p class="login-quote">“Từng tách cà phê trọn vị, từng ca làm việc chu toàn.”</p>
-            <p style="font-size: 13px; color: rgba(255,255,255,0.7);">Hệ thống quản lý ca, đăng ký lịch & công lương chuyên nghiệp.</p>
+            <p class="login-quote">“A magical, dark liquid that helps you get through the day.”</p>
+            <p style="font-size: 13.5px; color: rgba(254, 228, 213, 0.85); line-height: 1.6;">Morning vibes, sỏi trắng, không gian dã ngoại an yên & những tách cà phê thơm lành giữa Sài Gòn.</p>
           </div>
           <div class="login-visual-footer">
-            <p>© 2026 SOBER COFFEE ROASTERS • TP. HỒ CHÍ MINH</p>
+            <p>© 2026 SOBER COFFEE ROASTERS • 06:00 – 22:30 • TP. HỒ CHÍ MINH</p>
           </div>
         </div>
 
         <!-- Form Panel -->
         <div class="login-form-panel">
           <div class="login-mobile-logo">
-            <img src="/static/brand-logo.jpg" alt="Sober" style="width: 36px; height: 36px; border-radius: 8px; object-fit: cover;" onerror="this.style.display='none'">
-            <span style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">sober.</span>
+            <img src="/static/brand-logo.jpg" alt="Sober" style="width: 40px; height: 40px; border-radius: 10px; object-fit: cover;" onerror="this.style.display='none'">
+            <div>
+              <div style="font-family: var(--font-serif); font-size: 23px; font-weight: 700; font-style: italic; line-height: 1; color: var(--text-main);">sober.</div>
+              <div style="font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px;">Stay Sober • Stay Vertical</div>
+            </div>
           </div>
 
           <h2 class="login-form-title">Vào ca làm việc</h2>
@@ -423,8 +455,13 @@
       <header class="app-header">
         <div class="app-header-brand">
           <img src="/static/brand-logo.jpg" alt="Sober" class="app-header-logo" onerror="this.style.display='none'">
-          <span class="app-header-title">sober.</span>
-          <span id="mobile-role-badge" class="badge badge-primary" style="margin-left: 4px;">Nhân viên</span>
+          <div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="app-header-title">sober.</span>
+              <span id="mobile-role-badge" class="badge badge-primary">Nhân viên</span>
+            </div>
+            <div style="font-size: 9.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; line-height: 1; font-weight: 600;">Stay Sober • Stay Vertical</div>
+          </div>
         </div>
         <div class="app-header-actions">
           <button class="btn btn-icon btn-ghost" onclick="switchTab('tab-notifications')" title="Thông báo">
@@ -446,6 +483,10 @@
             <img src="/static/brand-logo.jpg" alt="Sober" class="sidebar-brand-logo" onerror="this.style.display='none'">
             <div>
               <div class="sidebar-brand-name">sober.</div>
+              <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">Coffee Roasters</div>
+              <div class="brand-slogan-pill" style="margin-top: 5px;">Stay Sober – Stay Vertical</div>
+            </div>
+          </div>
               <div style="font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">Coffee Roasters</div>
             </div>
           </div>
@@ -468,9 +509,9 @@
 
         <div class="sidebar-bottom">
           <div class="sidebar-store-info">
-            <strong>Sober Coffee Roasters</strong><br>
-            Giờ mở cửa: 06:00 – 22:30<br>
-            Hotline: 078 322 4638
+            <strong style="color: var(--text-main); font-family: var(--font-serif); font-size: 13.5px;">Sober Coffee Roasters</strong><br>
+            Giờ mở cửa: 06:00 – 22:30 mỗi ngày<br>
+            Hotline: 078 322 4638 • @sober.morning
           </div>
           <button class="btn btn-secondary btn-block btn-sm" onclick="handleLogout()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
@@ -489,7 +530,10 @@
         <!-- 1. Trang chủ Nhân viên -->
         <section id="tab-emp-home" class="tab-panel hidden">
           <div class="emp-home-welcome">
-            <div class="greeting">Xin chào,</div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+              <div class="greeting">☕ Chào bạn tại Sober,</div>
+              <span class="brand-slogan-pill">Stay Vertical</span>
+            </div>
             <div class="staff-name"><span id="emp-welcome-name">Nhân viên</span> <span id="emp-welcome-role" class="badge badge-primary">Pha Chế</span></div>
           </div>
 
@@ -685,8 +729,9 @@
         <section id="tab-admin-dashboard" class="tab-panel hidden">
           <div class="page-header">
             <div>
-              <h1 class="page-title">Tổng quan quán SOBER</h1>
-              <p class="page-subtitle" id="admin-today-date-lbl">Các thông tin và hành động cần xử lý trong ngày</p>
+              <div class="brand-slogan-pill" style="margin-bottom: 6px;">SOBER COFFEE ROASTERS • 06:00 – 22:30</div>
+              <h1 class="page-title">Bảng Tin Quán Hôm Nay</h1>
+              <p class="page-subtitle" id="admin-today-date-lbl">Tổng hợp nhịp vận hành, ca trực & hoạt động quầy bar</p>
             </div>
           </div>
 
@@ -1262,6 +1307,6 @@
   <div id="toast-container"></div>
 
   <!-- Main JavaScript App Logic -->
-  <script src="/static/app.js?v=20261022_v1"></script>
+  <script src="/static/app.js?v=20261024_soberbrand"></script>
 </body>
 </html>

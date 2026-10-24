@@ -590,25 +590,25 @@ function renderNavigation() {
     // Admin Desktop Sidebar
     sidebarNav.innerHTML = `
       <li class="sidebar-nav-item" data-tab="tab-admin-dashboard" onclick="switchTab('tab-admin-dashboard')">
-        ${getIcon("home")} <span>Tổng quan</span>
+        ${getIcon("home")} <span>Bảng tin quán</span>
       </li>
       <li class="sidebar-nav-item" data-tab="tab-admin-roster" onclick="switchTab('tab-admin-roster')">
-        ${getIcon("calendar")} <span>Xếp lịch</span>
+        ${getIcon("calendar")} <span>Điều phối ca</span>
       </li>
       <li class="sidebar-nav-item" data-tab="tab-admin-employees" onclick="switchTab('tab-admin-employees')">
-        ${getIcon("users")} <span>Nhân sự</span>
+        ${getIcon("users")} <span>Đội ngũ nhân sự</span>
       </li>
       <li class="sidebar-nav-item" data-tab="tab-admin-payroll" onclick="switchTab('tab-admin-payroll')">
-        ${getIcon("dollar")} <span>Công & lương</span>
+        ${getIcon("dollar")} <span>Bảng lương & thưởng</span>
       </li>
       <li class="sidebar-nav-item" data-tab="tab-admin-inventory" onclick="switchTab('tab-admin-inventory')">
-        ${getIcon("box")} <span>Kho / NVL</span>
+        ${getIcon("box")} <span>Kho nguyên liệu</span>
       </li>
       <li class="sidebar-nav-item" data-tab="tab-admin-announcements" onclick="switchTab('tab-admin-announcements')">
-        ${getIcon("megaphone")} <span>Thông báo quán</span>
+        ${getIcon("megaphone")} <span>Bảng tin chung</span>
       </li>
       <li class="sidebar-nav-item" data-tab="tab-admin-settings" onclick="switchTab('tab-admin-settings')">
-        ${getIcon("settings")} <span>Cài đặt</span>
+        ${getIcon("settings")} <span>Cài đặt hệ thống</span>
       </li>
     `;
 
@@ -616,11 +616,11 @@ function renderNavigation() {
     bottomNav.innerHTML = `
       <button class="bottom-nav-item" data-tab="tab-admin-dashboard" onclick="switchTab('tab-admin-dashboard')">
         ${getIcon("home", 20)}
-        <span>Tổng quan</span>
+        <span>Bảng tin</span>
       </button>
       <button class="bottom-nav-item" data-tab="tab-admin-roster" onclick="switchTab('tab-admin-roster')">
         ${getIcon("calendar", 20)}
-        <span>Lịch</span>
+        <span>Xếp ca</span>
       </button>
       <button class="bottom-nav-item" data-tab="tab-admin-payroll" onclick="switchTab('tab-admin-payroll')">
         ${getIcon("dollar", 20)}
@@ -628,7 +628,7 @@ function renderNavigation() {
       </button>
       <button class="bottom-nav-item" data-tab="tab-admin-employees" onclick="switchTab('tab-admin-employees')">
         ${getIcon("users", 20)}
-        <span>Nhân sự</span>
+        <span>Đội ngũ</span>
       </button>
       <button class="bottom-nav-item" data-tab="tab-profile" onclick="switchTab('tab-profile')">
         ${getIcon("user", 20)}
@@ -639,20 +639,20 @@ function renderNavigation() {
     // Employee Desktop Sidebar
     sidebarNav.innerHTML = `
       <li class="sidebar-nav-item" data-tab="tab-emp-home" onclick="switchTab('tab-emp-home')">
-        ${getIcon("home")} <span>Trang chủ</span>
+        ${getIcon("home")} <span>Góc làm việc</span>
       </li>
       <li class="sidebar-nav-item" data-tab="tab-emp-schedule" onclick="switchTab('tab-emp-schedule')">
-        ${getIcon("calendar")} <span>Lịch làm việc</span>
+        ${getIcon("calendar")} <span>Lịch ca tuần</span>
       </li>
       <li class="sidebar-nav-item" data-tab="tab-emp-payroll" onclick="switchTab('tab-emp-payroll')">
-        ${getIcon("dollar")} <span>Công & lương</span>
+        ${getIcon("dollar")} <span>Thu nhập & thưởng</span>
       </li>
       <li class="sidebar-nav-item" data-tab="tab-notifications" onclick="switchTab('tab-notifications')">
-        ${getIcon("bell")} <span>Thông báo</span>
+        ${getIcon("bell")} <span>Thông báo quán</span>
         <span id="sidebar-notif-badge" class="sidebar-nav-badge hidden">0</span>
       </li>
       <li class="sidebar-nav-item" data-tab="tab-profile" onclick="switchTab('tab-profile')">
-        ${getIcon("user")} <span>Tài khoản</span>
+        ${getIcon("user")} <span>Hồ sơ cá nhân</span>
       </li>
     `;
 
@@ -660,19 +660,19 @@ function renderNavigation() {
     bottomNav.innerHTML = `
       <button class="bottom-nav-item" data-tab="tab-emp-home" onclick="switchTab('tab-emp-home')">
         ${getIcon("home", 20)}
-        <span>Trang chủ</span>
+        <span>Làm việc</span>
       </button>
       <button class="bottom-nav-item" data-tab="tab-emp-schedule" onclick="switchTab('tab-emp-schedule')">
         ${getIcon("calendar", 20)}
-        <span>Lịch</span>
+        <span>Ca làm</span>
       </button>
       <button class="bottom-nav-item" data-tab="tab-emp-payroll" onclick="switchTab('tab-emp-payroll')">
         ${getIcon("dollar", 20)}
-        <span>Lương</span>
+        <span>Thu nhập</span>
       </button>
       <button class="bottom-nav-item" data-tab="tab-notifications" onclick="switchTab('tab-notifications')">
         ${getIcon("bell", 20)}
-        <span>Thông báo</span>
+        <span>Bảng tin</span>
         <span id="bottom-notif-badge" class="bottom-nav-badge hidden">0</span>
       </button>
       <button class="bottom-nav-item" data-tab="tab-profile" onclick="switchTab('tab-profile')">
