@@ -94,14 +94,19 @@ class Config:
         token_part = (cls.BOT_TOKEN or "")[:10]
         return hashlib.sha256(f"sober_kiosk_{cls.ADMIN_CHAT_ID}_{token_part}".encode()).hexdigest()[:16]
 
-
     @classmethod
     def get_google_credentials_info(cls) -> dict:
         """Trả về dict credentials Google. Ưu tiên env var JSON, fallback về file."""
         if cls.GOOGLE_CREDENTIALS_JSON:
-            return json.loads(cls.GOOGLE_CREDENTIALS_JSON.lstrip('\ufeff'))
-        with open(cls.GOOGLE_CREDENTIALS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            info = json.loads(cls.GOOGLE_CREDENTIALS_JSON.lstrip('\ufeff'))
+        else:
+            with open(cls.GOOGLE_CREDENTIALS_FILE, 'r', encoding='utf-8') as f:
+                info = json.load(f)
+
+        if isinstance(info, dict) and "private_key" in info and isinstance(info["private_key"], str):
+            info["private_key"] = info["private_key"].replace("\\n", "\n")
+
+        return info
 
     @classmethod
     def validate(cls):
