@@ -1789,9 +1789,11 @@ async function loadEmployeePayrollData() {
 
   const regularPay = Math.round((s.regular_hours || 0) * (s.rate || 0) * 1000);
   const otPay = Math.round((s.overtime_hours || 0) * (s.rate || 0) * 1.5 * 1000);
-  const latePenalty = (s.late_count || 0) * 10000;
-  const finePenalty = (s.penalty_count || 0) * 10000;
-  const netTotal = Math.max(0, regularPay + otPay - latePenalty - finePenalty);
+  const latePenalty = (s.late_penalty_amount !== undefined) ? s.late_penalty_amount : Math.round((s.late_penalty_k || 0) * 1000);
+  const finePenalty = (s.penalty_amount !== undefined) ? s.penalty_amount : Math.round((s.penalty_amount_k || 0) * 1000);
+  const netTotal = (s.estimated_pay_k !== undefined)
+    ? Math.round(s.estimated_pay_k * 1000)
+    : Math.max(0, regularPay + otPay - latePenalty - finePenalty);
 
   document.getElementById("emp-payroll-total").textContent = formatCurrency(netTotal);
   document.getElementById("emp-payroll-rate").textContent = `Mức lương: ${s.rate || 0}k/giờ`;
@@ -1799,9 +1801,25 @@ async function loadEmployeePayrollData() {
   document.getElementById("emp-breakdown-regular").textContent = formatCurrency(regularPay);
   document.getElementById("emp-breakdown-ot").textContent = `+${formatCurrency(otPay)}`;
   const lateEl = document.getElementById("emp-breakdown-late-penalty");
-  if (lateEl) lateEl.textContent = `-${formatCurrency(latePenalty)}`;
+  if (lateEl) {
+    if (latePenalty > 0) {
+      lateEl.textContent = `-${formatCurrency(latePenalty)}`;
+      lateEl.style.color = "var(--danger)";
+    } else {
+      lateEl.textContent = "0đ";
+      lateEl.style.color = "var(--text-muted)";
+    }
+  }
   const fineEl = document.getElementById("emp-breakdown-penalty");
-  if (fineEl) fineEl.textContent = `-${formatCurrency(finePenalty)}`;
+  if (fineEl) {
+    if (finePenalty > 0) {
+      fineEl.textContent = `-${formatCurrency(finePenalty)}`;
+      fineEl.style.color = "var(--danger)";
+    } else {
+      fineEl.textContent = "0đ";
+      fineEl.style.color = "var(--text-muted)";
+    }
+  }
   const countEl = document.getElementById("emp-breakdown-penalty-count");
   if (countEl) countEl.textContent = `${s.penalty_count || 0} lần`;
 

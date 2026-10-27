@@ -1700,7 +1700,7 @@ async def handle_api_personal_summary(request: web.Request) -> web.Response:
     if not nickname:
         return web.json_response({"success": False, "message": "Vui lòng chọn tên nhân viên."}, status=400)
 
-    summary = await asyncio.to_thread(sheets.get_employee_personal_summary, nickname)
+    summary = await asyncio.to_thread(sheets.get_employee_personal_summary, nickname, store)
     if not summary.get("success"):
         return web.json_response(
             {"success": False, "message": summary.get("error") or "Không thể tải hồ sơ cá nhân."},

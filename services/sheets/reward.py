@@ -494,6 +494,7 @@ class RewardSheetsMixin:
                 if "(không báo trước)" in n.lower() and d_str not in unreported_dates_in_store
             )
             late_penalty_k = round(unreported_not_in_store * 10.0, 1)
+            late_penalty_amount = int(late_penalty_k * 1000)
 
             estimated_pay_k = round(max(0.0, base_salary_k - late_penalty_k - penalty_amount_k), 1)
 
@@ -509,6 +510,7 @@ class RewardSheetsMixin:
                 'rate': rate,
                 'base_salary_k': base_salary_k,
                 'late_penalty_k': late_penalty_k,
+                'late_penalty_amount': late_penalty_amount,
                 'penalty_count': penalty_count,
                 'penalty_amount_k': penalty_amount_k,
                 'penalty_amount': penalty_amount,
