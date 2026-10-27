@@ -523,13 +523,13 @@ async def handle_api_checkin(request: web.Request) -> web.Response:
             )
             late_kb = InlineKeyboardMarkup([
                 [
-                    InlineKeyboardButton("✅ Đã báo trước", callback_data=f"mark_reported_{date_str}_{nickname}"),
-                    InlineKeyboardButton("❌ Không báo trước", callback_data=f"mark_unreported_{date_str}_{nickname}"),
+                    InlineKeyboardButton("✅ Đã báo trước (Không trừ)", callback_data=f"mark_reported_{date_str}_{nickname}"),
+                    InlineKeyboardButton("❌ Chưa báo (Phạt 10k)", callback_data=f"mark_unreported_{date_str}_{nickname}"),
                 ]
             ])
             await _safe_send_admin(
                 bot,
-                f"⚠️ {nickname} muộn {late_minutes}p (Ca {ca}) — báo trước?",
+                f"⚠️ {nickname} muộn {late_minutes}p (Ca {ca}) — duyệt đi muộn:",
                 reply_markup=late_kb,
                 parse_mode=None,
             )
@@ -1309,7 +1309,20 @@ async def handle_api_admin_mark_late(request: web.Request) -> web.Response:
             status=400,
         )
 
-    label = "ĐÃ báo trước" if reported else "KHÔNG báo trước"
+    label = "ĐÃ báo trước (Không trừ phạt)" if reported else "CHƯA báo trước (Đã phạt 10.000đ)"
+    if not reported:
+        store = request.app.get(STORE_KEY)
+        if store:
+            admin_name = getattr(request, "current_user", {}).get("username") or "Admin"
+            existing = store.get_penalties(nickname=nickname)
+            if not any(p.get("date") == date_str and "Đi muộn không báo trước" in p.get("reason", "") for p in existing):
+                store.add_penalty(
+                    nickname=nickname,
+                    reason=f"Đi muộn không báo trước ngày {date_str}",
+                    admin_name=admin_name,
+                    created_at=f"{local_now().strftime('%H:%M')} {date_str}"
+                )
+
     return web.json_response({
         "success": True,
         "message": f"✅ Đã đánh dấu {nickname} ({date_str}): {label}.",

@@ -406,7 +406,7 @@ class PayrollPenaltyDeductionTests(unittest.TestCase):
         mock_ws_checkin = MagicMock()
         mock_ws_checkin.get_all_values.return_value = [
             ["Ngày", "Tên Nhân Viên", "Giờ Vào", "Giờ Ra", "Tổng Giờ", "Ghi Chú"],
-            ["20/04/2026", "Huy", "08:15", "18:00", "9.75", "Đi muộn 15p"],
+            ["20/04/2026", "Huy", "08:15", "18:00", "9.75", "Đi muộn 15p (không báo trước)"],
         ]
         self.service.ws_checkin = mock_ws_checkin
         self.service.get_overtime_summary = MagicMock(return_value={})
@@ -414,7 +414,7 @@ class PayrollPenaltyDeductionTests(unittest.TestCase):
         summary = self.service.get_employee_personal_summary("Huy")
         self.assertTrue(summary["success"])
         # Hours: 9.75 * 25.0 = 243.75 -> base_salary_k = 243.8
-        # Late penalty: 1 * 10k = 10.0
+        # Late penalty (không báo trước): 1 * 10k = 10.0
         # Disciplinary penalties: 2 * 10k = 20.0
         # estimated_pay_k: max(0.0, 243.8 - 10.0 - 20.0) = 213.8
         self.assertEqual(summary["penalty_count"], 2)
@@ -423,6 +423,30 @@ class PayrollPenaltyDeductionTests(unittest.TestCase):
         self.assertEqual(len(summary["penalties"]), 2)
         self.assertEqual(summary["late_penalty_k"], 10.0)
         self.assertEqual(summary["estimated_pay_k"], 213.8)
+
+    def test_get_employee_personal_summary_late_reported_or_unreviewed_no_deduction(self):
+        self.service._current_salary_month = MagicMock(return_value=(5, 2026))
+        self.service._salary_period = MagicMock(return_value=(date(2026, 4, 17), date(2026, 5, 16)))
+        self.service.get_employees_detail = MagicMock(return_value=[
+            {"nickname": "Huy", "key": "huy", "rate": 25.0, "balance": 0}
+        ])
+
+        # 1 ca đã báo trước + 1 ca quản lý chưa chọn (chưa duyệt) -> KHÔNG trừ tiền
+        mock_ws_checkin = MagicMock()
+        mock_ws_checkin.get_all_values.return_value = [
+            ["Ngày", "Tên Nhân Viên", "Giờ Vào", "Giờ Ra", "Tổng Giờ", "Ghi Chú"],
+            ["20/04/2026", "Huy", "08:15", "18:00", "9.75", "Đi muộn 15p (đã báo trước)"],
+            ["21/04/2026", "Huy", "08:10", "18:00", "9.83", "Đi muộn 10p"],
+        ]
+        self.service.ws_checkin = mock_ws_checkin
+        self.service.get_overtime_summary = MagicMock(return_value={})
+
+        summary = self.service.get_employee_personal_summary("Huy")
+        self.assertTrue(summary["success"])
+        # late_count = 2 (tổng số lần đi muộn để theo dõi)
+        self.assertEqual(summary["late_count"], 2)
+        # late_penalty_k = 0 (vì 1 ca đã báo trước, 1 ca chưa duyệt -> đều không trừ)
+        self.assertEqual(summary["late_penalty_k"], 0.0)
 
     def test_get_employee_personal_summary_without_store_backward_compatible(self):
         self.service.store = None

@@ -458,14 +458,14 @@ async def handle_checkin_employee_selected(query, context: ContextTypes.DEFAULT_
             )
             
             late_keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("✅ Đã báo trước",
+                [InlineKeyboardButton("✅ Đã báo trước (Không trừ)",
                     callback_data=f"mark_reported_{date_str}_{nickname}"),
-                 InlineKeyboardButton("❌ Không báo trước",
+                 InlineKeyboardButton("❌ Chưa báo (Phạt 10k)",
                     callback_data=f"mark_unreported_{date_str}_{nickname}")]
             ])
             await context.bot.send_message(
                 chat_id=Config.ADMIN_CHAT_ID,
-                text=f"⚠️ {nickname} muộn {late_minutes}p (Ca {ca}) — báo trước?",
+                text=f"⚠️ {nickname} muộn {late_minutes}p (Ca {ca}) — duyệt đi muộn:",
                 reply_markup=late_keyboard
             )
         else:
@@ -580,7 +580,7 @@ async def handle_mark_reported_late(query, context: ContextTypes.DEFAULT_TYPE):
     
     if success:
         await safe_edit_message(query, 
-            f"✅ {nickname} ngày {date_str}: ĐÃ báo trước."
+            f"✅ {nickname} ngày {date_str}: ĐÃ báo trước (Không trừ phạt)."
         )
     else:
         await query.answer("⚠️ Không tìm thấy record hoặc đã đánh dấu rồi.", show_alert=True)
@@ -603,9 +603,55 @@ async def handle_mark_unreported_late(query, context: ContextTypes.DEFAULT_TYPE)
     success = await asyncio.to_thread(sheets_service.mark_unreported_late, nickname, date_str)
     
     if success:
-        await safe_edit_message(query, 
-            f"❌ {nickname} ngày {date_str}: KHÔNG báo trước."
+        store = context.bot_data.get('store')
+        if not store:
+            from webapp.store import WebAppStore
+            store = WebAppStore(sheets_service=sheets_service)
+            context.bot_data['store'] = store
+
+        admin_user = query.from_user
+        admin_name = (
+            admin_user.first_name
+            or admin_user.full_name
+            or admin_user.username
+            or "Admin"
+        ) if admin_user else "Admin"
+
+        reason = f"Đi muộn không báo trước ngày {date_str}"
+        existing_penalties = store.get_penalties(nickname=nickname)
+        already_penalized = any(
+            p.get("date") == date_str and "Đi muộn không báo trước" in p.get("reason", "")
+            for p in existing_penalties
         )
+        if not already_penalized:
+            store.add_penalty(
+                nickname=nickname,
+                reason=reason,
+                admin_name=admin_name,
+                created_at=f"{local_now().strftime('%H:%M')} {date_str}"
+            )
+
+        await safe_edit_message(query, 
+            f"❌ {nickname} ngày {date_str}: CHƯA báo trước (Đã trừ phạt 10.000đ)."
+        )
+
+        if Config.GROUP_CHAT_ID:
+            try:
+                announcement = (
+                    f"⚠️ *THÔNG BÁO KỶ LUẬT VI PHẠM*\n"
+                    f"👤 Nhân viên: *{nickname}*\n"
+                    f"💸 Mức phạt: *10.000đ* (tự động trừ vào lương kỳ này)\n"
+                    f"📝 Lý do: Đi muộn không báo trước (ngày {date_str})\n"
+                    f"👮 Người duyệt: {admin_name}\n"
+                    f"📅 Thời gian: {local_now().strftime('%H:%M %d/%m/%Y')}"
+                )
+                await context.bot.send_message(
+                    chat_id=Config.GROUP_CHAT_ID,
+                    text=announcement,
+                    parse_mode='Markdown'
+                )
+            except Exception as e:
+                logger.warning("Lỗi gửi thông báo phạt vào nhóm chung: %s", e)
     else:
         await query.answer("⚠️ Không tìm thấy record hoặc đã đánh dấu rồi.", show_alert=True)
 

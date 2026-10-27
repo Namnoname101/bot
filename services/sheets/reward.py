@@ -433,6 +433,7 @@ class RewardSheetsMixin:
 
             regular_hours = 0.0
             late_count = 0
+            late_records = []
             recent_checkins = []
 
             if getattr(self, 'ws_checkin', None) is not None:
@@ -464,6 +465,7 @@ class RewardSheetsMixin:
                             regular_hours += self._number(hrs_str, 0.0)
                         if 'muộn' in note.lower():
                             late_count += 1
+                            late_records.append((r_date_str, note))
 
             ot_summary_func = getattr(self, 'get_overtime_summary', None)
             ot_map = ot_summary_func(start_date, end_date) if ot_summary_func else {}
@@ -473,13 +475,25 @@ class RewardSheetsMixin:
                     ot_hours += float(v or 0.0)
 
             total_hours = round(regular_hours + ot_hours, 2)
-            late_penalty_k = round(late_count * 10.0, 1)  # 10k/lần đi muộn
             base_salary_k = round(total_hours * rate, 1)
 
             penalties = store.get_penalties(nickname=target, start_date=start_date, end_date=end_date) if store else []
             penalty_count = len(penalties)
             penalty_amount_k = round(penalty_count * 10.0, 1)
             penalty_amount = penalty_count * 10000
+
+            # Đi muộn chỉ trừ khi quản lý xác nhận '(không báo trước)'.
+            # Nếu quản lý chưa chọn hoặc chọn '(đã báo trước)' thì không trừ.
+            # Nếu đã ghi vào store penalties thì tránh trừ trùng.
+            unreported_dates_in_store = {
+                p.get("date") for p in penalties
+                if "đi muộn" in (p.get("reason") or "").lower()
+            }
+            unreported_not_in_store = sum(
+                1 for d_str, n in late_records
+                if "(không báo trước)" in n.lower() and d_str not in unreported_dates_in_store
+            )
+            late_penalty_k = round(unreported_not_in_store * 10.0, 1)
 
             estimated_pay_k = round(max(0.0, base_salary_k - late_penalty_k - penalty_amount_k), 1)
 
