@@ -1800,8 +1800,17 @@ async function loadEmployeePayrollData() {
 
   document.getElementById("emp-breakdown-regular").textContent = formatCurrency(regularPay);
   document.getElementById("emp-breakdown-ot").textContent = `+${formatCurrency(otPay)}`;
+  const lateRow = document.getElementById("emp-breakdown-late-row");
   const lateEl = document.getElementById("emp-breakdown-late-penalty");
-  if (lateEl) {
+  if (lateRow && lateEl) {
+    if (latePenalty > 0) {
+      lateRow.style.display = "flex";
+      lateEl.textContent = `-${formatCurrency(latePenalty)}`;
+      lateEl.style.color = "var(--danger)";
+    } else {
+      lateRow.style.display = "none";
+    }
+  } else if (lateEl) {
     if (latePenalty > 0) {
       lateEl.textContent = `-${formatCurrency(latePenalty)}`;
       lateEl.style.color = "var(--danger)";
