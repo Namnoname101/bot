@@ -488,8 +488,9 @@ async def handle_api_checkin(request: web.Request) -> web.Response:
 
     if not nickname:
         return web.json_response({"success": False, "message": "Vui lòng chọn tên nhân viên."}, status=400)
-    if shift_type == "Ca Gãy":
-        selected_ca = "Tối"
+    if shift_type == "Ca Gãy" and not selected_ca:
+        now = local_now()
+        selected_ca = "Sáng" if now.hour < 14 else "Tối"
 
     result = await asyncio.to_thread(sheets.checkin, nickname, shift_type, selected_ca)
     if not result.get("success"):

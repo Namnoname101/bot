@@ -77,18 +77,16 @@ async def alert_unclosed_sessions(context):
             nickname = session['nickname']
             shift_type = session.get('shift_type')
             
-            # Xác định giờ ép buộc ra (force_time) dựa trên ca
+            # Xác định giờ ép buộc ra (force_time) dựa trên ca và loại ca
             force_time = None
-            if shift_ca == "Sáng":
+            if shift_type == "Ca Gãy":
+                force_time = "10:00:00" if shift_ca == "Sáng" else "21:30:00"
+            elif shift_ca == "Sáng":
                 force_time = "12:00:00"
             elif shift_ca == "Chiều":
                 force_time = "18:00:00"
             elif shift_ca == "Tối":
                 force_time = "23:00:00"
-                
-            # Logic ca gãy
-            if shift_type == "Ca Gãy":
-                force_time = "21:30:00"
             
             # Thực hiện checkout
             result = await asyncio.to_thread(sheets.checkout, nickname, shift_type, force_time)
@@ -224,7 +222,7 @@ async def midnight_auto_cleanup(context):
                 elif shift_ca == 'Tối':
                     force_time = "23:00:00"
             elif shift_type == "Ca Gãy":
-                force_time = "21:30:00"
+                force_time = "10:00:00" if shift_ca == 'Sáng' else "21:30:00"
                 
             if force_time:
                 result = await asyncio.to_thread(sheets.checkout, nickname, shift_type, force_time)
@@ -265,7 +263,11 @@ def _build_checkout_picker(sessions: list):
         nickname = session['nickname']
         shift_type = session.get('shift_type', 'Ca Chính')
         token = 'ot' if shift_type == 'Ca Gãy' else 'main'
-        ca_label = session.get('ca') or shift_type.replace('Ca ', '')
+        ca_name = session.get('ca') or ''
+        if shift_type == 'Ca Gãy':
+            ca_label = f"Gãy {ca_name}".strip() if ca_name else "Ca Gãy"
+        else:
+            ca_label = f"Ca {ca_name}".strip() if ca_name else "Ca Chính"
         label = f"{nickname} — {ca_label}"
         row.append(InlineKeyboardButton(label, callback_data=f"co_sel_{token}_{nickname}"))
         if len(row) == 1:
@@ -300,22 +302,36 @@ async def handle_checkin_type_selected(query, context: ContextTypes.DEFAULT_TYPE
         )
         return
 
-    # Ca Gãy luôn thuộc ca Tối, không cần hỏi thêm một bước.
-    context.user_data['awaiting_checkin_ca'] = 'Tối'
-    await _show_checkin_employee_picker(query, context)
+    # Ca Gãy: hỗ trợ Ca Gãy Sáng (8h - 10h) và Ca Gãy Tối (19h30 - 21h30)
+    keyboard = [
+        [InlineKeyboardButton("🌅 Ca Gãy Sáng (8h - 10h)", callback_data="ci_ca_Sáng")],
+        [InlineKeyboardButton("🌙 Ca Gãy Tối (19h30 - 21h30)", callback_data="ci_ca_Tối")],
+        [InlineKeyboardButton("❌ Hủy", callback_data="ci_ca_cancel")],
+    ]
+    await safe_edit_message(query, 
+        "📥 **CHECK IN — CA GÃY**\nChọn khung giờ làm việc:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown',
+    )
 
 
 async def handle_checkin_ca_selected(query, context: ContextTypes.DEFAULT_TYPE):
-    """Callback chọn ca Sáng/Chiều/Tối cho Ca Chính."""
+    """Callback chọn ca Sáng/Chiều/Tối cho Ca Chính hoặc Ca Gãy."""
     selected_ca = query.data[len("ci_ca_"):]
     if selected_ca == 'cancel':
         await _cancel_flow(query, context)
         return
+
+    shift_type = context.user_data.get('awaiting_checkin_type')
     if (
-        context.user_data.get('awaiting_checkin_type') != 'Ca Chính'
+        shift_type not in {'Ca Chính', 'Ca Gãy'}
         or selected_ca not in {'Sáng', 'Chiều', 'Tối'}
     ):
         await query.answer("Phiên check-in đã hết hạn. Vui lòng thao tác lại.", show_alert=True)
+        return
+
+    if shift_type == 'Ca Gãy' and selected_ca not in {'Sáng', 'Tối'}:
+        await query.answer("Ca gãy chỉ áp dụng cho Ca Sáng (8h-10h) hoặc Ca Tối (19h30-21h30).", show_alert=True)
         return
 
     context.user_data['awaiting_checkin_ca'] = selected_ca
@@ -334,10 +350,13 @@ async def _show_checkin_employee_picker(query, context: ContextTypes.DEFAULT_TYP
         return
 
     reply_markup = _build_employee_picker(balances, "ci_sel")
-    shift_type = context.user_data['awaiting_checkin_type']
-    selected_ca = context.user_data['awaiting_checkin_ca']
+    shift_type = context.user_data.get('awaiting_checkin_type', 'Ca Chính')
+    selected_ca = context.user_data.get('awaiting_checkin_ca', '')
+    time_hint = ""
+    if shift_type == "Ca Gãy":
+        time_hint = " (8h - 10h)" if selected_ca == "Sáng" else " (19h30 - 21h30)"
     await safe_edit_message(query, 
-        f"📥 **CHECK IN** ({shift_type} — {selected_ca}) — Bạn là ai?",
+        f"📥 **CHECK IN** ({shift_type} — {selected_ca}{time_hint}) — Bạn là ai?",
         reply_markup=reply_markup,
         parse_mode='Markdown',
     )
@@ -449,9 +468,10 @@ async def handle_checkin_employee_selected(query, context: ContextTypes.DEFAULT_
     date_str  = result['date_str']
 
     # Gửi admin thông báo check-in (báo mọi lượt check-in: đúng giờ hoặc đi muộn)
+    shift_label = f"{shift_type} {ca}" if shift_type == "Ca Gãy" else f"Ca {ca}"
     try:
         if late_minutes > 0:
-            admin_text = f"📥 [Check-in] {nickname} — {time_str} Ca {ca} | ⚠️ Muộn {late_minutes}p ({note})"
+            admin_text = f"📥 [Check-in] {nickname} — {time_str} {shift_label} | ⚠️ Muộn {late_minutes}p ({note})"
             await context.bot.send_message(
                 chat_id=Config.ADMIN_CHAT_ID,
                 text=admin_text
@@ -465,11 +485,11 @@ async def handle_checkin_employee_selected(query, context: ContextTypes.DEFAULT_
             ])
             await context.bot.send_message(
                 chat_id=Config.ADMIN_CHAT_ID,
-                text=f"⚠️ {nickname} muộn {late_minutes}p (Ca {ca}) — duyệt đi muộn:",
+                text=f"⚠️ {nickname} muộn {late_minutes}p ({shift_label}) — duyệt đi muộn:",
                 reply_markup=late_keyboard
             )
         else:
-            admin_text = f"📥 [Check-in] {nickname} — {time_str} Ca {ca} | ✅ Đúng giờ"
+            admin_text = f"📥 [Check-in] {nickname} — {time_str} {shift_label} | ✅ Đúng giờ"
             await context.bot.send_message(
                 chat_id=Config.ADMIN_CHAT_ID,
                 text=admin_text

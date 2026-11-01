@@ -111,6 +111,76 @@ class SheetsLogicTests(unittest.TestCase):
         self.assertEqual(result['time'], '19:30:00')
         self.assertEqual(result['early_minutes'], 25)
 
+    def test_morning_broken_shift_early_arrival_starts_at_0800(self):
+        service = self.service()
+        service.ws_checkin = ValuesWorksheet([
+            ['Ngày', 'Nickname', 'Vào', 'Ra', 'Giờ', 'Ghi chú'],
+        ])
+        service.sh = Spreadsheet()
+        # Đến sớm lúc 07:45 (trong khung cho phép 07:30 - 08:00)
+        with patch('google_sheets.local_now', return_value=datetime(2026, 8, 11, 7, 45)):
+            result = service.checkin('an', 'Ca Gãy', 'Sáng')
+
+        self.assertTrue(result['success'])
+        self.assertEqual(result['time'], '08:00:00')
+        self.assertEqual(result['early_minutes'], 15)
+        self.assertEqual(result['ca'], 'Sáng')
+        self.assertIn('Ca Sáng', result['note'])
+        self.assertIn('Check-in sớm lúc 07:45:00', result['note'])
+
+    def test_morning_broken_shift_too_early_rejected(self):
+        service = self.service()
+        service.ws_checkin = ValuesWorksheet([
+            ['Ngày', 'Nickname', 'Vào', 'Ra', 'Giờ', 'Ghi chú'],
+        ])
+        # Đến trước 07:30 -> bị từ chối
+        with patch('google_sheets.local_now', return_value=datetime(2026, 8, 11, 7, 20)):
+            result = service.checkin('an', 'Ca Gãy', 'Sáng')
+
+        self.assertFalse(result['success'])
+        self.assertEqual(result['error'], 'too_early')
+        self.assertEqual(result['allowed_time'], '07:30')
+
+    def test_morning_broken_shift_on_time_grace_period(self):
+        service = self.service()
+        service.ws_checkin = ValuesWorksheet([
+            ['Ngày', 'Nickname', 'Vào', 'Ra', 'Giờ', 'Ghi chú'],
+        ])
+        service.sh = Spreadsheet()
+        # Đến lúc 08:04 (trong 5 phút grace period)
+        with patch('google_sheets.local_now', return_value=datetime(2026, 8, 11, 8, 4)):
+            result = service.checkin('an', 'Ca Gãy', 'Sáng')
+
+        self.assertTrue(result['success'])
+        self.assertEqual(result['late_minutes'], 0)
+        self.assertIn('Đúng giờ', result['note'])
+
+    def test_morning_broken_shift_late(self):
+        service = self.service()
+        service.ws_checkin = ValuesWorksheet([
+            ['Ngày', 'Nickname', 'Vào', 'Ra', 'Giờ', 'Ghi chú'],
+        ])
+        service.sh = Spreadsheet()
+        # Đến lúc 08:15 -> muộn 15 phút
+        with patch('google_sheets.local_now', return_value=datetime(2026, 8, 11, 8, 15)):
+            result = service.checkin('an', 'Ca Gãy', 'Sáng')
+
+        self.assertTrue(result['success'])
+        self.assertEqual(result['late_minutes'], 15)
+        self.assertIn('Đi muộn 15p', result['note'])
+
+    def test_morning_broken_shift_ended_rejected(self):
+        service = self.service()
+        service.ws_checkin = ValuesWorksheet([
+            ['Ngày', 'Nickname', 'Vào', 'Ra', 'Giờ', 'Ghi chú'],
+        ])
+        # Đến lúc 10:05 (ca sáng 8h-10h đã kết thúc)
+        with patch('google_sheets.local_now', return_value=datetime(2026, 8, 11, 10, 5)):
+            result = service.checkin('an', 'Ca Gãy', 'Sáng')
+
+        self.assertFalse(result['success'])
+        self.assertEqual(result['error'], 'shift_ended')
+
     def test_checkout_before_recorded_shift_start_is_rejected(self):
         service = self.service()
         service.ws_checkin = ValuesWorksheet([

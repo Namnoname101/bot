@@ -77,7 +77,7 @@ flowchart TD
 
 ### 1. Điểm Danh Kiosk & Cơ Chế Ca Kíp Linh Hoạt
 * **Chống gian lận vị trí:** Xác thực thiết bị cố định tại quán thông qua `SHOP_KIOSK_KEY` sinh từ hàm băm SHA-256 kết hợp giữa Admin Chat ID và Token Bot.
-* **Hỗ trợ ca gãy (Split Shift):** Tự động nhận diện ca Sáng (`06:30 - 12:00`), Chiều (`12:00 - 18:00`), Tối (`18:00 - 24:00`) và **Ca Gãy đặc thù (`19:30 - 21:30+`)**.
+* **Hỗ trợ ca gãy (Split Shift):** Hỗ trợ đầy đủ ca Chính (Sáng `06:30 - 12:00`, Chiều `12:00 - 18:00`, Tối `18:00 - 24:00`) và **Ca Gãy linh hoạt: Ca Gãy Sáng (`08:00 - 10:00`) & Ca Gãy Tối (`19:30 - 21:30+`)**.
 * **Thời gian ân hạn thông minh (5-minute Grace Period):** Check-in muộn $\le 5$ phút được ghi nhận đúng giờ; quá 5 phút kích hoạt quy trình phê duyệt đi muộn.
 
 ### 2. Quy Trình Phê Duyệt Đi Muộn & Trừ Phạt Công Khai

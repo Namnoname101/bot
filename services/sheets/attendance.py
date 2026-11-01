@@ -80,12 +80,20 @@ class AttendanceSheetsMixin:
                         if shift_type and current_shift != shift_type:
                             continue
 
-                        # Phục hồi 'ca' (Sáng/Chiều/Tối) từ giờ check-in để auto-checkout cuối ngày nhận diện được
-                        try:
-                            checkin_dt = datetime.strptime(row_checkin, "%H:%M:%S")
-                            ca_label = self._get_shift_info(checkin_dt)['ca']
-                        except Exception:
-                            ca_label = ""
+                        # Phục hồi 'ca' (Sáng/Chiều/Tối) từ note hoặc giờ check-in để auto-checkout cuối ngày nhận diện được
+                        ca_label = ""
+                        if "ca sáng" in row_note.lower():
+                            ca_label = "Sáng"
+                        elif "ca chiều" in row_note.lower():
+                            ca_label = "Chiều"
+                        elif "ca tối" in row_note.lower():
+                            ca_label = "Tối"
+                        else:
+                            try:
+                                checkin_dt = datetime.strptime(row_checkin, "%H:%M:%S")
+                                ca_label = self._get_shift_info(checkin_dt)['ca']
+                            except Exception:
+                                ca_label = ""
 
                         if ca and ca_label != ca:
                             continue
@@ -134,8 +142,7 @@ class AttendanceSheetsMixin:
                             'time': row[2].strip(),
                         }
 
-            # Ca chính được người dùng chọn để check-in sớm không bị nhận nhầm
-            # sang ca trước. Các lời gọi cũ không truyền ca vẫn được suy theo giờ.
+            # Xác định ca và mốc thời gian chuẩn
             inferred_shift = self._get_shift_info(now)
             selected_ca = ca or inferred_shift['ca']
             shift_starts = {
@@ -148,16 +155,29 @@ class AttendanceSheetsMixin:
                 'Chiều': 18 * 60,
                 'Tối': 24 * 60,
             }
-            if selected_ca not in shift_starts:
-                return {'success': False, 'error': 'invalid_shift_ca'}
 
-            standard_start = shift_starts[selected_ca]
-            current_minutes = now.hour * 60 + now.minute
-
-            # Ca gãy thuộc ca Tối và bắt đầu lúc 19:30.
             if shift_type == "Ca Gãy":
-                selected_ca = 'Tối'
-                standard_start = 19 * 60 + 30
+                # Ca Gãy hỗ trợ Ca Sáng (08:00 - 10:00) và Ca Tối (19:30 - 21:30)
+                if not ca:
+                    selected_ca = 'Sáng' if now.hour < 14 else 'Tối'
+                else:
+                    selected_ca = ca
+
+                if selected_ca == 'Sáng':
+                    standard_start = 8 * 60         # 08:00
+                    shift_end_minute = 10 * 60      # 10:00
+                elif selected_ca == 'Tối':
+                    standard_start = 19 * 60 + 30   # 19:30
+                    shift_end_minute = 24 * 60      # Hết ngày
+                else:
+                    return {'success': False, 'error': 'invalid_shift_ca'}
+            else:
+                if selected_ca not in shift_starts:
+                    return {'success': False, 'error': 'invalid_shift_ca'}
+                standard_start = shift_starts[selected_ca]
+                shift_end_minute = shift_ends[selected_ca]
+
+            current_minutes = now.hour * 60 + now.minute
 
             earliest_checkin = standard_start - 30
             if current_minutes < earliest_checkin:
@@ -169,8 +189,8 @@ class AttendanceSheetsMixin:
                     'ca': selected_ca,
                 }
 
-            # Không cho chọn lại một ca đã kết thúc. Ca Tối được phép đến hết ngày.
-            if shift_type == 'Ca Chính' and current_minutes >= shift_ends[selected_ca]:
+            # Không cho chọn lại một ca đã kết thúc.
+            if current_minutes >= shift_end_minute:
                 return {'success': False, 'error': 'shift_ended', 'ca': selected_ca}
 
             # Người đến sớm được ghi giờ chuẩn để không tự động phát sinh tiền công.
