@@ -193,7 +193,7 @@ class WebAppStore:
     def __init__(self, path: Path = STORE_PATH, sheets_service=None):
         self.path = path
         self.sheets = sheets_service
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._data = {
             "leave_requests": [],     # Đơn xin đi muộn / nghỉ phép / đổi ca
             "shift_schedules": {},    # { "nickname": { "updated_at": ..., "week_label": ..., "slots": {...}, "note": "", "target_shifts": 5 } }
@@ -654,7 +654,7 @@ class WebAppStore:
 
                 emp_state[nick] = {
                     "nickname": nick,
-                    "role": emp.get("role") or reg.get("role") or "Pha Chế",
+                    "role": emp.get("role") or self.get_employee_role(nick) or reg.get("role") or "Pha Chế",
                     "target_shifts": int(reg.get("target_shifts") or max(len(reg_set), 4)),
                     "assigned_count": 0,
                     "registered_slots": reg_set,
@@ -664,6 +664,10 @@ class WebAppStore:
             total_avail = sum(len(st["registered_slots"]) for st in emp_state.values())
             if total_avail == 0:
                 raise ValueError("Chưa có dữ liệu đăng ký ca rảnh hoặc ca nháp nào của nhân viên để tự động chia ca!")
+
+            def is_server_role(role_name: str) -> bool:
+                r = (role_name or "").strip().lower()
+                return "phục vụ" in r or "phuc vu" in r or "server" in r
 
             new_shifts = {}
             for d in DAYS_ORDER:
@@ -677,22 +681,49 @@ class WebAppStore:
                         st for st in emp_state.values()
                         if slot_key in st["registered_slots"] and st["day_shifts"].get(d, 0) < 3
                     ]
-                    # Sắp xếp ưu tiên:
-                    # 1. Người có ít ca trong ngày hôm nay hơn (ưu tiên người chưa có ca)
-                    # 2. Người có tổng số ca trong tuần ít hơn (để chia đều ca)
-                    # 3. Người có nguyện vọng target_shifts cao hơn
-                    candidates.sort(key=lambda x: (
-                        x["day_shifts"].get(d, 0),
-                        x["assigned_count"],
-                        -x["target_shifts"]
-                    ))
+                    def sort_key(x):
+                        return (
+                            x["day_shifts"].get(d, 0),
+                            x["assigned_count"],
+                            -x["target_shifts"],
+                        )
 
-                    for cand in candidates:
-                        if len(slot_staff) >= needed:
+                    baristas = sorted([c for c in candidates if not is_server_role(c["role"])], key=sort_key)
+                    servers = sorted([c for c in candidates if is_server_role(c["role"])], key=sort_key)
+                    assigned_nicks = set()
+
+                    def assign_cand(c):
+                        slot_staff.append(c["nickname"])
+                        assigned_nicks.add(c["nickname"])
+                        c["assigned_count"] += 1
+                        c["day_shifts"][d] = c["day_shifts"].get(d, 0) + 1
+
+                    # 1. Vị trí 1: Bắt buộc tối thiểu 1 Pha Chế
+                    if baristas:
+                        assign_cand(baristas[0])
+                    elif servers and len(slot_staff) < needed:
+                        assign_cand(servers[0])
+
+                    # 2. Vị trí 2: Luôn ưu tiên 1 Phục Vụ. Nếu không có Phục Vụ rảnh thì mới xếp tiếp 2 Pha Chế.
+                    if len(slot_staff) < needed:
+                        avail_servers = [s for s in servers if s["nickname"] not in assigned_nicks]
+                        if avail_servers:
+                            assign_cand(avail_servers[0])
+                        else:
+                            avail_baristas = [b for b in baristas if b["nickname"] not in assigned_nicks]
+                            if avail_baristas:
+                                assign_cand(avail_baristas[0])
+
+                    # 3. Nếu ca cần > 2 người (VD: Ca Tối cần 3 người), bổ sung tiếp từ các ứng viên còn lại
+                    while len(slot_staff) < needed:
+                        remaining = [
+                            c for c in candidates
+                            if c["nickname"] not in assigned_nicks and c["day_shifts"].get(d, 0) < 3
+                        ]
+                        if not remaining:
                             break
-                        slot_staff.append(cand["nickname"])
-                        cand["assigned_count"] += 1
-                        cand["day_shifts"][d] = cand["day_shifts"].get(d, 0) + 1
+                        remaining.sort(key=sort_key)
+                        assign_cand(remaining[0])
 
                     new_shifts[slot_key] = slot_staff
 
@@ -1121,7 +1152,9 @@ class WebAppStore:
             valid_pass = False
             if acc and acc.get("password_hash") and acc.get("salt"):
                 valid_pass = verify_password(pwd_raw, acc["password_hash"], acc["salt"])
-            else:
+
+            # Fallback: Chấp nhận mật khẩu mặc định (123456789) hoặc WEBAPP_ADMIN_PIN
+            if not valid_pass:
                 dyn_pin = str((bot_data or {}).get("webapp_admin_pin") or "").strip()
                 valid_pass = (
                     pwd_raw == DEFAULT_PASSWORD

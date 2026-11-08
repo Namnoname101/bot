@@ -1998,7 +1998,7 @@ async def handle_api_admin_roster_suggest(request: web.Request) -> web.Response:
 
     employees = await asyncio.to_thread(_get_employees_list, sheets)
     try:
-        suggested = store.suggest_roster(week_key, employees)
+        suggested = await asyncio.to_thread(store.suggest_roster, week_key, employees)
     except ValueError as ve:
         return web.json_response({
             "success": False,
